@@ -17,11 +17,12 @@ export class HarnessUsageMeter extends LightElement {
 		return html`
 		<section class="usage">
 			<div class="usage-heading">
-				<span class="eyebrow muted">Usage / simulated</span>
+				<span class="eyebrow muted">Usage</span>
 				<button
-					data-action="limits"
-					title="Edit usage limits"
-					aria-label="Edit usage limits"
+					data-action="page"
+					data-page="global-settings"
+					title="Edit global usage limits"
+					aria-label="Edit global usage limits"
 				>
 					${renderIcon(SlidersHorizontal)}
 				</button>
@@ -32,7 +33,7 @@ export class HarnessUsageMeter extends LightElement {
 			<progress
 				max=${this.limits.copilot}
 				value="18"
-				aria-label="Simulated Copilot usage"
+				aria-label="Copilot request usage"
 			></progress>
 			<div class="usage-label">
 				<span>Interpreter calls</span><span class="mono">42 / ${this.limits.interpreter}</span>
@@ -40,7 +41,7 @@ export class HarnessUsageMeter extends LightElement {
 			<progress
 				max=${this.limits.interpreter}
 				value="42"
-				aria-label="Simulated interpreter usage"
+				aria-label="Interpreter call usage"
 			></progress>
 		</section>
 		`;

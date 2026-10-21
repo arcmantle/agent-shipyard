@@ -3,7 +3,7 @@ import { live } from 'lit/directives/live.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { when } from 'lit/directives/when.js';
-import { ChevronDown, Plug, RotateCcw, Save, Unplug, X } from 'lucide';
+import { BookOpen, ChevronDown, FolderGit2, Gauge, GitBranch, Plug, RotateCcw, Save, Unplug, Users, X } from 'lucide';
 import {
 	SettingsController,
 	money,
@@ -15,13 +15,25 @@ import {
 } from '../settings.js';
 import { LightElement } from './light-element.js';
 import { renderIcon } from './render-icon.js';
+import type { RepositoryModel } from './repository-header.js';
+import './project-controls.js';
 import './selector.js';
+
+const settingsAreas = [
+	{ id: 'details', title: 'Project', icon: FolderGit2 },
+	{ id: 'context', title: 'Context', icon: BookOpen },
+	{ id: 'wayfinder', title: 'Wayfinder', icon: GitBranch },
+	{ id: 'limits', title: 'Usage and limits', icon: Gauge },
+	{ id: 'workers', title: 'Workers and approvals', icon: Users },
+	{ id: 'providers', title: 'Providers and models', icon: Plug },
+];
 
 export class HarnessSettingsPage extends LightElement {
 	static override properties = {
 		controller: { attribute: false },
 		repository: { attribute: false },
 		scope: { attribute: false },
+		projectModel: { attribute: false },
 	};
 
 	constructor() {
@@ -34,6 +46,7 @@ export class HarnessSettingsPage extends LightElement {
 	declare controller: SettingsController | undefined;
 	declare repository: string;
 	declare scope: 'global' | 'project';
+	declare projectModel: RepositoryModel | undefined;
 	protected draft: SettingsValues | undefined;
 	protected overrides = new Set<NumericSetting>();
 	protected customProviders = false;
@@ -41,11 +54,40 @@ export class HarnessSettingsPage extends LightElement {
 	protected approval = 'inherit';
 	protected status = 'Saved';
 	protected error = '';
+	protected area = 'details';
 	protected searches = new Map<ProviderId, string>();
 	protected selectedOnly = new Set<ProviderId>();
 
 	protected override willUpdate(changes: PropertyValues<this>) {
+		if (changes.has('scope')) this.area = this.scope === 'project' ? 'details' : 'limits';
 		if (changes.has('controller') || changes.has('repository') || changes.has('scope')) this.load();
+	}
+
+	protected handleArea(event: Event) {
+		this.area = (event.currentTarget as HTMLElement).dataset.settingsArea!;
+		this.requestUpdate();
+	}
+
+	protected async handleTabKeydown(event: KeyboardEvent) {
+		if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+		if (event.altKey || event.ctrlKey || event.metaKey) return;
+		const tabs = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+		const current = tabs.indexOf((event.target as HTMLElement).closest<HTMLButtonElement>('[role="tab"]')!);
+		if (current < 0) return;
+		event.preventDefault();
+		let index = event.key === 'ArrowLeft' ? current - 1 : current + 1;
+		if (event.key === 'Home') index = 0;
+		if (event.key === 'End') index = tabs.length - 1;
+		const next = tabs[(index + tabs.length) % tabs.length]!;
+		this.area = next.dataset.settingsArea!;
+		this.requestUpdate();
+		await this.updateComplete;
+		next.focus();
+	}
+
+	protected handleProjectSection(event: CustomEvent<{ section: string }>) {
+		this.area = event.detail.section;
+		this.requestUpdate();
 	}
 
 	protected load() {
@@ -66,6 +108,11 @@ export class HarnessSettingsPage extends LightElement {
 
 	refresh() {
 		this.load();
+		this.requestUpdate();
+	}
+
+	showProjectInformation() {
+		this.area = 'details';
 		this.requestUpdate();
 	}
 
@@ -103,9 +150,17 @@ export class HarnessSettingsPage extends LightElement {
 		this.requestUpdate();
 	}
 
-	protected handleSubmit(event: SubmitEvent) {
+	protected async handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		const form = event.currentTarget as HTMLFormElement;
+		const invalid = [...form.querySelectorAll<HTMLInputElement>('input, select, textarea')].find((field) => !field.checkValidity());
+		if (invalid) {
+			this.area = invalid.closest<HTMLElement>('[data-settings-area]')!.dataset.settingsArea!;
+			this.requestUpdate();
+			await this.updateComplete;
+			invalid.reportValidity();
+			return;
+		}
 		if (!form.reportValidity()) return;
 		this.error = this.controller!.save(this.scope, this.repository, new FormData(form));
 		if (!this.error) {
@@ -293,6 +348,9 @@ export class HarnessSettingsPage extends LightElement {
 		if (!this.controller || !this.draft) return nothing;
 		const global = this.controller.global;
 		const project = this.scope === 'project';
+		const areas = project ? settingsAreas : settingsAreas.slice(3);
+		const information = ['details', 'context', 'wayfinder'].includes(this.area);
+		const informationSection = information ? this.area : 'details';
 		const total = Object.values(this.controller.usage).reduce((sum, value) => sum + value, 0);
 		const used = project ? (this.controller.usage[this.repository] ?? 0) : total;
 		const values = project ? this.controller.effective(this.repository) : global;
@@ -307,6 +365,7 @@ export class HarnessSettingsPage extends LightElement {
 		return html`
 		<header class="page-heading">
 			<h1>${project ? 'Project Settings' : 'Global Settings'}</h1>
+			${when(!project, () => html`
 			<button
 				class="icon-button"
 				data-action="close-settings"
@@ -315,8 +374,52 @@ export class HarnessSettingsPage extends LightElement {
 			>
 				${renderIcon(X)}
 			</button>
+			`)}
 		</header>
+		<div
+			class="settings-tabs"
+			role="tablist"
+			aria-label=${project ? 'Project settings' : 'Global settings'}
+			@keydown=${this.handleTabKeydown}
+		>
+			${repeat(areas, (area) => area.id, (area) => html`
+			<button
+				id=${`${this.scope}-settings-${area.id}-tab`}
+				type="button"
+				role="tab"
+				data-settings-area=${area.id}
+				aria-controls=${`${this.scope}-settings-${area.id}-panel`}
+				aria-selected=${this.area === area.id}
+				.tabIndex=${this.area === area.id ? 0 : -1}
+				@click=${this.handleArea}
+			>${renderIcon(area.icon)}${area.title}</button>
+			`)}
+		</div>
 		<div class="settings-content">
+			${when(project, () => html`
+			<harness-project-controls
+				.repository=${this.projectModel}
+				.repositoryId=${this.repository}
+				.section=${informationSection}
+				?hidden=${!information}
+				@harness-project-section-change=${this.handleProjectSection}
+			></harness-project-controls>
+			`)}
+			<form
+				data-form="settings"
+				data-scope=${this.scope}
+				?hidden=${information}
+				novalidate
+				@input=${this.handleInput}
+				@submit=${this.handleSubmit}
+			>
+			<div
+				id=${`${this.scope}-settings-limits-panel`}
+				role="tabpanel"
+				aria-labelledby=${`${this.scope}-settings-limits-tab`}
+				data-settings-area="limits"
+				?hidden=${this.area !== 'limits'}
+			>
 			<section class="settings-usage">
 				<div class="section-label">
 					<h2>Usage</h2>
@@ -341,12 +444,6 @@ export class HarnessSettingsPage extends LightElement {
 					</div>
 				</dl>
 			</section>
-			<form
-				data-form="settings"
-				data-scope=${this.scope}
-				@input=${this.handleInput}
-				@submit=${this.handleSubmit}
-			>
 				<section class="settings-section">
 					<h2>Cost Controls</h2>
 					<div class="settings-fields">
@@ -374,7 +471,15 @@ export class HarnessSettingsPage extends LightElement {
 							)}
 					</div>
 				</section>
-				<section class="settings-section">
+			</div>
+				<section
+					class="settings-section"
+					id=${`${this.scope}-settings-workers-panel`}
+					role="tabpanel"
+					aria-labelledby=${`${this.scope}-settings-workers-tab`}
+					data-settings-area="workers"
+					?hidden=${this.area !== 'workers'}
+				>
 					<h2>Workers And Approvals</h2>
 					<div class="settings-fields">
 						${this.renderNumber(
@@ -389,6 +494,7 @@ export class HarnessSettingsPage extends LightElement {
 								)
 							)}
 					</div>
+					<div class="settings-approvals">
 					${when(
 							project,
 							() => html`
@@ -429,8 +535,16 @@ export class HarnessSettingsPage extends LightElement {
 							disabled
 						/>Final merge approval required</label
 					>
+					</div>
 				</section>
-				<section class="settings-section">
+				<section
+					class="settings-section"
+					id=${`${this.scope}-settings-providers-panel`}
+					role="tabpanel"
+					aria-labelledby=${`${this.scope}-settings-providers-tab`}
+					data-settings-area="providers"
+					?hidden=${this.area !== 'providers'}
+				>
 					<h2>Providers And Models</h2>
 					${when(
 							project,
@@ -477,23 +591,35 @@ export class HarnessSettingsPage extends LightElement {
 				>
 					${this.error}
 				</p>
-				<div class="dialog-actions">
-					<span data-settings-status>${this.status}</span>
+				<div
+					class="settings-actions"
+					role="group"
+					aria-label="Settings actions"
+				>
 					${when(
 							project,
 							() =>
 								html`<button
+								class="icon-button"
 								type="button"
+								title="Use global defaults"
+								aria-label="Use global defaults"
 								@click=${this.handleDefaults}
 							>
-								${renderIcon(RotateCcw)}Use Global Defaults
+								${renderIcon(RotateCcw)}
 							</button>`
 						)}
+					<span
+						data-settings-status
+						role="status"
+					>${this.status}</span>
 					<button
-						class="primary"
+						class="icon-button primary"
 						type="submit"
+						title="Save settings"
+						aria-label="Save settings"
 					>
-						${renderIcon(Save)}Save settings
+						${renderIcon(Save)}
 					</button>
 				</div>
 			</form>

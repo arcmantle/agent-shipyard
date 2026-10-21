@@ -5,19 +5,23 @@ import { styleMap } from 'lit/directives/style-map.js';
 import { when } from 'lit/directives/when.js';
 import {
 	ArrowUpRight,
+	Check,
 	FileDiff,
 	FolderGit2,
 	FolderOpen,
 	Inbox,
+	ListTree,
 	PanelLeftClose,
 	PanelLeftOpen,
 	PanelRightClose,
 	PanelRightOpen,
 	Moon,
+	NotebookPen,
 	Plus,
 	RotateCcw,
 	Search,
 	Send,
+	Settings2,
 	Sun,
 	X,
 } from 'lucide';
@@ -272,6 +276,7 @@ export class HarnessApplication extends HarnessApplicationState {
 	}
 
 	protected renderRepositories() {
+		const current = this.repositories[this.repository]!;
 		const matches = Object.entries(this.repositories).filter((entry) =>
 			[entry[1].name, entry[1].path, entry[1].projectIdentity, entry[1].tenant]
 				.join(' ')
@@ -280,28 +285,69 @@ export class HarnessApplication extends HarnessApplicationState {
 		);
 		return html`
 		<header class="page-heading">
-			<h1>Repositories</h1>
+			<h1>Projects</h1>
 			<button
 				class="primary"
 				data-action="open-folder"
 			>
-				${renderIcon(FolderOpen)}Open folder
+				${renderIcon(FolderOpen)}Add project
 			</button>
 		</header>
 		<div class="repositories-content">
+			${when(this.projectOpen, () => html`
+			<section class="project-current-summary" aria-label="Current project">
+				<div class="project-summary-icon">${renderIcon(FolderGit2)}</div>
+				<div class="project-summary-content">
+					<div class="eyebrow muted">Current project</div>
+					<h2>${current.name}</h2>
+					<p class="mono muted">${current.path}</p>
+				</div>
+				<div class="project-summary-actions">
+					<button
+						class="primary"
+						data-action="repository-open"
+						data-id=${this.repository}
+					>${renderIcon(ArrowUpRight)}Return to workspace</button>
+					<button
+						data-action="page"
+						data-page="project-settings"
+						title="Project settings"
+						aria-label="Project settings"
+					>
+						${renderIcon(Settings2)}Project settings
+					</button>
+					<button
+						class="icon-button"
+						data-action="project-close"
+						title="Close project"
+						aria-label="Close project"
+					>
+						${renderIcon(X)}
+					</button>
+				</div>
+			</section>
+			`, () => html`
+			<section class="project-current-summary" aria-label="No project selected">
+				<div class="project-summary-icon">${renderIcon(FolderOpen)}</div>
+				<div class="project-summary-content">
+					<div class="eyebrow muted">Workspace</div>
+					<h2>No project selected</h2>
+				</div>
+			</section>
+			`)}
 			<div class="repository-search">
-				<label for="repository-search">Search repositories</label>
+				<label for="repository-search">Find a project</label>
 				<div>
 					${renderIcon(Search)}<input
 						id="repository-search"
 						type="search"
 						.value=${live(this.repositoryQuery)}
-						placeholder="Name, project, or path"
+						placeholder="Search by name, location, or identity"
 					/>
 				</div>
 			</div>
 			<div class="repository-list-heading">
-				<h2>Configured repositories</h2>
+				<h2>All projects</h2>
 				<span class="muted">${matches.length} / ${Object.keys(this.repositories).length}</span>
 			</div>
 			<ul class="repository-list">
@@ -309,34 +355,48 @@ export class HarnessApplication extends HarnessApplicationState {
 						matches,
 						(entry) => entry[0],
 						([id, repository]) => html`
-						<li class="repository-row">
-							<div class="repository-name">
-								${renderIcon(FolderGit2)}
-								<div>
-									<h3>${repository.name}</h3>
-									<p class="mono muted">${repository.path}</p>
-									${when(
-											id === this.repository,
-											() => html`<span class="repository-current">Selected</span>`
-										)}
-								</div>
-							</div>
-							<div class="repository-identity">
-								<span class="eyebrow muted">Agent Issues project</span
-								><strong>${repository.projectIdentity || 'Not connected'}</strong
-								><span class="muted">${repository.tenant}</span>
-							</div>
-							<div class="repository-run">
-								<span class="status"
-									>${id === 'agent-issues' ? this.runLabel : 'No active run'}</span
-								><span class="muted">${repository.initiatives.length} initiatives</span>
-							</div>
+						<li
+							class="repository-row project-entry"
+							data-current=${String(this.projectOpen && id === this.repository)}
+						>
 							<button
+								class="project-choice"
 								data-action="repository-open"
 								data-id=${id}
 								aria-label=${`Open ${repository.name}`}
+								aria-current=${String(this.projectOpen && id === this.repository)}
+								aria-describedby=${`project-path-${id} project-identity-${id}`}
 							>
-								${renderIcon(ArrowUpRight)}Open
+								<span class="project-choice-icon">${renderIcon(FolderGit2)}</span>
+								<span class="project-choice-name">
+									<strong>${repository.name}</strong>
+									<span
+										class="mono muted"
+										id=${`project-path-${id}`}
+									>${repository.path}</span>
+								</span>
+								<span class="project-choice-identity" id=${`project-identity-${id}`}>
+									<strong>${repository.projectIdentity || 'Not connected'}</strong>
+									<span class="muted">${repository.tenant}</span>
+								</span>
+								<span class="project-choice-work">
+									<span>${repository.initiatives.length} initiatives</span>
+									<span class="muted">${id === 'agent-issues' ? this.runLabel : 'No active run'}</span>
+								</span>
+								<span class="project-choice-action">
+									${when(this.projectOpen && id === this.repository,
+										() => html`${renderIcon(Check)}<span>Current</span>`,
+										() => html`${renderIcon(ArrowUpRight)}<span>Open project</span>`)}
+								</span>
+							</button>
+							<button
+								class="project-entry-settings"
+								data-action="repository-settings"
+								data-id=${id}
+								aria-label=${`Settings for ${repository.name}`}
+								title=${`Settings for ${repository.name}`}
+							>
+								${renderIcon(Settings2)}Settings
 							</button>
 						</li>
 						`
@@ -344,8 +404,71 @@ export class HarnessApplication extends HarnessApplicationState {
 			</ul>
 			${when(
 					!matches.length,
-					() => html`<div class="repository-empty"><h3>No repositories found</h3></div>`
+					() => html`
+					<div class="repository-empty">
+						<img
+							class="octopus-illustration"
+							src="/helm-mark.svg"
+							alt=""
+							width="40"
+							height="40"
+						/>
+						<h3>No projects found</h3>
+					</div>
+					`
 				)}
+		</div>
+		`;
+	}
+
+	protected renderInitiatives() {
+		const project = this.repositories[this.repository]!;
+		return html`
+		<header class="page-heading">
+			<h1 tabindex="-1">Initiatives</h1>
+			<button
+				class="primary"
+				data-action="page"
+				data-page="planning"
+			>
+				${renderIcon(NotebookPen)}Start planning
+			</button>
+		</header>
+		<div class="repositories-content">
+			<div class="repository-list-heading">
+				<h2>${project.name}</h2>
+				<span class="muted">${project.initiatives.length} initiatives</span>
+			</div>
+			<ul class="repository-list">
+				${repeat(project.initiatives, (id) => id, (id) => html`
+				<li class="repository-row">
+					<button
+						class="project-choice initiative-choice"
+						data-action="initiative-open"
+						data-id=${id}
+						aria-label=${`Open ${initiatives[id]!.title}`}
+						aria-current=${String(this.projectOpen && id === this.initiative)}
+					>
+						<span class="project-choice-icon">${renderIcon(ListTree)}</span>
+						<span class="project-choice-name">
+							<strong>${initiatives[id]!.title}</strong>
+							<span class="muted">${initiatives[id]!.summary}</span>
+						</span>
+						<span class="project-choice-work">
+							${when(id === 'harness', () => html`${this.runLabel}`, () => html`No active run`)}
+						</span>
+						<span class="project-choice-action">
+							${when(id === this.initiative,
+								() => html`${renderIcon(Check)}<span>Current</span>`,
+								() => html`${renderIcon(ArrowUpRight)}<span>Open initiative</span>`)}
+						</span>
+					</button>
+				</li>
+				`)}
+			</ul>
+			${when(!project.initiatives.length, () => html`
+			<div class="repository-empty"><h3>No initiatives</h3></div>
+			`)}
 		</div>
 		`;
 	}
@@ -353,7 +476,7 @@ export class HarnessApplication extends HarnessApplicationState {
 	protected override render() {
 		const currentPlanning = this.planning.current;
 		const run = initiatives[this.initiative];
-		const sidebar = ['workspace', 'planning', 'project-settings'].includes(this.page);
+		const sidebar = ['workspace', 'planning'].includes(this.page);
 		return html`
 		<div
 			class="review-layout"
@@ -371,6 +494,7 @@ export class HarnessApplication extends HarnessApplicationState {
 			<harness-application-navigation
 				class="application-navigation"
 				.page=${this.page}
+				.projectOpen=${this.projectOpen}
 			></harness-application-navigation>
 			<div class="navigation-tools">
 				<button
@@ -395,8 +519,13 @@ export class HarnessApplication extends HarnessApplicationState {
 				.hidden=${live(!sidebar || !this.drawerOpen)}
 			>
 				<div class="tablet-drawer-header">
-					<strong>Navigation</strong
-					><button
+					<strong
+						class="brand current-project"
+						title=${this.repositories[this.repository]!.name}
+					>
+						<span>${renderIcon(FolderGit2)}</span><span>${this.repositories[this.repository]!.name}</span>
+					</strong>
+					<button
 						class="icon-button"
 						data-action="drawer"
 						aria-controls="navigation-drawer"
@@ -415,7 +544,7 @@ export class HarnessApplication extends HarnessApplicationState {
 				></harness-repository-sidebar>
 			</div>
 			${when(
-					this.drawerOpen,
+					sidebar && this.drawerOpen,
 					() =>
 						html`<button
 						class="drawer-backdrop"
@@ -648,6 +777,13 @@ export class HarnessApplication extends HarnessApplicationState {
 					</div>
 				</section>
 				<section
+					class="workspace initiatives-page"
+					data-page-panel="initiatives"
+					.hidden=${live(this.page !== 'initiatives')}
+				>
+					${this.renderInitiatives()}
+				</section>
+				<section
 					class="workspace repositories-page"
 					data-page-panel="repositories"
 					.hidden=${live(this.page !== 'repositories')}
@@ -674,6 +810,7 @@ export class HarnessApplication extends HarnessApplicationState {
 						.controller=${this.settings}
 						.repository=${this.repository}
 						.scope=${'project'}
+						.projectModel=${this.repositories[this.repository]}
 					></harness-settings-page>
 				</section>
 			</main>

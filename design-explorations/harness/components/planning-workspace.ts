@@ -150,7 +150,7 @@ export class HarnessPlanningWorkspace extends LightElement {
 				${when(
 						model.questions.length,
 						() => html`
-						<div class="eyebrow muted">Questions / ${model.questions.length}</div>
+						<div class="planner-questions-heading">Questions <span>${model.questions.length}</span></div>
 						<form
 							data-form="planning-answer"
 							data-mode=${model.mode}
@@ -160,25 +160,32 @@ export class HarnessPlanningWorkspace extends LightElement {
 									(question) => question.index,
 									(question, position) => html`
 									<div class="planner-question-field">
-										<div class="eyebrow muted">
+										<span
+											class="planner-question-number"
+											aria-hidden="true"
+										>${String(position + 1).padStart(2, '0')}</span>
+										<div class="planner-question-prompt">
+											<div class="eyebrow muted">
 											${choose(model.mode, [
-													['pioneer', () => `Active ticket / ${question.title}`],
+													['pioneer', () => question.title],
 													['plan', () => `Question ${question.index + 1} / ${model.questionCount}`],
 												])}
+											</div>
+											<h3 id=${`planning-question-${question.index}`}>
+												<label for=${`planning-answer-${question.index}`}>${question.question}</label>
+											</h3>
 										</div>
-										<h3>${question.question}</h3>
-										<label for=${`planning-answer-${question.index}`}
-											>Answer ${position + 1}</label
-										>
-										<textarea
+										<div class="planner-answer">
+											<textarea
 											id=${`planning-answer-${question.index}`}
 											data-planning-question=${question.index}
 											name=${`answer-${question.index}`}
-											rows="3"
+												rows="4"
 											.value=${live(model.drafts[question.index] ?? '')}
 											?disabled=${model.paused}
 											required
-										></textarea>
+											></textarea>
+										</div>
 									</div>
 									`
 								)}

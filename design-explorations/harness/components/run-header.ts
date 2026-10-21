@@ -32,7 +32,7 @@ export class HarnessRunHeader extends LightElement {
 		return html`
 		<header class="run-header">
 			<div>
-				${when(model.brand, () => html` <div class="brand">agent-issues / harness</div> `)}
+				${when(model.brand, () => html` <div class="brand">Shipyard / Helm</div> `)}
 				<h1>${model.title}</h1>
 				<div class="run-subtitle">
 					${when(
@@ -49,7 +49,7 @@ export class HarnessRunHeader extends LightElement {
 					model.browsing,
 					() => html`
 					<button data-action="active-run">
-						${renderIcon(ArrowLeft)}agent-issues / ${model.label}
+						${renderIcon(ArrowLeft)}shipyard / ${model.label}
 					</button>
 					`,
 					() => html`

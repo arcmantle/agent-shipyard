@@ -52,6 +52,8 @@ async function highlightLine(line: number) {
 		new MouseEvent('mouseup', { bubbles: true })
 	);
 	await settle();
+	expect(application!.querySelector('.review-inline-feedback')).toBeNull();
+	await click('.review-line-comment');
 }
 
 function fill(selector: string, value: string) {
@@ -139,6 +141,160 @@ describe('Single-document Harness', () => {
 		expect(app.querySelector('[data-empty="merge"]')).not.toBeNull();
 	});
 
+	it('shows the selected project name in the sidebar header', async () => {
+		const app = await mount();
+		const heading = () => app.querySelector('.tablet-drawer-header .current-project')!.textContent!.trim();
+		expect(heading()).toBe('shipyard');
+		expect(app.querySelector('.tablet-drawer-header [data-page="repositories"]')).toBeNull();
+		expect(app.querySelector('.rail-project .current-project')).toBeNull();
+		expect(app.querySelector('[aria-label="Switch project"]')).toBeNull();
+		expect(app.querySelectorAll('.project-summary-actions .icon-button')).toHaveLength(1);
+		expect(app.querySelector('.project-summary-actions [aria-label="Project settings"]')!.getAttribute('title')).toBe('Project settings');
+		expect(app.querySelector('.project-summary-actions [aria-label="Close project"]')!.getAttribute('title')).toBe('Close project');
+		expect(app.querySelector('.tablet-drawer-header .current-project svg')).not.toBeNull();
+		expect(app.querySelector('harness-repository-header .current-project')).toBeNull();
+		expect(app.querySelector('harness-repository-header .repository-settings')).toBeNull();
+		const details = app.querySelector<HTMLDetailsElement>('.repository-disclosure')!;
+		expect(details.open).toBe(false);
+		expect(details.querySelector('summary span')!.textContent).toBe('Project details');
+		await click('.repository-disclosure > summary');
+		expect(details.open).toBe(true);
+		expect([...app.querySelectorAll('.repository-details dt')].map(label => label.textContent)).toEqual(['Project', 'Tenant']);
+		const path = app.querySelector('.repository-path')!;
+		expect(path.textContent!.trim()).toBe(path.getAttribute('title'));
+		await click('.repository-disclosure > summary');
+		expect(details.open).toBe(false);
+		await click('.application-navigation [data-page="repositories"]');
+		const open = app.querySelector<HTMLElement>('[data-action="repository-open"]:not([data-id="agent-issues"])')!;
+		const name = open.getAttribute('aria-label')!.replace(/^Open /, '');
+		open.click();
+		await settle();
+		expect(heading()).toBe(name);
+	});
+
+	it('switches projects from the project chooser and restores initiative selection', async () => {
+		const app = await mount();
+		expect(app.querySelector('harness-repository-sidebar harness-selector')).toBeNull();
+		await click('.application-navigation [data-page="initiatives"]');
+		await click('.initiative-choice[data-id="navigation"]');
+		expect(app.querySelector('.initiative-current-title')!.textContent).toBe('Tracker navigation');
+		await click('.application-navigation [data-page="repositories"]');
+		expect(location.search).toBe('?page=repositories');
+		expect(document.activeElement).toBe(app.querySelector('#repository-search'));
+		expect(app.querySelector('[data-page-panel="repositories"] h1')!.textContent).toBe('Projects');
+		expect(app.querySelectorAll('.repositories-page .project-choice')).toHaveLength(3);
+		fill('#repository-search', 'studio');
+		await settle();
+		expect(app.querySelectorAll('.repositories-page .project-choice')).toHaveLength(1);
+		await click('.project-choice[data-id="studio-site"]');
+		expect(location.search).toBe('?page=workspace');
+		expect(app.querySelector('.tablet-drawer-header .current-project')!.textContent).toContain('studio-site');
+		await click('.application-navigation [data-page="repositories"]');
+		fill('#repository-search', '');
+		await settle();
+		await click('.project-choice[data-id="agent-issues"]');
+		expect(app.querySelector('.initiative-current-title')!.textContent).toBe('Tracker navigation');
+	});
+
+	it('closes the project and restores its initiative when it is reopened', async () => {
+		const app = await mount();
+		await click('.application-navigation [data-page="initiatives"]');
+		await click('.initiative-choice[data-id="navigation"]');
+		await click('.application-navigation [data-page="repositories"]');
+		await click('[data-action="project-close"]');
+		expect(new URL(location.href).searchParams.get('project')).toBe('none');
+		expect(document.activeElement).toBe(app.querySelector('#repository-search'));
+		expect(app.querySelector('[aria-label="No project selected"]')).not.toBeNull();
+		expect(app.querySelector('[aria-label="Current project"]')).toBeNull();
+		expect(app.querySelector('.project-choice[aria-current="true"]')).toBeNull();
+		expect(app.querySelector('.application-navigation [data-page="workspace"]')).toBeNull();
+		expect(app.querySelector('.application-navigation [data-page="initiatives"]')).toBeNull();
+		expect(app.querySelector('.application-navigation [data-page="planning"]')).toBeNull();
+		expect(app.querySelector<HTMLElement>('#navigation-drawer')!.hidden).toBe(true);
+		await click('.application-navigation [data-page="global-settings"]');
+		expect(new URL(location.href).searchParams.get('project')).toBe('none');
+		await click('.application-navigation [data-page="repositories"]');
+		await click('.project-choice[data-id="agent-issues"]');
+		expect(new URL(location.href).searchParams.has('project')).toBe(false);
+		expect(app.querySelector('.initiative-current-title')!.textContent).toBe('Tracker navigation');
+	});
+
+	it('selects initiatives from their own project menu', async () => {
+		const app = await mount('initiatives');
+		expect(app.querySelector('.application-navigation [data-page="repositories"] .page-tooltip')!.textContent!.trim()).toBe('Projects');
+		expect(app.querySelector('.application-navigation [data-page="initiatives"]')!.getAttribute('aria-current')).toBe('page');
+		expect(app.querySelectorAll('.initiative-choice')).toHaveLength(2);
+		expect(app.querySelector('harness-repository-sidebar .initiative-list')).toBeNull();
+		expect(app.querySelector('harness-repository-sidebar [data-page="initiatives"]')).toBeNull();
+		expect(app.querySelectorAll('.application-navigation [data-page="initiatives"]')).toHaveLength(1);
+		expect(app.querySelector<HTMLElement>('#navigation-drawer')!.hidden).toBe(true);
+		await click('.initiative-choice[data-id="navigation"]');
+		expect(location.search).toBe('?page=workspace');
+		expect(app.querySelector('.initiative-current-title')!.textContent).toBe('Tracker navigation');
+		expect(document.activeElement).toBe(app.querySelector('[data-page-panel="workspace"] h1'));
+		await click('.application-navigation [data-page="initiatives"]');
+		expect(location.search).toBe('?page=initiatives');
+		expect(document.activeElement).toBe(app.querySelector('[data-page-panel="initiatives"] h1'));
+		expect(app.querySelector('.initiative-choice[aria-current="true"]')!.getAttribute('data-id')).toBe('navigation');
+		await click('.application-navigation [data-page="repositories"]');
+		await click('.project-choice[data-id="studio-site"]');
+		await click('.application-navigation [data-page="initiatives"]');
+		expect(app.querySelectorAll('.initiative-choice')).toHaveLength(1);
+		expect(app.querySelector('.initiative-choice')!.getAttribute('data-id')).toBe('studio');
+	});
+
+	it('opens the current project information directly from the root navigation', async () => {
+		const app = await mount();
+		const projectLink = '.application-navigation [data-page="project-settings"]';
+		for (const link of app.querySelectorAll('.application-navigation a')) {
+			const tooltip = link.querySelector('.page-tooltip')!;
+			expect(tooltip.textContent!.trim()).toBe(link.getAttribute('aria-label'));
+			expect(tooltip.getAttribute('aria-hidden')).toBe('true');
+		}
+		await click(projectLink);
+		expect(location.search).toBe('?page=project-settings');
+		expect(app.querySelector(projectLink)!.getAttribute('aria-current')).toBe('page');
+		expect(app.querySelector<HTMLElement>('#navigation-drawer')!.hidden).toBe(true);
+		expect(app.querySelector('.review-layout')!.getAttribute('data-sidebar')).toBe('false');
+		expect(app.querySelector<HTMLElement>('.application-toolbar [data-action="drawer"]')!.hidden).toBe(true);
+		expect(app.querySelector('.drawer-backdrop')).toBeNull();
+		expect(app.querySelector('#project-settings-details-tab')!.getAttribute('aria-selected')).toBe('true');
+		await click('#project-settings-context-tab');
+		await click(projectLink);
+		expect(location.search).toBe('?page=project-settings');
+		expect(app.querySelector('#project-settings-details-tab')!.getAttribute('aria-selected')).toBe('true');
+		await click('.application-navigation [data-page="repositories"]');
+		await click('.repositories-page .project-choice[data-id="studio-site"]');
+		await click(projectLink);
+		expect(app.querySelector<HTMLInputElement>('[data-page-panel="project-settings"] [name="name"]')!.value).toBe('studio-site / example');
+	});
+
+	it('requires a project before opening the initiatives menu', async () => {
+		const app = await mount('initiatives&project=none');
+		expect(app.querySelector<HTMLElement>('[data-page-panel="repositories"]')!.hidden).toBe(false);
+		expect(app.querySelector<HTMLElement>('[data-page-panel="initiatives"]')!.hidden).toBe(true);
+		expect(app.querySelector('.application-navigation [data-page="initiatives"]')).toBeNull();
+		expect(app.querySelector('.application-navigation [data-page="project-settings"]')).toBeNull();
+	});
+
+	it('opens the no-project preview instead of a project-only route', async () => {
+		const app = await mount('planning&project=none');
+		expect(app.querySelector<HTMLElement>('[data-page-panel="repositories"]')!.hidden).toBe(false);
+		expect(app.querySelector<HTMLElement>('[data-page-panel="planning"]')!.hidden).toBe(true);
+		expect(app.querySelector('[aria-label="Current project"]')).toBeNull();
+		expect(app.querySelectorAll('.repositories-page .project-choice')).toHaveLength(3);
+		expect(app.querySelector('.project-choice[aria-current="true"]')).toBeNull();
+		expect(app.querySelector('.application-navigation [data-page="global-settings"]')!.getAttribute('href')).toContain('project=none');
+		await click('.project-choice[data-id="studio-site"]');
+		expect(new URL(location.href).searchParams.has('project')).toBe(false);
+		expect(app.querySelector('.tablet-drawer-header .current-project')!.textContent).toContain('studio-site');
+		history.replaceState(null, '', '/?page=repositories&project=none');
+		window.dispatchEvent(new PopStateEvent('popstate'));
+		await settle();
+		expect(app.querySelector('[aria-label="No project selected"]')).not.toBeNull();
+		expect(app.querySelector('.application-navigation [data-page="workspace"]')).toBeNull();
+	});
+
 	it('collapses navigation from inside the sidebar and returns focus to the visible control', async () => {
 		const app = await mount();
 		const drawer = app.querySelector<HTMLElement>('#navigation-drawer')!;
@@ -159,20 +315,88 @@ describe('Single-document Harness', () => {
 		expect(document.activeElement).toBe(reopen);
 	});
 
-	it('closes project settings without saving or losing its draft', async () => {
+	it('opens global usage limits from the sidebar', async () => {
+		const app = await mount();
+		expect(app.querySelector('.usage-heading .eyebrow')!.textContent).toBe('Usage');
+		await click('harness-usage-meter [aria-label="Edit global usage limits"]');
+		expect(location.search).toBe('?page=global-settings');
+		const settings = [...app.querySelectorAll('harness-settings-page')].find(page => page.scope === 'global')!;
+		expect(settings.closest<HTMLElement>('[data-page-panel]')!.hidden).toBe(false);
+		expect(settings.querySelector<HTMLInputElement>('#global-copilotRequests')!.value).toBe('40');
+		expect(settings.querySelector<HTMLInputElement>('#global-interpreterCalls')!.value).toBe('250');
+		const save = settings.querySelector<HTMLButtonElement>('.settings-actions [aria-label="Save settings"]')!;
+		expect(save.type).toBe('submit');
+		expect(save.title).toBe('Save settings');
+		expect(save.textContent!.trim()).toBe('');
+		expect(settings.querySelector('.settings-actions [role="status"]')!.textContent).toBe('Saved');
+		expect(save.previousElementSibling).toBe(settings.querySelector('[data-settings-status]'));
+		expect(settings.querySelectorAll('.settings-approvals > .settings-toggle')).toHaveLength(3);
+	});
+
+	it('separates settings responsibilities and retains drafts across tabs', async () => {
+		const app = await mount('project-settings');
+		const settings = app.querySelector('[data-page-panel="project-settings"] harness-settings-page')!;
+		const tabs = [...settings.querySelectorAll<HTMLButtonElement>('.settings-tabs [role="tab"]')];
+		expect(tabs.map(tab => tab.textContent!.trim())).toEqual([
+			'Project', 'Context', 'Wayfinder', 'Usage and limits', 'Workers and approvals', 'Providers and models',
+		]);
+		expect(settings.querySelector('.project-prototype-switcher')).toBeNull();
+		for (const tab of tabs) {
+			await click(`#${tab.id}`);
+			expect(tab.getAttribute('aria-selected')).toBe('true');
+			const panels = [...settings.querySelectorAll<HTMLElement>('[role="tabpanel"]')].filter(panel => !panel.closest('[hidden]'));
+			expect(panels).toHaveLength(1);
+			expect(panels[0]!.id).toBe(tab.getAttribute('aria-controls'));
+		}
+		await click('#project-settings-context-tab');
+		fill('harness-project-controls [name="purpose"]', 'Retain this project context.');
+		await click('#project-settings-limits-tab');
+		await click('#project-settings-context-tab');
+		expect(settings.querySelector<HTMLTextAreaElement>('[name="purpose"]')!.value).toBe('Retain this project context.');
+		const context = settings.querySelector<HTMLButtonElement>('#project-settings-context-tab')!;
+		context.focus();
+		context.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+		await settle();
+		expect(document.activeElement?.id).toBe('project-settings-wayfinder-tab');
+		expect(settings.querySelector('[aria-selected="true"]')!.id).toBe('project-settings-wayfinder-tab');
+	});
+
+	it('retains project settings drafts when reopened from Projects', async () => {
 		const app = await mount('project-settings');
 		const settings = [...app.querySelectorAll('harness-settings-page')].find(page => page.scope === 'project')!;
+		expect(settings.querySelector('[aria-label="Close settings"]')).toBeNull();
+		expect(settings.querySelectorAll('.settings-approvals > .settings-toggle')).toHaveLength(2);
+		expect(settings.querySelector('.settings-actions [aria-label="Use global defaults"]')!.getAttribute('title')).toBe('Use global defaults');
+		await click('#project-settings-limits-tab');
 		settings.querySelector<HTMLInputElement>('[name="override-budget"]')!.click();
 		await settle();
 		fill('#project-budget', '75');
 		await settle();
-		settings.querySelector<HTMLElement>('[aria-label="Close settings"]')!.click();
-		await settle();
+		await click('.application-navigation [data-page="workspace"]');
 		expect(location.search).toBe('?page=workspace');
-		expect(document.activeElement).toBe(app.querySelector('[data-page-panel="workspace"] [role="tab"][aria-selected="true"]'));
-		await click('[data-page="project-settings"]');
+		await click('.application-navigation [data-page="repositories"]');
+		await click('[data-action="repository-settings"][data-id="agent-issues"]');
+		expect(location.search).toBe('?page=project-settings');
 		expect(settings.querySelector<HTMLInputElement>('#project-budget')!.value).toBe('75');
 		expect(settings.controller!.effective('agent-issues').budget).toBe(50);
+	});
+
+	it('opens settings for each project from a separate row action', async () => {
+		const app = await mount('repositories');
+		expect(app.querySelectorAll('.project-entry-settings')).toHaveLength(3);
+		expect(app.querySelector('.project-entry[data-current="true"] [data-action="repository-settings"]')!.getAttribute('data-id')).toBe('agent-issues');
+		expect(app.querySelector('.project-summary-actions [aria-label="Project settings"]')!.textContent).toContain('Project settings');
+		expect(app.querySelector('.project-choice .project-entry-settings')).toBeNull();
+		await click('[data-action="repository-settings"][data-id="studio-site"]');
+		expect(location.search).toBe('?page=project-settings');
+		expect(app.querySelector('.tablet-drawer-header .current-project')!.textContent).toContain('studio-site');
+		const settings = app.querySelector('[data-page-panel="project-settings"] harness-settings-page')!;
+		expect(settings.querySelector<HTMLInputElement>('[name="name"]')!.value).toBe('studio-site / example');
+		await click('.application-navigation [data-page="repositories"]');
+		await click('[data-action="project-close"]');
+		await click('[data-action="repository-settings"][data-id="task-api"]');
+		expect(location.search).toBe('?page=project-settings');
+		expect(app.querySelector('.tablet-drawer-header .current-project')!.textContent).toContain('task-api');
 	});
 
 	it('resizes the run panel once per frame without rendering the workspace during drag', async () => {
@@ -321,18 +545,89 @@ describe('Single-document Harness', () => {
 		expect(app.querySelectorAll('script')).toHaveLength(0);
 	});
 
+	it('marks rows during drags that start outside the diff text', async () => {
+		const app = await mount();
+		await click('#review-tab');
+		const diff = app.querySelector<HTMLElement>('.checkpoint-diff')!;
+		const rows = [...diff.querySelectorAll<HTMLElement>('[data-diff-line]')];
+		const bounds = [
+			vi.spyOn(diff, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 600, 400)),
+			...rows.map((row, index) => vi.spyOn(row, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, index * 24, 600, 24))),
+		];
+		try {
+			for (const drag of [
+				{ start: -10, end: 60, expected: ['1', '2', '3'] },
+				{ start: 300, end: 132, expected: ['6', '7', '8'] },
+			]) {
+				diff.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 500, clientY: drag.start }));
+				document.dispatchEvent(new MouseEvent('mousemove', { buttons: 1, clientX: 500, clientY: 250 }));
+				await settle();
+				expect(diff.querySelectorAll('.review-highlight')).toHaveLength(0);
+				expect(diff.querySelector('.review-line-comment')).toBeNull();
+				document.dispatchEvent(new MouseEvent('mousemove', { buttons: 1, clientX: 500, clientY: drag.end }));
+				await settle();
+				expect([...diff.querySelectorAll('.review-highlight')].map((row) => row.getAttribute('data-diff-line'))).toEqual(drag.expected);
+				expect(app.querySelector('.review-inline-feedback')).toBeNull();
+				document.dispatchEvent(new MouseEvent('mouseup'));
+				await settle();
+				expect(diff.querySelectorAll('.review-highlight')).toHaveLength(drag.expected.length);
+				rows[0]!.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 2 }));
+				await settle();
+				expect([...diff.querySelectorAll('.review-highlight')].map((row) => row.getAttribute('data-diff-line'))).toEqual(drag.expected);
+			}
+		}
+		finally {
+			for (const bound of bounds) bound.mockRestore();
+		}
+	});
+
 	it('collects highlighted comments across files before sending one review', async () => {
 		const app = await mount();
 		await click('#review-tab');
 		expect(app.querySelectorAll('.review-line-feedback')).toHaveLength(0);
+		app.querySelector('[data-diff-line="5"] code')!.dispatchEvent(new MouseEvent('mousedown', {
+			bubbles: true,
+		}));
 		const range = document.createRange();
 		range.setStart(app.querySelector('[data-diff-line="5"] code')!.firstChild!, 0);
 		range.setEnd(app.querySelector('[data-diff-line="7"] code')!.firstChild!, 1);
 		window.getSelection()!.addRange(range);
+		document.dispatchEvent(new Event('selectionchange'));
+		await settle();
+		expect([...app.querySelectorAll('.review-diff-row.review-highlight')].map((row) => row.getAttribute('data-diff-line'))).toEqual(['5', '6', '7']);
+		expect(app.querySelector('.review-inline-feedback')).toBeNull();
+		app.querySelector('[data-diff-line="7"] code')!.dispatchEvent(new MouseEvent('mouseup', {
+			bubbles: true,
+		}));
+		await settle();
+		expect(app.querySelectorAll('.review-diff-row.review-highlight')).toHaveLength(3);
+		expect(app.querySelector('.review-inline-feedback')).toBeNull();
+		expect(app.querySelectorAll('.review-line-comment')).toHaveLength(1);
+		expect(app.querySelector('.review-line-comment')?.closest('[data-diff-line]')?.getAttribute('data-diff-line')).toBe('7');
+		app.querySelector('[data-diff-line="7"]')!.dispatchEvent(new MouseEvent('mousedown', {
+			bubbles: true,
+		}));
+		app.querySelector('[data-diff-line="7"]')!.dispatchEvent(new MouseEvent('mouseup', {
+			bubbles: true,
+		}));
+		await settle();
+		expect([...app.querySelectorAll('.review-diff-row.review-highlight')].map((row) => row.getAttribute('data-diff-line'))).toEqual(['7']);
+		expect(app.querySelectorAll('.review-line-comment')).toHaveLength(1);
+		app.querySelector('.checkpoint-diff')!.dispatchEvent(new MouseEvent('mousedown', {
+			bubbles: true,
+		}));
+		app.querySelector('.checkpoint-diff')!.dispatchEvent(new MouseEvent('mouseup', {
+			bubbles: true,
+		}));
+		await settle();
+		expect(app.querySelectorAll('.review-diff-row.review-highlight')).toHaveLength(0);
+		expect(app.querySelector('.review-line-comment')).toBeNull();
 		app.querySelector('[data-diff-line="6"] code')!.dispatchEvent(new KeyboardEvent('keydown', {
 			key: 'Enter', bubbles: true,
 		}));
 		await settle();
+		expect(app.querySelector('.review-inline-feedback')).toBeNull();
+		await click('.review-line-comment');
 		expect(app.querySelector('.review-inline-feedback')?.textContent).toContain('Diff line 6');
 		expect(app.querySelector('.review-inline-feedback')?.getAttribute('popover')).toBe('auto');
 		expect(app.querySelector('.review-feedback-snippet')?.textContent).not.toContain('readApproval');

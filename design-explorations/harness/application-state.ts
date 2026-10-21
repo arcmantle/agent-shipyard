@@ -9,7 +9,7 @@ import { MergeController, mergeIssues, type MergeScenario } from './merge.js';
 import { SettingsController } from './settings.js';
 import { TerminalManager } from './terminals.js';
 
-type Page = 'workspace' | 'planning' | 'repositories' | 'global-settings' | 'project-settings';
+type Page = 'workspace' | 'planning' | 'repositories' | 'initiatives' | 'global-settings' | 'project-settings';
 
 type WorkspaceView = 'initiative' | 'review' | 'merge';
 
@@ -39,6 +39,7 @@ const pages: Page[] = [
 	'workspace',
 	'planning',
 	'repositories',
+	'initiatives',
 	'global-settings',
 	'project-settings',
 ];
@@ -51,6 +52,9 @@ export abstract class HarnessApplicationState extends LightElement {
 		this.version = 0;
 		const page = new URL(location.href).searchParams.get('page');
 		this.page = pages.includes(page as Page) ? (page as Page) : 'workspace';
+		this.projectOpen = new URL(location.href).searchParams.get('project') !== 'none';
+		if (!this.projectOpen && !['repositories', 'global-settings'].includes(this.page))
+			this.page = 'repositories';
 		this.boundPopstate = this.handlePopstate.bind(this);
 		this.seedPlanning();
 		const scenario = new URL(location.href).searchParams.get('scenario');
@@ -66,13 +70,14 @@ export abstract class HarnessApplicationState extends LightElement {
 	protected reviewSelection = 0;
 
 	protected repository = 'agent-issues';
+	protected projectOpen = true;
 
 	protected initiative = 'harness';
 
 	protected repositories: Record<string, Repository> = {
 		'agent-issues': {
-			name: 'agent-issues',
-			projectIdentity: 'agent-issues',
+			name: 'shipyard',
+			projectIdentity: 'shipyard',
 			path: '/Users/roen/Developer/Personal/agent-issues',
 			tenant: 'local-roen',
 			initiatives: ['harness', 'navigation'],
@@ -265,15 +270,15 @@ export abstract class HarnessApplicationState extends LightElement {
 
 	protected seedPlanning() {
 		this.planning.launch = {
-			brief: 'Complete the harness design.',
+			brief: 'Complete the Helm design.',
 			initiative: 'harness',
 			mode: 'pioneer',
 		};
 		const example = this.planning.start('agent-issues', initiatives.harness!.title)!;
 		example.id = 'harness';
-		example.model.title = 'First-release harness';
+		example.model.title = 'Helm first release';
 		const definitions = [
-			['Provider control', 'research', 'How should the harness control native agent sessions?'],
+			['Provider control', 'research', 'How should Helm control native agent sessions?'],
 			[
 				'Workspace design',
 				'prototype',
@@ -395,10 +400,6 @@ export abstract class HarnessApplicationState extends LightElement {
 			scope: `${this.repository}/${this.initiative}`,
 			page: this.page,
 			repository: this.repositories[this.repository]!,
-			options: this.repositories[this.repository]!.initiatives.map((id) => ({
-				value: id,
-				label: initiatives[id]!.title,
-			})),
 			runLabel: this.runLabel,
 			integrated: this.simulation.integrated.has(2),
 			question: this.simulation.question,
@@ -417,6 +418,7 @@ export abstract class HarnessApplicationState extends LightElement {
 			initiative: initiative
 				? {
 						id: this.initiative,
+						title: initiative.title,
 						run: this.browsing ? 'No active run' : `Run 004 / ${this.runLabel}`,
 						prds: prds.map((prd, index) => ({
 							record: record('prd', index, prd.title, 'Draft'),
@@ -437,6 +439,8 @@ export abstract class HarnessApplicationState extends LightElement {
 	}
 
 	protected navigate(page: Page, updateHistory = true) {
+		if (!this.projectOpen && !['repositories', 'global-settings'].includes(page))
+			page = 'repositories';
 		this.page = page;
 		if (window.matchMedia('(max-width: 1150px)').matches) {
 			this.drawerOpen = false;
@@ -445,17 +449,21 @@ export abstract class HarnessApplicationState extends LightElement {
 		if (updateHistory) {
 			const url = new URL(location.href);
 			url.searchParams.set('page', page);
+			if (!this.projectOpen) url.searchParams.set('project', 'none');
+			else if (url.searchParams.get('project') === 'none') url.searchParams.delete('project');
 			history.pushState(null, '', url);
 		}
 		this.changed();
 	}
 
 	protected handlePopstate() {
-		const page = new URL(location.href).searchParams.get('page') as Page;
+		const url = new URL(location.href);
+		const page = url.searchParams.get('page') as Page;
+		this.projectOpen = url.searchParams.get('project') !== 'none';
 		this.navigate(pages.includes(page) ? page : 'workspace', false);
 	}
 
-	protected switchRepository(id: string) {
+	protected switchRepository(id: string, page: 'workspace' | 'project-settings' = 'workspace') {
 		if (!this.repositories[id]) return;
 		this.repositoryViews.set(this.repository, {
 			initiative: this.initiative,
@@ -463,11 +471,17 @@ export abstract class HarnessApplicationState extends LightElement {
 			launch: { ...this.planning.launch },
 		});
 		this.repository = id;
+		this.projectOpen = true;
 		const saved = this.repositoryViews.get(id);
 		this.initiative = saved?.initiative ?? this.repositories[id]!.initiatives[0] ?? '';
 		this.planning.selected = saved?.planning ?? '';
 		this.planning.launch = saved?.launch ?? { brief: '', initiative: '', mode: 'plan' };
-		this.navigate('workspace');
+		this.navigate(page);
+		void this.updateComplete.then(() => {
+			const heading = this.querySelector<HTMLElement>(`[data-page-panel="${page}"] h1`);
+			heading?.setAttribute('tabindex', '-1');
+			heading?.focus({ preventScroll: true });
+		});
 	}
 
 	protected openDialog(dialog: DialogState) {
@@ -513,8 +527,22 @@ export abstract class HarnessApplicationState extends LightElement {
 		const action = control.dataset.action ?? 'workspace-view';
 		if (action === 'page' || action === 'close-settings') {
 			event.preventDefault();
-			this.navigate(action === 'close-settings' ? 'workspace' : control.dataset.page as Page);
-			if (action === 'close-settings') {
+			const closeSettings = action === 'close-settings';
+			this.navigate(closeSettings ? 'workspace' : control.dataset.page as Page);
+			if (this.page === 'project-settings') {
+				[...this.querySelectorAll('harness-settings-page')]
+					.find((settings) => settings.scope === 'project')?.showProjectInformation();
+				void this.updateComplete.then(() => {
+					const heading = this.querySelector<HTMLElement>('[data-page-panel="project-settings"] h1');
+					heading?.setAttribute('tabindex', '-1');
+					heading?.focus({ preventScroll: true });
+				});
+			}
+			if (control.dataset.page === 'repositories')
+				void this.updateComplete.then(() => this.querySelector<HTMLElement>('#repository-search')?.focus());
+			if (this.page === 'initiatives')
+				void this.updateComplete.then(() => this.querySelector<HTMLElement>('[data-page-panel="initiatives"] h1')?.focus());
+			if (closeSettings) {
 				const selector = this.browsing
 					? '.application-navigation [data-page="workspace"]'
 					: '[data-page-panel="workspace"] [role="tab"][aria-selected="true"]';
@@ -533,7 +561,25 @@ export abstract class HarnessApplicationState extends LightElement {
 		else if (action === 'active-run') {
 			this.switchRepository('agent-issues');
 			this.initiative = 'harness';
+		} else if (action === 'project-close') {
+			this.projectOpen = false;
+			this.repositoryQuery = '';
+			this.navigate('repositories');
+			void this.updateComplete.then(() => this.querySelector<HTMLElement>('#repository-search')?.focus());
 		} else if (action === 'repository-open') this.switchRepository(control.dataset.id!);
+		else if (action === 'repository-settings') this.switchRepository(control.dataset.id!, 'project-settings');
+		else if (action === 'initiative-open') {
+			const id = control.dataset.id!;
+			if (this.projectOpen && this.repositories[this.repository]!.initiatives.includes(id)) {
+				this.initiative = id;
+				this.navigate('workspace');
+				void this.updateComplete.then(() => {
+					const heading = this.querySelector<HTMLElement>('[data-page-panel="workspace"] h1');
+					heading?.setAttribute('tabindex', '-1');
+					heading?.focus({ preventScroll: true });
+				});
+			}
+		}
 		else if (action === 'new-planning-session') this.planning.selected = '';
 		else if (action === 'planning-session')
 			this.planning.select(control.dataset.id!, this.repository);
@@ -754,11 +800,6 @@ export abstract class HarnessApplicationState extends LightElement {
 		} else if (input.dataset.planningQuestion !== undefined) {
 			this.planning.saveDraft(Number(input.dataset.planningQuestion), input.value);
 			input.setCustomValidity('');
-		} else if (input.id === 'initiative-selector') {
-			if (this.repositories[this.repository]!.initiatives.includes(input.value)) {
-				this.initiative = input.value;
-				this.changed();
-			}
 		} else if (input.id === 'repository-search') {
 			this.repositoryQuery = input.value;
 			this.changed();

@@ -39,23 +39,15 @@ export class TerminalManager {
 	dark = false;
 
 	protected get theme(): TerminalTheme {
-		return this.dark
-			? {
-					background: '#16191d',
-					foreground: '#dfe5e2',
-					cursor: '#80d7ad',
-					selectionBackground: '#345447',
-					green: '#80d7ad',
-					brightBlack: '#a5b3ab',
-				}
-			: {
-					background: '#f6f7f6',
-					foreground: '#445149',
-					cursor: '#245c48',
-					selectionBackground: '#dce9e2',
-					green: '#285d49',
-					brightBlack: '#62736a',
-				};
+		const styles = getComputedStyle(document.documentElement);
+		return {
+			background: styles.getPropertyValue('--terminal').trim(),
+			foreground: styles.getPropertyValue('--theme-terminal-ink').trim(),
+			cursor: styles.getPropertyValue('--accent').trim(),
+			selectionBackground: styles.getPropertyValue('--theme-terminal-selection').trim(),
+			green: styles.getPropertyValue('--green').trim(),
+			brightBlack: styles.getPropertyValue('--muted').trim(),
+		};
 	}
 
 	protected create(host: HTMLElement, manual: () => boolean) {

@@ -7,10 +7,8 @@ import { Activity, NotebookPen } from 'lucide';
 import { LightElement } from './light-element.js';
 import { renderIcon } from './render-icon.js';
 import { type RepositoryModel } from './repository-header.js';
-import { type SelectorOption } from './selector.js';
 import { type TrackedRecordModel } from './tracked-record.js';
 import './repository-header.js';
-import './selector.js';
 import './tracked-record.js';
 import './usage-meter.js';
 
@@ -18,7 +16,6 @@ export interface SidebarModel {
 	scope: string;
 	page: string;
 	repository: RepositoryModel;
-	options: SelectorOption[];
 	runLabel: string;
 	integrated: boolean;
 	question: boolean;
@@ -26,6 +23,7 @@ export interface SidebarModel {
 	planningSessions?: { id: string; title: string; initiativeTitle: string; current: boolean }[];
 	initiative?: {
 		id: string;
+		title: string;
 		run: string;
 		prds: { record: TrackedRecordModel; story: TrackedRecordModel; issues: TrackedRecordModel[] }[];
 		adrs: TrackedRecordModel[];
@@ -74,16 +72,10 @@ export class HarnessRepositorySidebar extends LightElement {
 			`;
 		return html`
 		<section class="initiative-navigation">
-			<label
-				class="eyebrow muted"
-				for="initiative-selector-trigger"
-				>Initiative</label
-			>
-			<harness-selector
-				.options=${model.options}
-				.value=${initiative.id}
-				.label=${'Select initiative'}
-			></harness-selector>
+			<div class="initiative-context">
+				<div class="eyebrow muted">Current initiative</div>
+				<h3 class="initiative-current-title">${initiative.title}</h3>
+			</div>
 			<div class="scope-run">${initiative.run}</div>
 			${when(
 					initiative.id !== 'harness',
@@ -92,7 +84,7 @@ export class HarnessRepositorySidebar extends LightElement {
 						class="active-run-link"
 						data-action="active-run"
 					>
-						${renderIcon(Activity)}agent-issues / ${model.runLabel}
+						${renderIcon(Activity)}shipyard / ${model.runLabel}
 					</button>
 					`
 				)}
@@ -154,7 +146,6 @@ export class HarnessRepositorySidebar extends LightElement {
 		<div class="rail-project">
 			<harness-repository-header
 				.repository=${model.repository}
-				.page=${model.page}
 			></harness-repository-header>
 		</div>
 		<div

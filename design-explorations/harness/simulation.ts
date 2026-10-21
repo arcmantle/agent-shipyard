@@ -14,7 +14,7 @@ export interface Initiative {
 
 export const initiatives: Record<string, Initiative> = {
 	harness: {
-		title: 'Initiative execution harness',
+		title: 'Helm execution workspace',
 		summary: 'Coordinate agents, user decisions, and approved changes.',
 		prd: 'Local execution workspace',
 		story: 'Inspect and control agent work',
@@ -375,7 +375,7 @@ export class HarnessSimulation {
 				: []
 		);
 		return {
-			title: 'Initiative execution harness',
+			title: 'Helm execution workspace',
 			summary: 'Coordinate agents, user decisions, and approved changes.',
 			integrated: this.integrated.size,
 			issueCount: this.issues.length,

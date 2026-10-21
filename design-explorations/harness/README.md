@@ -1,8 +1,12 @@
-# Harness Design Exploration
+# Helm Design Exploration
 
-This folder contains one current Harness prototype. It includes the workspace, Planning,
+This folder contains one current Helm prototype for Shipyard. It includes the workspace, Planning,
 Settings, agent overlays, and simulated Merge sessions. Activity is simulated;
 there are no live agent processes, provider calls, or Git writes.
+
+Logbook is the knowledge and issue system. Wayfinder is the code navigation
+system. Product names in this prototype do not rename CLI binaries or commands.
+The shared light and dark palettes and theme rules are in `theme.css`.
 
 Install the workspace dependencies with `pnpm install` first. From the repository
 root, run:
@@ -59,9 +63,48 @@ global-function replacements, mutation-based mounts, or HTML-string renderers.
 - [prototype-api.ts](prototype-api.ts) provides guarded, read-only folder and
   Git-root inspection. It does not write files or run agents.
 
-The old A/B layouts and design switcher are removed. The saved C reference remains
+The old application-wide A/B layouts and design switcher are removed. The saved C reference remains
 unchanged in the separate agent-issues-harness-prototype source worktree. This
 folder contains the current prototype only.
+
+## Project Controls
+
+The Projects view is the project chooser. Open it from the labelled Projects button at the
+top of the application rail or from the labelled Projects button at the top
+of the sidebar. The current project name is below that button. Project rows
+show the local directory, Agent Issues identity, tenant, and
+work status. Search narrows the list. Selecting a row opens that project's
+workspace and restores its initiative. Add project opens the existing folder
+selection flow. Initiatives has its own application menu and list view at
+`?page=initiatives`. The list contains only the current project's initiatives.
+Selecting an initiative opens its workspace. The sidebar shows the current
+initiative and its records. The Initiatives menu is the entry to the list.
+
+Open `?page=repositories&project=none` to preview the state with no project
+selected. Close project in the current-project summary opens the same state.
+Projects and Global Settings remain available. Selecting a project restores
+its workspace and initiative.
+
+Each project row has a Settings button. Opening it selects that project and
+opens `?page=project-settings`. The active project's button is highlighted,
+and its summary has a labelled Project settings button. Settings is not in
+the sidebar.
+
+The root navigation has a separate Project entry for the open project's
+information page. It opens the Project information tab directly. Projects
+opens the project list; Project opens the current project's information.
+One tab bar separates Project, Context, Wayfinder, Usage and limits,
+Workers and approvals, and Providers and models. Global Settings uses the three
+execution tabs. There are no layout variants or layout switcher. Project details
+and context are held separately for each repository. Save project stores an in-memory
+snapshot; a reload clears it. These values do not change repository files or the
+Agent Issues database.
+
+Agent Wayfinder controls simulate connection, graph refresh, and query operations.
+They do not execute CLI commands or query a real graph. The graph database is
+relative to the project directory. Changing that directory or database clears the
+simulated graph state. Execution settings have their own tabs. Drafts remain
+available when tabs change. Arrow keys, Home, and End move between settings tabs.
 
 The initiative example contains 42 issues, a 30-issue main chain, and three later
 parallel fork/join stages. Serial sections expand to show their issues. Final

@@ -158,10 +158,74 @@ export class HarnessReviewCheckpoint extends LightElement {
 	protected feedbackAnchor: HTMLElement | undefined;
 	protected feedbackPopover: HTMLElement | undefined;
 	protected collapsed = new Set<string>();
+	protected selectingLines = false;
+	protected selectingFromSpace = false;
+	protected selectionDragged = false;
+	protected selectionStartY = 0;
+	protected handleSelectionChange = () => {
+		if (!this.selectingLines || this.selectingFromSpace) return;
+		const diff = this.querySelector<HTMLElement>('.checkpoint-diff');
+		if (diff) this.highlightSelection(diff);
+	};
+	protected handleSelectionMove = (event: MouseEvent) => {
+		if (!this.selectingLines || !this.selectingFromSpace || event.buttons !== 1) return;
+		const diff = this.querySelector<HTMLElement>('.checkpoint-diff');
+		if (!diff) return;
+		const bounds = diff.getBoundingClientRect();
+		if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
+		const rows = [...diff.querySelectorAll<HTMLElement>('[data-diff-line]')];
+		const first = rows.find((row) => this.selectionStartY < row.getBoundingClientRect().bottom) ?? rows.at(-1);
+		const last = rows.find((row) => {
+			const bounds = row.getBoundingClientRect();
+			return event.clientY >= bounds.top && event.clientY < bounds.bottom && event.clientX >= bounds.left && event.clientX < bounds.right;
+		});
+		if (!first || !last) return;
+		this.selectionDragged = true;
+		this.highlightRows(diff, first, last);
+	};
+	protected handleSelectionEnd = () => {
+		const diff = this.querySelector<HTMLElement>('.checkpoint-diff');
+		if (this.selectingLines && !this.selectingFromSpace && diff) this.highlightSelection(diff);
+		this.selectingLines = false;
+	};
+	protected handleSelectionDismiss = (event: MouseEvent) => {
+		if (event.button !== 0) return;
+		const target = event.target as Element;
+		if (this.contains(target) && target.closest('.review-line-comment, .review-inline-feedback')) return;
+		this.selectingLines = !target.closest('button, a, input, textarea, select, [contenteditable]');
+		this.selectingFromSpace = !target.closest('.checkpoint-diff code');
+		this.selectionDragged = false;
+		this.selectionStartY = event.clientY;
+		if (this.contains(target) && target.closest('.review-diff-row')) return;
+		this.feedbackOpen = false;
+		this.feedbackLine = undefined;
+		this.feedbackEndLine = undefined;
+		this.feedbackSnippet = '';
+	};
+
+	override connectedCallback() {
+		super.connectedCallback();
+		document.addEventListener('selectionchange', this.handleSelectionChange);
+		document.addEventListener('mousedown', this.handleSelectionDismiss);
+		document.addEventListener('mousemove', this.handleSelectionMove);
+		document.addEventListener('mouseup', this.handleSelectionEnd);
+	}
+	override disconnectedCallback() {
+		document.removeEventListener('selectionchange', this.handleSelectionChange);
+		document.removeEventListener('mousedown', this.handleSelectionDismiss);
+		document.removeEventListener('mousemove', this.handleSelectionMove);
+		document.removeEventListener('mouseup', this.handleSelectionEnd);
+		this.selectingLines = false;
+		super.disconnectedCallback();
+	}
 
 	protected override willUpdate(changed: PropertyValues) {
-		if (changed.has('selected') || changed.has('reference') || changed.has('checkpoint'))
+		if (changed.has('selected') || changed.has('reference') || changed.has('checkpoint')) {
 			this.feedbackOpen = false;
+			this.feedbackLine = undefined;
+			this.feedbackEndLine = undefined;
+			this.feedbackSnippet = '';
+		}
 		for (const details of this.querySelectorAll<HTMLDetailsElement>('[data-folder]')) {
 			if (details.open) this.collapsed.delete(details.dataset.folder!);
 			else this.collapsed.add(details.dataset.folder!);
@@ -238,14 +302,31 @@ export class HarnessReviewCheckpoint extends LightElement {
 		return element?.closest<HTMLElement>('[data-diff-line]');
 	}
 	protected handleHighlight(event: Event) {
+		if (event instanceof MouseEvent && event.button !== 0) return;
+		const target = event.target as Element;
+		if (target.closest('button')) return;
+		if (event.type === 'mouseup' && this.selectingLines && this.selectingFromSpace && this.selectionDragged) return;
 		const diff = event.currentTarget as HTMLElement;
-		const clicked = this.selectionRow(event.target as Node);
+		const clicked = this.selectionRow(target);
+		this.highlightSelection(diff, clicked, event.type === 'mouseup' && !this.selectingFromSpace);
+	}
+	protected handleSelectionStart(event: MouseEvent) {
+		if (event.button !== 0 || (event.target as Element).closest('button')) return;
+		this.selectingLines = true;
+	}
+	protected highlightSelection(diff: HTMLElement, clicked?: HTMLElement | null, useSelection = true) {
 		const selection = window.getSelection();
-		const selected = event.type === 'mouseup' && selection && !selection.isCollapsed &&
-			diff.contains(selection.anchorNode) && diff.contains(selection.focusNode);
-		const first = selected ? this.selectionRow(selection.anchorNode) : clicked;
-		const last = selected ? this.selectionRow(selection.focusNode) : clicked;
+		const rows = [...diff.querySelectorAll<HTMLElement>('[data-diff-line]')];
+		const selectedRows = useSelection && selection && !selection.isCollapsed && selection.rangeCount
+			? rows.filter((row) => selection.getRangeAt(0).intersectsNode(row.querySelector('code')!))
+			: [];
+		const first = selectedRows[0] ?? clicked;
+		const last = selectedRows.at(-1) ?? clicked;
 		if (!first || !last) return;
+		this.highlightRows(diff, first, last);
+	}
+	protected highlightRows(diff: HTMLElement, first: HTMLElement, last: HTMLElement) {
+		this.feedbackOpen = false;
 		this.feedbackGeneral = false;
 		this.feedbackLine = Math.min(Number(first.dataset.diffLine), Number(last.dataset.diffLine));
 		this.feedbackEndLine = Math.max(Number(first.dataset.diffLine), Number(last.dataset.diffLine));
@@ -253,14 +334,17 @@ export class HarnessReviewCheckpoint extends LightElement {
 			.filter((row) => Number(row.dataset.diffLine) >= this.feedbackLine! && Number(row.dataset.diffLine) <= this.feedbackEndLine!)
 			.map((row) => row.querySelector('code')!.textContent)
 			.join('\n');
-		this.feedbackTrigger = clicked?.querySelector('code') ?? first.querySelector('code') ?? undefined;
+		this.feedbackTrigger = first.querySelector('code') ?? undefined;
 		this.editingFeedback = undefined;
-		void this.openFeedback();
 	}
 	protected handleHighlightKey(event: KeyboardEvent) {
-		if (event.key !== 'Enter') return;
+		if (event.key !== 'Enter' || (event.target as Element).closest('button')) return;
 		event.preventDefault();
 		this.handleHighlight(event);
+	}
+	protected handleLineComment(event: Event) {
+		this.feedbackTrigger = event.currentTarget as HTMLElement;
+		void this.openFeedback();
 	}
 	protected handleFeedbackInput(event: Event) {
 		this.feedbackDrafts.set(this.feedbackKey(), (event.currentTarget as HTMLTextAreaElement).value);
@@ -558,6 +642,7 @@ export class HarnessReviewCheckpoint extends LightElement {
 					<div
 						class="diff checkpoint-diff"
 						aria-label="Selected checkpoint diff"
+						@mousedown=${this.handleSelectionStart}
 						@mouseup=${this.handleHighlight}
 						@keydown=${this.handleHighlightKey}
 					>
@@ -566,10 +651,21 @@ export class HarnessReviewCheckpoint extends LightElement {
 								(_line, index) => index,
 								(line, index) => html`
 								<div
-									class=${`review-diff-row ${line.startsWith('+') ? 'added' : line.startsWith('-') ? 'removed' : ''} ${this.feedbackOpen && index + 1 >= (this.feedbackLine ?? Infinity) && index + 1 <= (this.feedbackEndLine ?? 0) ? 'review-highlight' : ''} ${this.currentFeedback().some((comment) => comment.file === selected.path && index + 1 >= (comment.line ?? Infinity) && index + 1 <= (comment.endLine ?? comment.line ?? 0)) ? 'review-commented' : ''}`}
+									class=${`review-diff-row ${line.startsWith('+') ? 'added' : line.startsWith('-') ? 'removed' : ''} ${index + 1 >= (this.feedbackLine ?? Infinity) && index + 1 <= (this.feedbackEndLine ?? 0) ? 'review-highlight' : ''} ${this.currentFeedback().some((comment) => comment.file === selected.path && index + 1 >= (comment.line ?? Infinity) && index + 1 <= (comment.endLine ?? comment.line ?? 0)) ? 'review-commented' : ''}`}
 									data-diff-line=${index + 1}
 								>
 									<code tabindex="0">${line}</code>
+									${when(!this.feedbackGeneral && index + 1 === this.feedbackEndLine, () => html`
+									<button
+										class="icon-button review-line-comment"
+										aria-label="Comment on selected lines"
+										title="Comment on selected lines"
+										aria-expanded=${String(this.feedbackOpen)}
+										@click=${this.handleLineComment}
+									>
+										${renderIcon(MessageSquare)}
+									</button>
+									`)}
 								</div>
 								`
 							)}
