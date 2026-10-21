@@ -1,0 +1,6 @@
+graphify-*
+reference/
+.agent-wayfinder/*.db
+npm/vscode-mcp-provider/dist/
+npm/vscode-mcp-provider/node_modules/
+.benchmark-output/

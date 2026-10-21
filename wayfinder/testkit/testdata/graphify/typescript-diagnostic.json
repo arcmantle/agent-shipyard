@@ -1,0 +1,12 @@
+{
+	"graphVersion": 1,
+	"result": {
+		"workspace": "<workspace>",
+		"diagnostics": [
+			{
+				"severity": "warning",
+				"message": "TypeScript dynamic module specifier in \"src/main.ts\" is unbounded"
+			}
+		]
+	}
+}

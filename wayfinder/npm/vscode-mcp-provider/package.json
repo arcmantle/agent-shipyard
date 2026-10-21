@@ -1,0 +1,62 @@
+{
+	"name": "agent-wayfinder-mcp-provider",
+	"displayName": "Agent Wayfinder MCP Provider",
+	"version": "0.1.0",
+	"description": "Provides the local Agent Wayfinder MCP server to VS Code.",
+	"private": true,
+	"publisher": "arcmantle",
+	"type": "module",
+	"engines": {
+		"vscode": "^1.131.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"main": "./dist/extension.js",
+	"files": [
+		"dist/**"
+	],
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"extensionPack": [
+		"arcmantle.agent-issues-mcp-provider"
+	],
+	"contributes": {
+		"mcpServerDefinitionProviders": [
+			{
+				"id": "agent-wayfinder.mcp-server",
+				"label": "Agent Wayfinder"
+			}
+		],
+		"configuration": {
+			"title": "Agent Wayfinder MCP Provider",
+			"properties": {
+				"agentWayfinder.mcp.command": {
+					"type": "string",
+					"default": "agent-wayfinder",
+					"description": "Command that starts the Agent Wayfinder MCP server."
+				},
+				"agentWayfinder.mcp.args": {
+					"type": "array",
+					"default": [
+						"mcp"
+					],
+					"items": {
+						"type": "string"
+					},
+					"description": "Arguments passed to the Agent Wayfinder MCP server command."
+				}
+			}
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"devDependencies": {
+		"@types/node": "^25.9.2",
+		"@types/vscode": "1.120.0",
+		"typescript": "^7.0.0"
+	}
+}

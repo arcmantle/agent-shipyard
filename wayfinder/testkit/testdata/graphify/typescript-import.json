@@ -1,0 +1,187 @@
+{
+	"graphVersion": 1,
+	"result": {
+		"nodes": [
+			{
+				"identity": {
+					"kind": "file",
+					"qualifiedName": "src/helper.ts"
+				},
+				"evidence": {
+					"span": {
+						"path": "src/helper.ts",
+						"startLine": 1,
+						"startColumn": 1,
+						"endLine": 2,
+						"endColumn": 1
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			},
+			{
+				"identity": {
+					"kind": "file",
+					"qualifiedName": "src/main.ts"
+				},
+				"evidence": {
+					"span": {
+						"path": "src/main.ts",
+						"startLine": 1,
+						"startColumn": 1,
+						"endLine": 2,
+						"endColumn": 1
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			},
+			{
+				"identity": {
+					"kind": "function",
+					"qualifiedName": "src/helper.ts::helper"
+				},
+				"evidence": {
+					"span": {
+						"path": "src/helper.ts",
+						"startLine": 1,
+						"startColumn": 8,
+						"endLine": 1,
+						"endColumn": 39
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			},
+			{
+				"identity": {
+					"kind": "function",
+					"qualifiedName": "src/main.ts::main"
+				},
+				"evidence": {
+					"span": {
+						"path": "src/main.ts",
+						"startLine": 1,
+						"startColumn": 43,
+						"endLine": 1,
+						"endColumn": 79
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			}
+		],
+		"edges": [
+			{
+				"source": {
+					"kind": "file",
+					"qualifiedName": "src/helper.ts"
+				},
+				"target": {
+					"kind": "function",
+					"qualifiedName": "src/helper.ts::helper"
+				},
+				"relation": "defines",
+				"evidence": {
+					"span": {
+						"path": "src/helper.ts",
+						"startLine": 1,
+						"startColumn": 8,
+						"endLine": 1,
+						"endColumn": 39
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			},
+			{
+				"source": {
+					"kind": "file",
+					"qualifiedName": "src/main.ts"
+				},
+				"target": {
+					"kind": "file",
+					"qualifiedName": "src/helper.ts"
+				},
+				"relation": "imports_from",
+				"evidence": {
+					"span": {
+						"path": "src/main.ts",
+						"startLine": 1,
+						"startColumn": 1,
+						"endLine": 2,
+						"endColumn": 1
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			},
+			{
+				"source": {
+					"kind": "file",
+					"qualifiedName": "src/main.ts"
+				},
+				"target": {
+					"kind": "function",
+					"qualifiedName": "src/helper.ts::helper"
+				},
+				"relation": "imports_from",
+				"evidence": {
+					"span": {
+						"path": "src/main.ts",
+						"startLine": 1,
+						"startColumn": 1,
+						"endLine": 2,
+						"endColumn": 1
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			},
+			{
+				"source": {
+					"kind": "file",
+					"qualifiedName": "src/main.ts"
+				},
+				"target": {
+					"kind": "function",
+					"qualifiedName": "src/main.ts::main"
+				},
+				"relation": "defines",
+				"evidence": {
+					"span": {
+						"path": "src/main.ts",
+						"startLine": 1,
+						"startColumn": 43,
+						"endLine": 1,
+						"endColumn": 79
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			},
+			{
+				"source": {
+					"kind": "function",
+					"qualifiedName": "src/main.ts::main"
+				},
+				"target": {
+					"kind": "function",
+					"qualifiedName": "src/helper.ts::helper"
+				},
+				"relation": "calls",
+				"evidence": {
+					"span": {
+						"path": "src/main.ts",
+						"startLine": 1,
+						"startColumn": 68,
+						"endLine": 1,
+						"endColumn": 74
+					},
+					"provenance": "static",
+					"confidence": "extracted"
+				}
+			}
+		]
+	}
+}

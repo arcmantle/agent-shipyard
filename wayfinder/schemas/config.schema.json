@@ -1,0 +1,274 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://raw.githubusercontent.com/arcmantle/agent-wayfinder/main/schemas/config.schema.json",
+	"title": "Agent Wayfinder configuration",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"minLength": 1
+		},
+		"planning": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"provider": {
+					"enum": [
+						"ollama",
+						"claude",
+						"copilot"
+					]
+				},
+				"ollama": {
+					"$ref": "#/$defs/ollamaPlanner"
+				},
+				"claude": {
+					"$ref": "#/$defs/claude"
+				},
+				"copilot": {
+					"$ref": "#/$defs/copilotPlanner"
+				}
+			}
+		},
+		"embedding": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"enabled": {
+					"type": "boolean",
+					"default": true
+				},
+				"provider": {
+					"enum": [
+						"ollama"
+					]
+				},
+				"ollama": {
+					"$ref": "#/$defs/ollamaPlanner"
+				},
+				"processLimit": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 2,
+					"default": 1
+				}
+			}
+		},
+		"synopsis": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"enabled": {
+					"type": "boolean",
+					"default": true
+				},
+				"provider": {
+					"enum": [
+						"ollama",
+						"claude",
+						"copilot"
+					]
+				},
+				"sourceLimit": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"ollama": {
+					"$ref": "#/$defs/ollamaSynopsis"
+				},
+				"claude": {
+					"$ref": "#/$defs/claude"
+				},
+				"copilot": {
+					"$ref": "#/$defs/copilotSynopsis"
+				}
+			}
+		},
+		"spending": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"copilot": {
+					"$ref": "#/$defs/copilotSpending"
+				},
+				"claude": {
+					"$ref": "#/$defs/claudeSpending"
+				}
+			}
+		},
+		"sources": {
+			"type": "object"
+		}
+	},
+	"$defs": {
+		"timeout": {
+			"oneOf": [
+				{
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 30
+				},
+				{
+					"type": "string",
+					"minLength": 1
+				}
+			]
+		},
+		"model": {
+			"type": "string",
+			"pattern": "^[A-Za-z0-9._/-]+$"
+		},
+		"ollamaModel": {
+			"type": "string",
+			"pattern": "^[A-Za-z0-9._:/-]+$"
+		},
+		"ollamaPlanner": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"model": {
+					"$ref": "#/$defs/ollamaModel"
+				},
+				"endpoint": {
+					"type": "string",
+					"minLength": 1
+				},
+				"timeout": {
+					"$ref": "#/$defs/timeout"
+				}
+			}
+		},
+		"ollamaSynopsis": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"model": {
+					"$ref": "#/$defs/ollamaModel"
+				},
+				"endpoint": {
+					"type": "string",
+					"minLength": 1
+				},
+				"timeout": {
+					"$ref": "#/$defs/timeout"
+				},
+				"processLimit": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 4,
+					"default": 2
+				}
+			}
+		},
+		"claude": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"path": {
+					"type": "string",
+					"minLength": 1
+				},
+				"model": {
+					"$ref": "#/$defs/model"
+				},
+				"fallbackModel": {
+					"$ref": "#/$defs/model"
+				},
+				"maxBudgetUsd": {
+					"type": "number",
+					"minimum": 0
+				},
+				"effort": {
+					"enum": [
+						"low",
+						"medium",
+						"high",
+						"xhigh",
+						"max"
+					]
+				},
+				"timeout": {
+					"$ref": "#/$defs/timeout"
+				}
+			}
+		},
+		"copilotPlanner": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"model": {
+					"$ref": "#/$defs/model"
+				},
+				"maxAiCredits": {
+					"type": "integer",
+					"minimum": 30
+				},
+				"tokenBudget": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"timeout": {
+					"$ref": "#/$defs/timeout"
+				}
+			}
+		},
+		"copilotSynopsis": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"model": {
+					"$ref": "#/$defs/model"
+				},
+				"maxAiCredits": {
+					"type": "integer",
+					"minimum": 30
+				},
+				"processLimit": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"path": {
+					"type": "string",
+					"minLength": 1
+				}
+			}
+		},
+		"copilotSpending": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"dailyAiCredits": {
+					"type": "number",
+					"minimum": 0
+				},
+				"weeklyAiCredits": {
+					"type": "number",
+					"minimum": 0
+				},
+				"monthlyAiCredits": {
+					"type": "number",
+					"minimum": 0
+				}
+			}
+		},
+		"claudeSpending": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"dailyUsd": {
+					"type": "number",
+					"minimum": 0
+				},
+				"weeklyUsd": {
+					"type": "number",
+					"minimum": 0
+				},
+				"monthlyUsd": {
+					"type": "number",
+					"minimum": 0
+				}
+			}
+		}
+	}
+}

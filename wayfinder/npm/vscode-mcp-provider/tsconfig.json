@@ -1,0 +1,20 @@
+{
+	"compilerOptions": {
+		"target": "ES2024",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"types": [
+			"node",
+			"vscode"
+		],
+		"rootDir": "src",
+		"outDir": "dist",
+		"strict": true,
+		"noEmitOnError": true,
+		"skipLibCheck": true,
+		"verbatimModuleSyntax": true
+	},
+	"include": [
+		"src/**/*.ts"
+	]
+}

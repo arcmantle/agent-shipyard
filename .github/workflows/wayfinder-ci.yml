@@ -1,0 +1,43 @@
+name: Wayfinder CI
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'wayfinder/**'
+      - '.github/workflows/wayfinder-ci.yml'
+      - '.github/workflows/wayfinder-release.yml'
+  pull_request:
+    paths:
+      - 'wayfinder/**'
+      - '.github/workflows/wayfinder-ci.yml'
+      - '.github/workflows/wayfinder-release.yml'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: wayfinder
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+          check-latest: true
+          cache-dependency-path: wayfinder/go.sum
+      - name: Install C toolchain
+        run: sudo apt-get update && sudo apt-get install --yes build-essential
+      - name: Test
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./cmd/agent-wayfinder

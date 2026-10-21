@@ -1,0 +1,10 @@
+{
+	"go.toolsEnvVars": {
+		"GOARCH": "arm64",
+		"CGO_ENABLED": "1",
+		"CC": "/usr/bin/arch -arm64 /Library/Developer/CommandLineTools/usr/bin/clang",
+		"SDKROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+		"GOMAXPROCS": "2",
+		"GOFLAGS": "-p=1"
+	}
+}

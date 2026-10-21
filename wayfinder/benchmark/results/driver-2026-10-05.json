@@ -1,0 +1,57 @@
+{
+	"date": "2026-10-05",
+	"issue": "ISS_1KE8VAH0068KGVR8H4WH7AQJKP",
+	"sources": 10000,
+	"nodeCount": 1000000,
+	"edgeCount": 2000000,
+	"outputChecksum": "sha256:4e78d333a95bfcd4c144f5838b73e48b06c1aa315837469fa5f15c57e1de346e",
+	"environment": {
+		"os": "linux",
+		"architecture": "arm64",
+		"goVersion": "1.27.1",
+		"sqliteVersion": "3.46.1",
+		"filesystem": "VM-local ext4",
+		"nodeFtsEnabled": true,
+		"extractionWorkers": 2,
+		"vmMemoryGiB": 4,
+		"cpus": 2,
+		"memoryBytes": 2147483648,
+		"swapBytes": 0,
+		"timeoutSeconds": 200,
+		"databaseLimitBytes": 4294967296
+	},
+	"baseline": {
+		"driverVersion": "v1.14.25-arcmantle.0",
+		"initialSeconds": 110.505150242,
+		"validationSeconds": 14.203569593,
+		"wallSeconds": 173.120,
+		"peakRssBytes": 429203456,
+		"cgroupMemoryPeakBytes": 2147491840,
+		"memoryMaxEvents": 48006,
+		"databaseBytes": 3445854208,
+		"exitCode": 0,
+		"oomKilled": false
+	},
+	"variant": {
+		"driverVersion": "v1.14.25-arcmantle.0.0.20261005082234-2c1e659080da",
+		"initialSeconds": 111.028943953,
+		"validationSeconds": 14.875268938,
+		"wallSeconds": 182.027,
+		"peakRssBytes": 431796224,
+		"cgroupMemoryPeakBytes": 2147495936,
+		"memoryMaxEvents": 58000,
+		"databaseBytes": 3539144704,
+		"exitCode": 0,
+		"oomKilled": false
+	},
+	"conclusion": "No noticeable driver indexing gain in this pair.",
+	"caveats": [
+		"One pair is not a stable or causal performance estimate.",
+		"One interrupted variant sample was excluded. The retry used unchanged limits.",
+		"Cgroup peaks include page cache and kernel memory, not only process RSS.",
+		"Memory max events do not quantify reclaim time or cost.",
+		"Phase timings can overlap and must not be added as independent stages.",
+		"The 100-second initial indexing target was not met in this constrained VM.",
+		"These VM results do not establish native acceptance performance."
+	]
+}

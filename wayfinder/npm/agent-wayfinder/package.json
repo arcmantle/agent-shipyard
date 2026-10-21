@@ -1,0 +1,36 @@
+{
+	"name": "@arcmantle/agent-wayfinder",
+	"version": "0.1.0",
+	"description": "Install and run the agent-wayfinder code graph CLI.",
+	"bin": {
+		"agent-wayfinder": "bin/agent-wayfinder.js",
+		"awf": "bin/agent-wayfinder.js"
+	},
+	"files": [
+		"bin/agent-wayfinder.js",
+		"scripts/install.js"
+	],
+	"engines": {
+		"node": ">=18"
+	},
+	"os": [
+		"darwin",
+		"linux",
+		"win32"
+	],
+	"scripts": {
+		"postinstall": "node scripts/install.js",
+		"test": "node --test"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/arcmantle/agent-wayfinder.git"
+	},
+	"bugs": {
+		"url": "https://github.com/arcmantle/agent-wayfinder/issues"
+	},
+	"homepage": "https://github.com/arcmantle/agent-wayfinder#readme",
+	"publishConfig": {
+		"access": "public"
+	}
+}

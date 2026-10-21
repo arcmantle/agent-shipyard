@@ -1,0 +1,166 @@
+name: Wayfinder Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: wayfinder
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Check out release corpus
+        uses: actions/checkout@v4
+        with:
+          repository: arcmantle/agent-issues
+          path: release-corpus/agent-issues
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+          check-latest: true
+          cache-dependency-path: wayfinder/go.sum
+      - name: Install C toolchain
+        run: sudo apt-get update && sudo apt-get install --yes build-essential
+      - name: Test
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./cmd/agent-wayfinder
+      - name: Run natural-language release acceptance
+        env:
+          AGENT_WAYFINDER_RELEASE_ROOT: ${{ github.workspace }}/wayfinder
+          AGENT_WAYFINDER_SHARED_CONTRACT_ROOT: ${{ github.workspace }}/release-corpus/agent-issues
+        run: go test ./acceptance -run '^TestNaturalLanguageReleaseAcceptance$' -count=1
+
+  build:
+    name: Build ${{ matrix.platform }}-${{ matrix.architecture }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux
+            architecture: x64
+          - runner: macos-14
+            platform: darwin
+            architecture: arm64
+          - runner: ubuntu-latest
+            platform: win32
+            architecture: x64
+            goos: windows
+            extension: .exe
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+          check-latest: true
+          cache-dependency-path: wayfinder/go.sum
+      - name: Install C toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential mingw-w64
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.architecture == 'x64' && 'amd64' || matrix.architecture }}
+          CC: ${{ matrix.platform == 'win32' && 'x86_64-w64-mingw32-gcc' || '' }}
+        run: CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o dist/agent-wayfinder${{ matrix.extension }} ./cmd/agent-wayfinder
+      - name: Create release asset
+        env:
+          ASSET_NAME: agent-wayfinder-${{ matrix.platform }}-${{ matrix.architecture }}.gz
+        run: |
+          gzip -9 -c dist/agent-wayfinder${{ matrix.extension }} > "$ASSET_NAME"
+          shasum -a 256 "$ASSET_NAME" > "$ASSET_NAME.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: wayfinder/agent-wayfinder-*.gz*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-assets
+      - name: Publish GitHub release
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cat release-assets/*.sha256 > release-assets/SHA256SUMS
+          rm release-assets/*.sha256
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-assets/* --clobber
+          else
+            gh release create "$TAG" --verify-tag --generate-notes release-assets/*
+          fi
+
+  npm:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read version from release tag
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          test "$version" != "$TAG"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Set scoped package version
+        working-directory: wayfinder/npm/agent-wayfinder
+        run: |
+          echo "Setting package version to ${{ steps.version.outputs.version }}"
+          npm pkg set "version=${{ steps.version.outputs.version }}"
+      - name: Test npm package
+        working-directory: wayfinder/npm/agent-wayfinder
+        run: npm test
+      - name: Publish npm package
+        working-directory: wayfinder/npm/agent-wayfinder
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH }}
+          NPM_TOKEN: ${{ secrets.NPM_PUBLISH }}
+        run: npm publish
+      - name: Set unscoped package version
+        working-directory: wayfinder/npm/agent-wayfinder-unscoped
+        run: |
+          npm pkg set "version=${{ steps.version.outputs.version }}"
+          npm pkg set "dependencies.@arcmantle/agent-wayfinder=${{ steps.version.outputs.version }}"
+      - name: Test unscoped npm package
+        working-directory: wayfinder/npm/agent-wayfinder-unscoped
+        run: npm test
+      - name: Publish unscoped npm package
+        working-directory: wayfinder/npm/agent-wayfinder-unscoped
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH }}
+          NPM_TOKEN: ${{ secrets.NPM_PUBLISH }}
+        run: npm publish
