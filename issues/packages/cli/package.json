@@ -4,7 +4,9 @@
 	"description": "CLI for managing initiatives, PRDs, user stories, ADRs, and issues.",
 	"type": "module",
 	"bin": {
-		"agent-issues": "./dist/cli.js"
+		"agent-issues": "./dist/cli.js",
+		"agent-logbook": "./dist/cli.js",
+		"alb": "./dist/cli.js"
 	},
 	"files": [
 		"dist",

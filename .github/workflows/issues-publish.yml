@@ -1,8 +1,20 @@
-name: Pnpm Publish
+name: Issues Publish
 
 on:
   pull_request:
+    paths:
+      - 'issues/**'
+      - '.github/workflows/issues-publish.yml'
   push:
+    branches:
+      - '**'
+    paths:
+      - 'issues/**'
+      - '.github/workflows/issues-publish.yml'
+
+defaults:
+  run:
+    working-directory: issues
 
 jobs:
   test:
@@ -35,6 +47,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 11
+          package_json_file: issues/package.json
 
       - name: Install dependencies.
         run: pnpm install --frozen-lockfile
@@ -52,7 +65,7 @@ jobs:
             --health-timeout 5s \
             --health-retries 10 \
             postgres:16-alpine
-          for retry in {1..30}; do
+          for _retry in {1..30}; do
             health=$(docker inspect --format='{{.State.Health.Status}}' agent-issues-postgres)
             if test "$health" = "healthy"; then
               exit 0
@@ -111,6 +124,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 11
+          package_json_file: issues/package.json
 
       - name: Install dependencies.
         run: pnpm install --frozen-lockfile
@@ -119,7 +133,7 @@ jobs:
         id: version
         uses: arcmantle/prospector@main
         with:
-          dir: '.'
+          dir: 'issues'
 
       - name: Set CLI package version
         run: |
@@ -173,6 +187,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 11
+          package_json_file: issues/package.json
 
       - name: Install dependencies.
         run: pnpm install --frozen-lockfile
@@ -181,7 +196,7 @@ jobs:
         id: version
         uses: arcmantle/prospector@main
         with:
-          dir: '.'
+          dir: 'issues'
 
       - name: Set CLI package version
         run: npm version ${{ steps.version.outputs.version }} --no-git-tag-version --prefix packages/cli

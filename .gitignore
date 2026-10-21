@@ -2,7 +2,3 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
-*.db-shm
-*.db-wal
-graphify-*
-.agent-wayfinder
