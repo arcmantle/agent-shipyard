@@ -33,12 +33,14 @@ files. A state file can contain secrets even when outputs are marked sensitive.
 
 ## Requirements
 
-- Terraform 1.10 or newer, below version 2.
-- Azure CLI for the manual deployment steps below.
-- An Azure subscription and a selected region.
-- Permission to create resource groups and storage accounts, and to assign Azure
-  roles. Subscription Owner is sufficient. Contributor alone cannot assign roles.
-- The public IPv4 address of the machine that runs Terraform.
+- The organization GitHub App must be installed on both deployment repositories.
+- The private repository must have the Azure tenant and subscription variables.
+- The account used for first sign-in must have permission to create resources
+  and assign Azure roles in the private subscription.
+- The Azure tenant must permit device-code sign-in for the one-time identity action.
+
+All Azure operations and Terraform execution must run in GitHub Actions. Do not
+sign in to Azure or run Terraform locally. Every Azure apply requires RoenLie approval.
 
 The bootstrap grants its current Azure principal Storage Blob Data Contributor on
 the dedicated state account. Use the same principal for later bootstrap changes.
@@ -53,109 +55,51 @@ not private addresses or CIDR ranges. Replace the documentation address in the
 example. Azure-hosted runners in the same region need a separate network design;
 IP rules alone are not sufficient for that case.
 
-## First Bootstrap
+## First Identity
 
-Run these commands from this directory. This section is only for the first
-creation of a new state account. If the account already exists, use
-[Existing State](#existing-state) before any plan or apply.
+Run private **One-Time Azure Setup** on `main`, with its callback inputs empty.
+It requests approval through public **Approve One-Time Azure Setup** and the
+existing `azure-production` environment. Only RoenLie can approve that gate.
 
-Sign in and select the subscription. The subscription ID is not a secret.
+After approval, open the new private run and complete Microsoft device-code
+sign-in from its live log. The action creates the first setup identity, with
+temporary subscription Owner permission and OIDC trust restricted to private
+`setup.yml` on `main`. It disables itself before sign-in. No state storage or
+application resources are created. The private repository README gives the
+complete procedure, approved scope, and recovery steps.
 
-```sh
-az login
-export ARM_SUBSCRIPTION_ID="<subscription-id>"
-az account set --subscription "$ARM_SUBSCRIPTION_ID"
-export ARM_USE_CLI=true
-```
-
-Prepare the local variables:
-
-```sh
-cp bootstrap/terraform.tfvars.example bootstrap/terraform.tfvars
-```
-
-Set the region, a globally unique storage account name, and your public IPv4
-address in `bootstrap/terraform.tfvars`. The sample region is not a requirement.
-Changing the region or account name later can require resource replacement,
-which the deletion guards will reject.
-
-Do not create `bootstrap/backend.tf` yet. The first apply uses local state.
-
-```sh
-terraform -chdir=bootstrap init -input=false
-terraform -chdir=bootstrap plan -out=bootstrap.tfplan
-terraform -chdir=bootstrap apply bootstrap.tfplan
-terraform -chdir=bootstrap output backend
-```
-
-Review the plan before the apply. These commands create billable Azure resources.
-Keep the local state and its backup secure until migration is verified. Do not
-publish terminal output or plans that contain secrets.
-
-Azure role assignments and firewall changes can take time to become effective.
-If container creation returns an authorization error, check the identity, role,
-and public IP. After Azure has applied the changes, rerun the plan and apply.
-Do not enable account keys or anonymous access to bypass the error.
+Do not send the sign-in code, authentication tokens, or credentials through chat.
 
 ## Move Bootstrap State
 
-After the first apply succeeds, prepare the remote backend:
+The separate approval-controlled state setup workflow is not implemented yet.
+Keep private `DEPLOYMENT_ENABLED=false` until it is complete and verified. Do not
+substitute local setup commands.
 
-```sh
-cp bootstrap/backend.hcl.example bootstrap/state.backend.hcl
-cp bootstrap/backend.tf.example bootstrap/backend.tf
-```
+That workflow must prepare a saved plan for a new state account and wait for
+approval before its first apply. It must retain the first state securely, then
+migrate it to `tfstate/bootstrap.tfstate` with Entra ID authorization. The
+`terraform/automation` root must use a separate `tfstate/automation.tfstate` key.
 
-Set the account name and tenant ID in `bootstrap/state.backend.hcl` from the
-`backend` output. Retain the `bootstrap.tfstate` key. The backend block enables
-Entra ID access; it does not use account keys. Do not put credentials in backend
-configuration files.
-
-```sh
-terraform -chdir=bootstrap init -migrate-state -backend-config=state.backend.hcl
-terraform -chdir=bootstrap state list
-terraform -chdir=bootstrap plan
-```
-
-Approve the state copy when Terraform asks. Verify that the state list contains
-the bootstrap resources and the plan reports no changes. Check that the
-`bootstrap.tfstate` blob exists in the `tfstate` container. Keep the local backup
-until these checks succeed. Never run two applies during migration.
+Migration must verify the state resources, the remote blob, and a no-change plan
+before it removes a recovery copy. State, plans, and credentials must stay private.
+Never run two applies during migration. Do not use account keys or anonymous
+access to bypass role or firewall propagation failures.
 
 ## Existing State
 
-On a new checkout, create `bootstrap/backend.tf` and `bootstrap/state.backend.hcl`
-from the examples **before any bootstrap plan or apply**. Restore the same account
-name, tenant ID, key, and variables. Then run:
-
-```sh
-terraform -chdir=bootstrap init -backend-config=state.backend.hcl -input=false
-terraform -chdir=bootstrap state list
-```
-
-Do not repeat the local-state bootstrap for an existing installation. Do not use
-`-reconfigure` instead of `-migrate-state` when moving existing local state.
+An Actions job for an existing installation must restore its remote backend
+configuration before any plan or apply. Do not repeat the first local-state
+bootstrap for an account that already exists. Migration and reconfiguration are
+different operations; reconfiguration does not copy state.
 
 ## Logbook Backend
-
-After the bootstrap state is in Azure:
-
-```sh
-cp logbook/backend.hcl.example logbook/state.backend.hcl
-```
-
-Set the same account name and tenant ID in this file. Keep the distinct
-`logbook-prod.tfstate` key. Use another key for a later development environment.
-
-```sh
-terraform -chdir=logbook init -backend-config=state.backend.hcl -input=false
-terraform -chdir=logbook validate
-```
 
 This root is an earlier backend reservation, not the active deployment root.
 PostgreSQL, networking, service hosting, and data migration still need separate
 configuration in the private repository. The Actions workflows require a
-GitHub App, the one-time Azure setup, and publication before activation.
+GitHub App and the approved identity and state setup before activation. Routine
+application state belongs in the private `logbookstate` container.
 
 ## Protection And Recovery
 
@@ -174,19 +118,12 @@ These guards do not stop Azure portal deletion or protect resources after their
 configuration is removed. Restrict Azure permissions and protect recovery copies.
 Do not run `terraform destroy` on the bootstrap as routine application cleanup.
 
-## Local Validation
+## Validation
 
-These checks need provider downloads but no Azure login or resource creation:
+Public **Logbook Infrastructure Checks** validates these roots in GitHub Actions
+without Azure sign-in or resource creation. Private **Check Infrastructure**
+validates the private roots and runs the deployment and bootstrap contract tests.
 
-```sh
-terraform fmt -check -recursive
-terraform -chdir=bootstrap init -backend=false -input=false
-terraform -chdir=bootstrap validate
-terraform -chdir=logbook init -backend=false -input=false
-terraform -chdir=logbook validate
-```
-
-Validation does not prove that Azure permissions, firewall access, state
-migration, recovery, or locking work. Check those during the first deployment.
-After validation with `-backend=false`, run the normal backend initialization
-before any plan or apply against an existing installation.
+Validation does not prove that live Azure permissions, firewall access, state
+migration, recovery, or locking work. Verify those through approved Actions runs
+before application deployment.
