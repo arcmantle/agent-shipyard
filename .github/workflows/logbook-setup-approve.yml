@@ -1,0 +1,101 @@
+name: Approve Azure State Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      review:
+        description: Private saved-plan review
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    if: github.repository == 'arcmantle/agent-shipyard' && github.ref == 'refs/heads/main' && github.actor == format('{0}[bot]', vars.INFRA_APP_SLUG)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      digest: ${{ steps.review.outputs.digest }}
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.INFRA_APP_ID }}
+          private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+          owner: arcmantle
+          repositories: agent-shipyard-infra
+          permission-actions: read
+      - name: Verify the successful private state plan
+        id: review
+        uses: actions/github-script@v8
+        env:
+          REVIEW: ${{ inputs.review }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const { createHash } = require('node:crypto');
+            const encoded = process.env.REVIEW;
+            if (!encoded || encoded.length > 8192) throw new Error('Invalid setup review');
+            const bytes = Buffer.from(encoded, 'base64');
+            const review = JSON.parse(bytes);
+            const age = Date.now() - Date.parse(review.created_at);
+            if (Object.keys(review).sort().join(',') !== 'counts,created_at,has_changes,infra_sha,plan_run_attempt,plan_run_id,plan_sha256,source_sha,stage'
+              || review.stage !== 'state' || review.has_changes !== true
+              || !/^[1-9][0-9]*$/.test(review.plan_run_id) || !/^[1-9][0-9]*$/.test(review.plan_run_attempt)
+              || !/^[a-f0-9]{40}$/.test(review.infra_sha) || !/^[a-f0-9]{40}$/.test(review.source_sha)
+              || !/^[a-f0-9]{64}$/.test(review.plan_sha256) || !Number.isFinite(age) || age < 0 || age > 86400000
+              || Object.keys(review.counts ?? {}).sort().join(',') !== 'create,delete,update'
+              || !Object.values(review.counts).every(value => Number.isSafeInteger(value) && value >= 0)
+              || review.counts.delete !== 0) throw new Error('Invalid setup plan fields');
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              owner: 'arcmantle', repo: 'agent-shipyard-infra', run_id: review.plan_run_id,
+            });
+            if (run.repository.full_name !== 'arcmantle/agent-shipyard-infra' || run.head_branch !== 'main'
+              || run.path !== '.github/workflows/setup.yml' || run.event !== 'workflow_dispatch'
+              || run.conclusion !== 'success' || run.actor.login.toLowerCase() !== 'roenlie'
+              || run.triggering_actor.login.toLowerCase() !== 'roenlie' || run.head_sha !== review.infra_sha
+              || String(run.id) !== review.plan_run_id || String(run.run_attempt) !== review.plan_run_attempt) {
+              throw new Error('The successful private setup plan does not match');
+            }
+            core.setOutput('digest', createHash('sha256').update(bytes).digest('hex'));
+            await core.summary.addHeading('Approve Azure State Storage')
+              .addRaw(`Create: ${review.counts.create}. Update: ${review.counts.update}. Delete: 0.\n\n`)
+              .addLink('Review the exact private saved plan and Azure target', `https://github.com/arcmantle/agent-shipyard-infra/actions/runs/${review.plan_run_id}`)
+              .addRaw('\n\nApproval permits only the saved state-storage plan, Storage provider registration, temporary runner-only firewall access, and secure bootstrap-state migration. A private recovery copy is retained. Storage and usage incur charges; setup costs are separate from the application estimate. No Container Apps or PostgreSQL resources are created. The saved plan is consumed once; a failed Apply requires a new plan and approval.')
+              .write();
+
+  approve:
+    name: Approve State Storage And Migration
+    needs: review
+    environment: azure-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.INFRA_APP_ID }}
+          private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+          owner: arcmantle
+          repositories: agent-shipyard-infra
+          permission-actions: write
+      - name: Authorize the exact private setup plan
+        uses: actions/github-script@v8
+        env:
+          REVIEW: ${{ inputs.review }}
+          REVIEW_DIGEST: ${{ needs.review.outputs.digest }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const token = await core.getIDToken(`urn:arcmantle:shipyard:setup:${process.env.REVIEW_DIGEST}`);
+            core.setSecret(token);
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'arcmantle', repo: 'agent-shipyard-infra', workflow_id: 'setup.yml', ref: 'main',
+              inputs: { operation: 'apply', stage: 'state', review: process.env.REVIEW, approval_token: token },
+            });
+            await core.summary.addRaw('The approved saved plan was sent to private Setup Azure Infrastructure. Check that private run for the Azure result.').write();

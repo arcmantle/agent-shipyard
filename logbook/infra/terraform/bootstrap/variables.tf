@@ -16,12 +16,12 @@ variable "storage_account_name" {
 }
 
 variable "allowed_ipv4_addresses" {
-  description = "Public IPv4 addresses of the machines that run Terraform. Do not use CIDR suffixes."
+  description = "Approved public IPv4 addresses. An empty set keeps data-plane access closed."
   type        = set(string)
   nullable    = false
 
   validation {
-    condition = length(var.allowed_ipv4_addresses) > 0 && alltrue([
+    condition = alltrue([
       for address in var.allowed_ipv4_addresses :
       can(cidrhost("${address}/32", 0)) && !strcontains(address, ":")
     ])

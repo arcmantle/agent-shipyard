@@ -49,10 +49,10 @@ access isolation. A later deployment identity should receive only the required
 container access and resource-management permissions.
 
 The account uses a public HTTPS endpoint restricted to the supplied IPv4
-addresses. This is not a private endpoint. IP rules do not grant data access;
+addresses, or no data-plane addresses during initial planning. This is not a
+private endpoint. IP rules do not grant data access;
 Entra ID authorization is also required. Use individual public IPv4 addresses,
-not private addresses or CIDR ranges. Replace the documentation address in the
-example. Azure-hosted runners in the same region need a separate network design;
+not private addresses or CIDR ranges. Azure-hosted runners in the same region need a separate network design;
 IP rules alone are not sufficient for that case.
 
 ## First Identity
@@ -72,14 +72,19 @@ Do not send the sign-in code, authentication tokens, or credentials through chat
 
 ## Move Bootstrap State
 
-The separate approval-controlled state setup workflow is not implemented yet.
-Keep private `DEPLOYMENT_ENABLED=false` until it is complete and verified. Do not
-substitute local setup commands.
+Private **Setup Azure Infrastructure** prepares a saved state-storage plan with
+setup OIDC. Select operation `plan`, stage `state`, and leave callback fields
+empty. The public **Approve Azure State Setup** gate requires RoenLie approval
+before the exact saved binary can apply. The runner retains private recovery
+state before migration to `tfstate/bootstrap.tfstate` with Entra ID authorization.
+It verifies state lineage, serial, and resources, then removes its temporary IP
+rule. The original binary artifact is consumed once before application.
 
-That workflow must prepare a saved plan for a new state account and wait for
-approval before its first apply. It must retain the first state securely, then
-migrate it to `tfstate/bootstrap.tfstate` with Entra ID authorization. The
-`terraform/automation` root must use a separate `tfstate/automation.tfstate` key.
+The automation stage is still pending. Its root must use the separate
+`tfstate/automation.tfstate` key and a separately approved plan. Keep private
+`DEPLOYMENT_ENABLED=false` until setup and live verification are complete. Do not
+substitute local setup commands. See the private README for failure recovery;
+initial setup refuses an existing state resource group.
 
 Migration must verify the state resources, the remote blob, and a no-change plan
 before it removes a recovery copy. State, plans, and credentials must stay private.
