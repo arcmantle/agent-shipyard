@@ -81,6 +81,16 @@ resource "azurerm_storage_container" "state" {
   }
 }
 
+output "setup_identity" {
+  description = "Private setup-plan target used to verify approval against the current Azure identity."
+  sensitive   = true
+  value = {
+    client_id       = data.azurerm_client_config.current.client_id
+    tenant_id       = data.azurerm_client_config.current.tenant_id
+    subscription_id = data.azurerm_client_config.current.subscription_id
+  }
+}
+
 output "backend" {
   description = "Non-secret backend settings. Use a separate key for each Terraform root."
   value = {
