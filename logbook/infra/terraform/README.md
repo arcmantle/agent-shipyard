@@ -91,6 +91,17 @@ before it removes a recovery copy. State, plans, and credentials must stay priva
 Never run two applies during migration. Do not use account keys or anonymous
 access to bypass role or firewall propagation failures.
 
+If resource Apply succeeded but the initial migration failed, use private
+`setup.yml` operation `request-recovery` with the failed Apply run ID. Public
+**Approve Azure State Recovery** requires a separate approval. The private
+callback verifies the exact retained artifact and current target, consumes the
+request once, and waits for Entra ID blob-list access. It creates only a missing
+state blob with an atomic no-overwrite condition. An existing blob must match;
+it is never overwritten. Recovery retains the original state artifact and runs
+no Terraform Apply. Its no-change plan uses `-refresh=false`, so it checks
+configuration against restored state, not live resource drift. Firewall cleanup
+runs after failure as well as success. See the private README for the procedure.
+
 ## Existing State
 
 An Actions job for an existing installation must restore its remote backend

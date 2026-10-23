@@ -1,0 +1,96 @@
+name: Approve Azure State Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      review:
+        description: Private recovery request
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    if: github.repository == 'arcmantle/agent-shipyard' && github.ref == 'refs/heads/main' && github.actor == format('{0}[bot]', vars.INFRA_APP_SLUG)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      digest: ${{ steps.review.outputs.digest }}
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.INFRA_APP_ID }}
+          private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+          owner: arcmantle
+          repositories: agent-shipyard-infra
+          permission-actions: read
+      - name: Verify the private recovery request
+        id: review
+        uses: actions/github-script@v8
+        env:
+          REVIEW: ${{ inputs.review }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const { createHash } = require('node:crypto');
+            const encoded = process.env.REVIEW;
+            if (!encoded || encoded.length > 8192) throw new Error('Invalid recovery review');
+            const bytes = Buffer.from(encoded, 'base64');
+            const review = JSON.parse(bytes);
+            const age = Date.now() - Date.parse(review.created_at);
+            if (Object.keys(review).sort().join(',') !== 'created_at,infra_sha,recovery_run_attempt,recovery_run_id,recovery_sha256,request_run_attempt,request_run_id,source_sha'
+              || !['request_run_id', 'request_run_attempt', 'recovery_run_id', 'recovery_run_attempt'].every(field => /^[1-9][0-9]*$/.test(review[field]))
+              || !/^[a-f0-9]{40}$/.test(review.infra_sha) || !/^[a-f0-9]{40}$/.test(review.source_sha)
+              || !/^[a-f0-9]{64}$/.test(review.recovery_sha256)
+              || !Number.isFinite(age) || age < 0 || age > 86400000) throw new Error('Invalid recovery fields');
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              owner: 'arcmantle', repo: 'agent-shipyard-infra', run_id: review.request_run_id,
+            });
+            if (run.repository.full_name !== 'arcmantle/agent-shipyard-infra' || run.head_branch !== 'main'
+              || run.path !== '.github/workflows/setup.yml' || run.event !== 'workflow_dispatch'
+              || run.actor.login.toLowerCase() !== 'roenlie' || run.triggering_actor.login.toLowerCase() !== 'roenlie'
+              || run.head_sha !== review.infra_sha || String(run.id) !== review.request_run_id
+              || String(run.run_attempt) !== review.request_run_attempt
+              || ['failure', 'cancelled', 'timed_out'].includes(run.conclusion)) throw new Error('The recovery request does not match');
+            core.setOutput('digest', createHash('sha256').update(bytes).digest('hex'));
+            await core.summary.addHeading('Approve State Recovery Without Resource Apply')
+              .addLink('Review private recovery evidence and Azure target', `https://github.com/arcmantle/agent-shipyard-infra/actions/runs/${review.request_run_id}`)
+              .addRaw('\n\nApproval permits temporary runner-only firewall access, Entra ID access to the retained state, and conditional creation of the missing bootstrap state blob. Existing remote state is not overwritten. Recovery verifies state and a no-change plan. It does not run Terraform Apply, create application resources, change roles, enable Shared Key, or allow broad network access. The original private recovery artifact is retained. The request is single-use and expires after 24 hours.')
+              .write();
+
+  approve:
+    name: Approve State Recovery Only
+    needs: review
+    environment: azure-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.INFRA_APP_ID }}
+          private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+          owner: arcmantle
+          repositories: agent-shipyard-infra
+          permission-actions: write
+      - name: Authorize the exact private recovery request
+        uses: actions/github-script@v8
+        env:
+          REVIEW: ${{ inputs.review }}
+          REVIEW_DIGEST: ${{ needs.review.outputs.digest }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const token = await core.getIDToken(`urn:arcmantle:shipyard:recovery:${process.env.REVIEW_DIGEST}`);
+            core.setSecret(token);
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'arcmantle', repo: 'agent-shipyard-infra', workflow_id: 'setup.yml', ref: 'main',
+              inputs: { operation: 'recover', stage: 'state', review: process.env.REVIEW, approval_token: token },
+            });
+            await core.summary.addRaw('The approved request was sent to private state recovery. Check that private run for migration and cleanup results.').write();
