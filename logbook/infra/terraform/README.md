@@ -74,17 +74,27 @@ Do not send the sign-in code, authentication tokens, or credentials through chat
 
 Private **Setup Azure Infrastructure** prepares a saved state-storage plan with
 setup OIDC. Select operation `plan`, stage `state`, and leave callback fields
-empty. The public **Approve Azure State Setup** gate requires RoenLie approval
+empty. The public **Approve Azure Infrastructure Setup** gate requires RoenLie approval
 before the exact saved binary can apply. The runner retains private recovery
 state before migration to `tfstate/bootstrap.tfstate` with Entra ID authorization.
 It verifies state lineage, serial, and resources, then removes its temporary IP
 rule. The original binary artifact is consumed once before application.
 
-The automation stage is still pending. Its root must use the separate
-`tfstate/automation.tfstate` key and a separately approved plan. Keep private
-`DEPLOYMENT_ENABLED=false` until setup and live verification are complete. Do not
-substitute local setup commands. See the private README for failure recovery;
-initial setup refuses an existing state resource group.
+After state storage is ready, private `setup.yml` operation `plan`, stage
+`automation`, uses the separate `tfstate/automation.tfstate` key. Public
+**Approve Azure Infrastructure Setup** requires approval of its exact saved plan
+before restricted Plan and Apply identities, workflow-specific federation, and
+state access can be created. Plan receives application Reader; Apply receives
+application Contributor. Neither receives role-assignment permission. Review the
+dedicated state-account read/write firewall role in the private plan.
+
+The approved Apply verifies distinct identity outputs, a refreshed no-change
+plan, private recovery retention, and owned firewall cleanup. Configure private
+identity variables from its verified result. Temporary setup Owner and federation
+removal require a later approved Actions operation. Keep `DEPLOYMENT_ENABLED=false`
+until setup and live verification are complete. Do not substitute local Azure or
+Terraform commands. See the private README for failure recovery; initial state
+setup refuses an existing state resource group.
 
 Migration must verify the state resources, the remote blob, and a no-change plan
 before it removes a recovery copy. State, plans, and credentials must stay private.

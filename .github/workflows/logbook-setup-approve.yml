@@ -1,4 +1,4 @@
-name: Approve Azure State Setup
+name: Approve Azure Infrastructure Setup
 
 on:
   workflow_dispatch:
@@ -27,7 +27,7 @@ jobs:
           owner: arcmantle
           repositories: agent-shipyard-infra
           permission-actions: read
-      - name: Verify the successful private state plan
+      - name: Verify the successful private setup plan
         id: review
         uses: actions/github-script@v8
         env:
@@ -42,7 +42,7 @@ jobs:
             const review = JSON.parse(bytes);
             const age = Date.now() - Date.parse(review.created_at);
             if (Object.keys(review).sort().join(',') !== 'counts,created_at,has_changes,infra_sha,plan_run_attempt,plan_run_id,plan_sha256,source_sha,stage'
-              || review.stage !== 'state' || review.has_changes !== true
+              || !['state', 'automation'].includes(review.stage) || review.has_changes !== true
               || !/^[1-9][0-9]*$/.test(review.plan_run_id) || !/^[1-9][0-9]*$/.test(review.plan_run_attempt)
               || !/^[a-f0-9]{40}$/.test(review.infra_sha) || !/^[a-f0-9]{40}$/.test(review.source_sha)
               || !/^[a-f0-9]{64}$/.test(review.plan_sha256) || !Number.isFinite(age) || age < 0 || age > 86400000
@@ -60,14 +60,16 @@ jobs:
               throw new Error('The successful private setup plan does not match');
             }
             core.setOutput('digest', createHash('sha256').update(bytes).digest('hex'));
-            await core.summary.addHeading('Approve Azure State Storage')
+            await core.summary.addHeading(review.stage === 'automation' ? 'Approve Restricted Deployment Identities' : 'Approve Azure State Storage')
               .addRaw(`Create: ${review.counts.create}. Update: ${review.counts.update}. Delete: 0.\n\n`)
               .addLink('Review the exact private saved plan and Azure target', `https://github.com/arcmantle/agent-shipyard-infra/actions/runs/${review.plan_run_id}`)
-              .addRaw('\n\nApproval permits only the saved state-storage plan, Storage provider registration, temporary runner-only firewall access, and secure bootstrap-state migration. A private recovery copy is retained. Storage and usage incur charges; setup costs are separate from the application estimate. No Container Apps or PostgreSQL resources are created. The saved plan is consumed once; a failed Apply requires a new plan and approval.')
+              .addRaw(review.stage === 'automation'
+                ? '\n\nApproval permits only the saved automation plan, Managed Identity provider registration, and temporary runner-only state access. It creates Plan and Apply identities, workflow-specific federation, resource groups, application-container state access, and a firewall role at the dedicated state account. Plan gets application Reader; Apply gets application Contributor. Neither gets role-assignment permissions. The firewall role permits account reads and writes, not key retrieval. Review every role scope privately. No Container Apps or PostgreSQL resources are created. The saved plan is consumed once; a failed Apply requires a new plan and approval. Setup Owner removal requires a later approved operation.'
+                : '\n\nApproval permits only the saved state-storage plan, Storage provider registration, temporary runner-only firewall access, and secure bootstrap-state migration. A private recovery copy is retained. Storage and usage incur charges; setup costs are separate from the application estimate. No Container Apps or PostgreSQL resources are created. The saved plan is consumed once; a failed Apply requires a new plan and approval.')
               .write();
 
   approve:
-    name: Approve State Storage And Migration
+    name: Approve Exact Infrastructure Setup Plan
     needs: review
     environment: azure-production
     runs-on: ubuntu-24.04
@@ -96,6 +98,6 @@ jobs:
             core.setSecret(token);
             await github.rest.actions.createWorkflowDispatch({
               owner: 'arcmantle', repo: 'agent-shipyard-infra', workflow_id: 'setup.yml', ref: 'main',
-              inputs: { operation: 'apply', stage: 'state', review: process.env.REVIEW, approval_token: token },
+              inputs: { operation: 'apply', stage: JSON.parse(Buffer.from(process.env.REVIEW, 'base64')).stage, review: process.env.REVIEW, approval_token: token },
             });
             await core.summary.addRaw('The approved saved plan was sent to private Setup Azure Infrastructure. Check that private run for the Azure result.').write();
