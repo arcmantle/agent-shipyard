@@ -1,0 +1,4 @@
+storage_account_name = "replacemelogbookstate"
+container_name       = "tfstate"
+tenant_id            = "00000000-0000-0000-0000-000000000000"
+key                  = "logbook-prod.tfstate"

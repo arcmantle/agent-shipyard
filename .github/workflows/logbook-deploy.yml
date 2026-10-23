@@ -1,0 +1,40 @@
+name: Request Logbook Deployment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  request-plan:
+    if: github.repository == 'arcmantle/agent-shipyard' && github.ref == 'refs/heads/main' && github.actor == 'roenlie' && github.triggering_actor == 'roenlie'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Create infrastructure dispatch token
+        id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.INFRA_APP_ID }}
+          private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+          owner: arcmantle
+          repositories: agent-shipyard-infra
+          permission-actions: write
+      - name: Request private plan
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'arcmantle', repo: 'agent-shipyard-infra',
+              workflow_id: 'plan.yml', ref: 'main',
+              inputs: {
+                request_run_id: String(context.runId),
+                request_run_attempt: String(process.env.GITHUB_RUN_ATTEMPT),
+                source_sha: context.sha,
+              },
+            });
+            await core.summary.addHeading('Logbook Plan Requested')
+              .addRaw('The private infrastructure repository will prepare the plan. A separate public workflow will request approval. No Azure apply has started.')
+              .write();
