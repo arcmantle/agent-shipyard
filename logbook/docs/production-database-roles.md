@@ -1,8 +1,8 @@
 # Production Database Roles
 
-This operation is prepared for protected GitHub Actions execution. It has been
-tested only against a disposable local PostgreSQL database. It has not run on
-Azure. A separate protected database setup workflow is prepared in the private
+This operation uses protected GitHub Actions execution. Its local contracts have
+passed against a disposable PostgreSQL database. Live Azure verification is not
+complete. A separate protected database setup workflow is in the private
 infrastructure repository. Do not use a public runner to connect to PostgreSQL or
 reopen retired setup access. Local preparation is not publication or execution
 approval.
@@ -68,33 +68,41 @@ privately before use.
 2. Use the normal protected infrastructure Plan and Apply to enable Entra
    authentication while retaining password recovery. Do not restore retired setup
    access or add privileges to routine deployment identities.
-3. Request protected approval for identity provisioning, then for database setup.
+3. Install the separate database executor's GitHub OIDC trust once through the
+   protected `bootstrap-oidc` operation. Its initial Azure administrator sign-in
+   creates only the reviewed custom role assignments: administrator management
+   on the exact PostgreSQL server, join access to the existing environment, and
+   managed identities and jobs in the isolated setup group. It grants no Owner
+   role, role administration, password reset, or routine deployment permissions.
+   Keep the exact returned executor client ID in the private target.
+4. Request protected approval for identity provisioning, then for database setup.
    The private review binds the target, three distinct managed identities, source,
    image, operation, total monthly estimate, and expiry. Provisioning and setup
    have separate single-use claims. The privileged job and identities use an
    isolated resource group outside the routine Apply Contributor scope. The job
    uses the existing private Consumption environment, one replica, no automatic
-   retry, no ingress, and a finite timeout. An administrator signs in only after
-   the private callback verifies approval. No setup identity receives ARM roles or
-   a GitHub federation.
-4. The setup command verifies exact Entra mappings and effective grants. A
+   retry, no ingress, and a finite timeout. After each public approval, the
+   private callback verifies approval and signs in automatically with the
+   separate executor. No device code or second approval is required. The
+   database setup identity receives no ARM roles or GitHub federation.
+5. The setup command verifies exact Entra mappings and effective grants. A
    disposable forced-RLS table verifies both tenant read and write isolation and
    denied runtime administrative operations. It is not an application migration.
    The command removes this table, temporary schema-owner CREATE permission, and
    setup grants that it can revoke. It rejects retained setup object ownership.
-5. The controller stops and removes the job, removes the temporary Entra
+6. The controller stops and removes the job, removes the temporary Entra
    administrator assignment, and starts a fresh verification job. Authentication
    denial alone is insufficient: the runtime connection must also verify that no
    setup membership or ownership remains. The migration identity must still be
    able to select the owner. Network, TLS, token, or timeout errors do not count as
    verified login denial. Remove the verification job before reporting success.
-6. In the separate approved migration operation, connect as `migration` and select
+7. In the separate approved migration operation, connect as `migration` and select
    `owner` on every connection, for example with PostgreSQL connection option
    `-c role=<approved-owner-role>`. Run `migratePgDatabase`, then run the approved
    role setup operation again. The transaction-local tenant setting remains the
    API's tenant-isolation boundary. Runtime credentials are trusted only by the
    API, never by browser users or direct untrusted database clients.
-7. Supply only the runtime connection to the application. Do not supply setup or
+8. Supply only the runtime connection to the application. Do not supply setup or
    migration credentials to the application container or browser. Retain a
    sanitized effective-grant and two-tenant verification result privately. A
    successful connection alone does not prove isolation.
