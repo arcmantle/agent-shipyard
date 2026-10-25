@@ -5,7 +5,7 @@ import { schema } from "../schema.js";
 import { runMigrationsWithClient } from "./migration-runner.js";
 import { inspectPgSourceProfile } from "./source-profile.js";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { Pool, type PoolClient } from "pg";
+import { Client, Pool, type ClientConfig, type PoolClient } from "pg";
 import { parseIntoClientConfig } from "pg-connection-string";
 import { ManagedIdentityCredential } from "@azure/identity";
 
@@ -46,6 +46,23 @@ export type TenantExecutor = NodePgDatabase<typeof schema> & QueryExecutor & {
 	currentProjectId: string;
 };
 
+class ManagedIdentityPgClient extends Client {
+	public constructor(configuration?: ClientConfig) {
+		const password = configuration?.password;
+		super({
+			...configuration,
+			password: typeof password === "function" ? async () => {
+				try {
+					return await password();
+				} catch (error) {
+					this.connection.stream.destroy();
+					throw error;
+				}
+			} : password
+		});
+	}
+}
+
 export function createPgPool(options: PgConnectionOptions): Pool {
 	const credential = options.managedIdentityClientId ? new ManagedIdentityCredential({ clientId: options.managedIdentityClientId }) : undefined;
 	const password = credential ? async () => {
@@ -58,6 +75,7 @@ export function createPgPool(options: PgConnectionOptions): Pool {
 		}
 	} : undefined;
 	return new Pool({
+		...(credential ? { Client: ManagedIdentityPgClient } : {}),
 		...(password ? parseIntoClientConfig(options.connectionString) : { connectionString: options.connectionString }),
 		...(password ? { password } : {}),
 		connectionTimeoutMillis: options.connectionTimeoutMillis,

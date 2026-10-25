@@ -1,9 +1,11 @@
-import type { Pool } from "pg";
-import { ManagedIdentityCredential } from "@azure/identity";
-import { describe, expect, it, vi } from "vitest";
+import { randomUUID } from "node:crypto";
 
-import { createPgPool, LocalAuthProvider, migratePgDatabase } from "./index.js";
-import { cleanupTestTenants, createTestTenantId } from "./db/test-tenant-cleanup.js";
+import { Pool } from "pg";
+import { ManagedIdentityCredential } from "@azure/identity";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { configurePgRoles, createPgPool, LocalAuthProvider, migratePgDatabase } from "./index.js";
+import { createTestTenantId } from "./db/test-tenant-cleanup.js";
 import { startProductionApi } from "./production.js";
 
 const environment = {
@@ -16,8 +18,46 @@ const environment = {
 };
 
 describe("production API host", () => {
+	const adminUrl = process.env.AGENT_ISSUES_TEST_PG_URL ?? "postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues";
+	const admin = createPgPool({ connectionString: adminUrl });
+	const suffix = randomUUID().replace(/-/g, "");
+	const databaseName = `production_${suffix}`;
+	const roles = { owner: `owner_${suffix}`, migration: `migration_${suffix}`, runtime: `runtime_${suffix}` };
+	let setup: Pool;
+	let migration: Pool;
+	let runtimeUrl: string;
+
+	beforeAll(async () => {
+		await admin.query(`CREATE DATABASE ${databaseName}`);
+		const url = new URL(adminUrl);
+		url.pathname = `/${databaseName}`;
+		setup = createPgPool({ connectionString: url.href });
+		const passwords = { runtime: randomUUID(), migration: randomUUID() };
+		await configurePgRoles(setup, roles, passwords);
+		url.username = roles.migration;
+		url.password = passwords.migration;
+		migration = new Pool({ connectionString: url.href, options: `-c role=${roles.owner}` });
+		await migratePgDatabase(migration);
+		await configurePgRoles(setup, roles);
+		url.username = roles.runtime;
+		url.password = passwords.runtime;
+		runtimeUrl = url.href;
+	});
+
+	afterAll(async () => {
+		try {
+			await migration?.end();
+			await setup?.end();
+			await admin.query("SET statement_timeout = '5s'");
+			await admin.query(`DROP DATABASE IF EXISTS ${databaseName}`);
+			for (const role of Object.values(roles)) await admin.query(`DROP ROLE IF EXISTS ${role}`);
+		} finally {
+			await admin.end();
+		}
+	});
+
 	it("uses renewed managed identity credentials for new database connections", async () => {
-		const database = new URL(process.env.AGENT_ISSUES_TEST_PG_APP_URL ?? "postgres://agent_issues_app:agent_issues_app_dev_only@127.0.0.1:5433/agent_issues");
+		const database = new URL(runtimeUrl);
 		const password = decodeURIComponent(database.password);
 		database.password = "";
 		const credential = vi.spyOn(ManagedIdentityCredential.prototype, "getToken").mockResolvedValue({ token: password, expiresOnTimestamp: Date.now() + 60000 });
@@ -40,7 +80,7 @@ describe("production API host", () => {
 		if (failure === "failed") credential.mockRejectedValue(new Error("private-token-provider-error"));
 		else credential.mockResolvedValue({ token: "private-expired-token", expiresOnTimestamp: 0 });
 		const pool = createPgPool({
-			connectionString: process.env.AGENT_ISSUES_TEST_PG_APP_URL ?? "postgres://agent_issues_app:agent_issues_app_dev_only@127.0.0.1:5433/agent_issues",
+			connectionString: runtimeUrl,
 			managedIdentityClientId: environment.DATABASE_MANAGED_IDENTITY_CLIENT_ID
 		});
 		try {
@@ -120,16 +160,10 @@ describe("production API host", () => {
 	}, 1000);
 
 	it("serves authenticated application writes through the production listener", async () => {
-		const adminPool = createPgPool({
-			connectionString: process.env.AGENT_ISSUES_TEST_PG_URL ?? "postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues"
-		});
-		const pool = createPgPool({
-			connectionString: process.env.AGENT_ISSUES_TEST_PG_APP_URL ?? "postgres://agent_issues_app:agent_issues_app_dev_only@127.0.0.1:5433/agent_issues"
-		});
+		const pool = createPgPool({ connectionString: runtimeUrl });
 		const authProvider = new LocalAuthProvider({ secret: "production-host-test-only" });
 		let handle: Awaited<ReturnType<typeof startProductionApi>> | undefined;
 		try {
-			await migratePgDatabase(adminPool);
 			handle = await startProductionApi({ environment, pool, authProvider });
 			const headers = { "content-type": "application/json" };
 			const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "createEntity", params: { kind: "initiative", title: "Production host write" } });
@@ -143,8 +177,6 @@ describe("production API host", () => {
 		} finally {
 			if (handle) await handle.close();
 			else await pool.end();
-			await cleanupTestTenants(adminPool);
-			await adminPool.end();
 		}
 	});
 });
