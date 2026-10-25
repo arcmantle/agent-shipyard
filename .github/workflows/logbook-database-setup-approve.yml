@@ -1,0 +1,103 @@
+name: Approve Private Database Access
+
+on:
+  workflow_dispatch:
+    inputs:
+      review:
+        description: Exact private database access request
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    if: github.repository == 'arcmantle/agent-shipyard' && github.ref == 'refs/heads/main' && github.actor == format('{0}[bot]', vars.INFRA_APP_SLUG) && github.triggering_actor == format('{0}[bot]', vars.INFRA_APP_SLUG)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      digest: ${{ steps.review.outputs.digest }}
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.INFRA_APP_ID }}
+          private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+          owner: arcmantle
+          repositories: agent-shipyard-infra
+          permission-actions: read
+      - name: Verify the private database request
+        id: review
+        uses: actions/github-script@v8
+        env:
+          REVIEW: ${{ inputs.review }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const { createHash } = require('node:crypto');
+            const encoded = process.env.REVIEW;
+            if (!encoded || encoded.length > 8192) throw new Error('Invalid database review');
+            const bytes = Buffer.from(encoded, 'base64');
+            const review = JSON.parse(bytes);
+            const age = Date.now() - Date.parse(review.created_at);
+            if (Object.keys(review).sort().join(',') !== 'created_at,image,infra_sha,monthly_usd,operation,request_run_attempt,request_run_id,source_sha,target_sha256,verification_run_attempt,verification_run_id'
+              || !['provision', 'configure', 'reconcile'].includes(review.operation)
+              || !['request_run_id', 'request_run_attempt', 'verification_run_id', 'verification_run_attempt'].every(key => typeof review[key] === 'string' && /^[1-9][0-9]*$/.test(review[key]))
+              || (review.operation !== 'reconcile' && (review.verification_run_id !== review.request_run_id || review.verification_run_attempt !== review.request_run_attempt))
+              || !/^[a-f0-9]{40}$/.test(review.infra_sha) || !/^[a-f0-9]{40}$/.test(review.source_sha)
+              || !/^ghcr.io\/arcmantle\/logbook-database-setup@sha256:[a-f0-9]{64}$/.test(review.image)
+              || !/^[a-f0-9]{64}$/.test(review.target_sha256)
+              || !Number.isFinite(review.monthly_usd) || review.monthly_usd < 0 || review.monthly_usd > 60
+              || !Number.isFinite(age) || age < 0 || age > 86400000) throw new Error('Invalid or expired database request');
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              owner: 'arcmantle', repo: 'agent-shipyard-infra', run_id: review.request_run_id,
+            });
+            if (run.repository.full_name !== 'arcmantle/agent-shipyard-infra' || run.head_branch !== 'main'
+              || run.path !== '.github/workflows/database-setup.yml' || run.event !== 'workflow_dispatch'
+              || run.display_title !== `Database access (request-${review.operation})`
+              || run.actor.login.toLowerCase() !== 'roenlie' || run.triggering_actor.login.toLowerCase() !== 'roenlie'
+              || run.head_sha !== review.infra_sha || String(run.id) !== review.request_run_id
+              || String(run.run_attempt) !== review.request_run_attempt || Date.parse(run.created_at) > Date.parse(review.created_at)
+              || !Number.isFinite(Date.parse(run.created_at)) || ['failure', 'cancelled', 'timed_out'].includes(run.conclusion)) throw new Error('The database request does not match');
+            core.setOutput('digest', createHash('sha256').update(bytes).digest('hex'));
+            await core.summary.addHeading('Private Database Access')
+              .addLink('Review the exact private target and principal mappings', `https://github.com/arcmantle/agent-shipyard-infra/actions/runs/${review.request_run_id}`)
+              .addRaw(`\n\nOperation: ${review.operation}. Image: ${review.image}. Source: ${review.source_sha}. Total monthly estimate: USD ${review.monthly_usd}; this is not a billing cap. The request is single-use and expires after 24 hours.`)
+              .addRaw('\n\nProvision creates three separate database identities in an isolated setup resource group. Configure uses a temporary Entra PostgreSQL administrator assignment and a private, finite job in the existing environment. It verifies runtime restrictions and a disposable two-tenant RLS table, then removes temporary access. Reconcile is a separate approval for failed cleanup. No operation grants routine deployment access to the setup identity or runs application schema migrations. Failed cleanup blocks completion. An administrator must sign in through the private execution run.')
+              .write();
+
+  approve:
+    name: Approve Exact Database Operation
+    needs: review
+    environment: azure-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.INFRA_APP_ID }}
+          private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+          owner: arcmantle
+          repositories: agent-shipyard-infra
+          permission-actions: write
+      - name: Authorize only the exact database operation
+        uses: actions/github-script@v8
+        env:
+          REVIEW: ${{ inputs.review }}
+          REVIEW_DIGEST: ${{ needs.review.outputs.digest }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const token = await core.getIDToken(`urn:arcmantle:shipyard:database-setup:${process.env.REVIEW_DIGEST}`);
+            core.setSecret(token);
+            const review = JSON.parse(Buffer.from(process.env.REVIEW, 'base64'));
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'arcmantle', repo: 'agent-shipyard-infra', workflow_id: 'database-setup.yml', ref: 'main',
+              inputs: { operation: review.operation, review: process.env.REVIEW, approval_token: token },
+            });
+            await core.summary.addRaw('The approved operation was sent to private Actions. Check that run for sign-in and the final cleanup result.').write();

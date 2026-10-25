@@ -17,7 +17,11 @@ export const instructionDefaultsMigration: Migration = {
 			content_hash TEXT NOT NULL,
 			PRIMARY KEY (version, item_key)
 		)`);
-		await db.run(sql`REVOKE INSERT, UPDATE, DELETE ON instruction_bundles, instruction_defaults FROM agent_issues_app`);
-		await db.run(sql`GRANT SELECT ON instruction_bundles, instruction_defaults TO agent_issues_app`);
+		await db.run(sql`DO $$ BEGIN
+			IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'agent_issues_app') THEN
+				REVOKE INSERT, UPDATE, DELETE ON instruction_bundles, instruction_defaults FROM agent_issues_app;
+				GRANT SELECT ON instruction_bundles, instruction_defaults TO agent_issues_app;
+			END IF;
+		END $$`);
 	}
 };

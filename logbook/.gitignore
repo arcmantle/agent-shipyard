@@ -6,3 +6,13 @@ dist/
 *.db-wal
 graphify-*
 .agent-wayfinder
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+*.backend.hcl
+crash.log
+crash.*.log
+/infra/terraform/bootstrap/backend.tf

@@ -1,0 +1,38 @@
+name: Logbook Infrastructure Checks
+
+on:
+  pull_request:
+    paths:
+      - 'logbook/infra/**'
+      - '.github/workflows/logbook-infra-*.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'logbook/infra/**'
+      - '.github/workflows/logbook-infra-*.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.16.5'
+          terraform_wrapper: false
+      - name: Check formatting
+        run: terraform -chdir=logbook/infra/terraform fmt -check -recursive
+      - name: Validate Terraform roots
+        shell: bash
+        run: |
+          set -euo pipefail
+          for root in bootstrap logbook; do
+            terraform -chdir="logbook/infra/terraform/$root" init -backend=false -input=false -lockfile=readonly
+            terraform -chdir="logbook/infra/terraform/$root" validate
+          done

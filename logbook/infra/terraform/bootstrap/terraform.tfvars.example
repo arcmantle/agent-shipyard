@@ -1,0 +1,3 @@
+location               = "norwayeast"
+storage_account_name   = "replacemelogbookstate"
+allowed_ipv4_addresses = ["203.0.113.10"]

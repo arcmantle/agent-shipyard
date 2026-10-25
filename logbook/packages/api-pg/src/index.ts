@@ -1,5 +1,6 @@
 import { createServer, type Server } from "node:http";
 
+import type { ErrorRequestHandler } from "express";
 import type { Pool } from "pg";
 
 import { createJsonRpcApp, type AuthProvider } from "@agent-issues/core";
@@ -11,6 +12,7 @@ export { createJsonRpcApp, type CreateJsonRpcAppOptions } from "@agent-issues/co
 export { EntraIdAuthProvider, type EntraIdAuthProviderOptions } from "./auth/entra-id-auth-provider.js";
 export { LocalAuthProvider, type LocalAuthProviderOptions } from "@agent-issues/core";
 export { createPgPool, migratePgDatabase, installInstructionBundle } from "./db/connection.js";
+export { configurePgRoles, type PgRoles, type PgRolePasswords } from "./db/roles.js";
 
 export type ApiAuthMetadata = {
 	provider: "entra";
@@ -30,6 +32,7 @@ export interface ApiServerOptions {
 	pool: Pool;
 	authProvider: AuthProvider;
 	authMetadata: ApiAuthMetadata;
+	readinessCheck?: () => Promise<void>;
 }
 
 export interface ApiServerHandle {
@@ -48,6 +51,31 @@ export function createApiServer(options: ApiServerOptions): ApiServerHandle {
 	app.get("/.well-known/agent-issues", (_request, response) => {
 		response.json({ auth: options.authMetadata });
 	});
+	const readinessCheck = options.readinessCheck;
+	if (readinessCheck) {
+		app.get("/health/live", (_request, response) => {
+			response.json({ status: "live" });
+		});
+		app.get("/health/ready", async (_request, response) => {
+			response.setHeader("Cache-Control", "no-store");
+			try {
+				await readinessCheck();
+				response.json({ status: "ready" });
+			} catch {
+				response.status(503).json({ status: "not-ready" });
+			}
+		});
+	}
+	const requestErrorHandler: ErrorRequestHandler = (error: unknown, _request, response, _next) => {
+		if (response.headersSent) {
+			response.end();
+			return;
+		}
+		const candidate = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+		const status = typeof candidate === "number" && [400, 413, 415].includes(candidate) ? candidate : 500;
+		response.status(status).json({ error: status < 500 ? "Invalid request." : "Internal server error." });
+	};
+	app.use(requestErrorHandler);
 	const server = createServer(app);
 
 	server.listen(port, host);

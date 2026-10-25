@@ -1,0 +1,112 @@
+import { once } from "node:events";
+import { isIP } from "node:net";
+
+import type { Pool } from "pg";
+
+import { createApiServer, createPgPool, EntraIdAuthProvider, type AuthProvider } from "./index.js";
+import { verifyPgRuntimeRole } from "./db/roles.js";
+
+type ProductionOptions = {
+	environment: NodeJS.ProcessEnv;
+	pool?: Pool;
+	authProvider?: AuthProvider;
+};
+
+function invalidConfiguration(name: string): never {
+	throw new Error(`Invalid production configuration: ${name}`);
+}
+
+function readConfiguration(environment: NodeJS.ProcessEnv) {
+	const connectionString = environment.DATABASE_URL;
+	try {
+		const database = new URL(connectionString ?? "");
+		if (!["postgres:", "postgresql:"].includes(database.protocol) || !database.hostname || !database.username || database.password || database.pathname.length < 2
+			|| database.searchParams.getAll("sslmode").length !== 1 || database.searchParams.get("sslmode") !== "verify-full"
+			|| [...database.searchParams.keys()].some((key) => key !== "sslmode")) {
+			invalidConfiguration("DATABASE_URL");
+		}
+	} catch {
+		invalidConfiguration("DATABASE_URL");
+	}
+	const tenantId = environment.ENTRA_TENANT_ID ?? "";
+	const clientId = environment.ENTRA_CLIENT_ID ?? "";
+	const identifier = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	const managedIdentityClientId = environment.DATABASE_MANAGED_IDENTITY_CLIENT_ID ?? "";
+	if (!identifier.test(managedIdentityClientId)) invalidConfiguration("DATABASE_MANAGED_IDENTITY_CLIENT_ID");
+	if (!identifier.test(tenantId)) invalidConfiguration("ENTRA_TENANT_ID");
+	if (!identifier.test(clientId)) invalidConfiguration("ENTRA_CLIENT_ID");
+	const host = environment.HOST ?? "0.0.0.0";
+	if (!isIP(host) && host !== "localhost") invalidConfiguration("HOST");
+	const portValue = environment.PORT ?? "8080";
+	if (!/^\d+$/.test(portValue) || Number(portValue) > 65535) invalidConfiguration("PORT");
+	const shutdownValue = environment.SHUTDOWN_TIMEOUT_MS ?? "10000";
+	if (!/^\d+$/.test(shutdownValue) || Number(shutdownValue) < 1 || Number(shutdownValue) > 30000) {
+		invalidConfiguration("SHUTDOWN_TIMEOUT_MS");
+	}
+	return { connectionString: connectionString!, managedIdentityClientId, tenantId, clientId, host, port: Number(portValue), shutdownTimeoutMs: Number(shutdownValue) };
+}
+
+export async function startProductionApi(options: ProductionOptions) {
+	const configuration = readConfiguration(options.environment);
+	const pool = options.pool ?? createPgPool({
+		connectionString: configuration.connectionString,
+		managedIdentityClientId: configuration.managedIdentityClientId,
+		connectionTimeoutMillis: 2000,
+		queryTimeoutMillis: 2000
+	});
+	const onPoolError = () => { process.stderr.write("Database connection failed.\n"); };
+	pool.on("error", onPoolError);
+	let closing: Promise<void> | undefined;
+	const handle = createApiServer({
+		host: configuration.host,
+		port: configuration.port,
+		pool,
+		authProvider: options.authProvider ?? new EntraIdAuthProvider(configuration),
+		authMetadata: { provider: "entra", tenantId: configuration.tenantId, clientId: configuration.clientId },
+		readinessCheck: async () => {
+			if (closing) throw new Error("API is stopping.");
+			await verifyPgRuntimeRole(pool);
+		}
+	});
+	try {
+		await once(handle.server, "listening");
+	} catch (error) {
+		await pool.end();
+		throw error;
+	}
+	const address = handle.server.address();
+	if (!address || typeof address === "string") throw new Error("API listener is unavailable.");
+	const hostname = isIP(configuration.host) === 6 ? `[${configuration.host}]` : configuration.host;
+	return {
+		url: `http://${hostname}:${address.port}`,
+		close() {
+			closing ??= (async () => {
+				let timer: NodeJS.Timeout | undefined;
+				let endingPool: Promise<void> | undefined;
+				const closePool = () => {
+					endingPool ??= pool.end().finally(() => { pool.removeListener("error", onPoolError); });
+					return endingPool;
+				};
+				const deadline = new Promise<never>((_resolve, reject) => {
+					timer = setTimeout(() => {
+						handle.server.closeAllConnections();
+						void closePool().catch(() => {});
+						reject(new Error("API shutdown timed out."));
+					}, configuration.shutdownTimeoutMs);
+				});
+				const drain = async () => {
+					await new Promise<void>((resolve, reject) => {
+						handle.server.close((error) => error ? reject(error) : resolve());
+					});
+					await closePool();
+				};
+				try {
+					await Promise.race([drain(), deadline]);
+				} finally {
+					clearTimeout(timer);
+				}
+			})();
+			return closing;
+		}
+	};
+}

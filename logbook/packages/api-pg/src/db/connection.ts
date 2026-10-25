@@ -6,18 +6,16 @@ import { runMigrationsWithClient } from "./migration-runner.js";
 import { inspectPgSourceProfile } from "./source-profile.js";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool, type PoolClient } from "pg";
+import { parseIntoClientConfig } from "pg-connection-string";
+import { ManagedIdentityCredential } from "@azure/identity";
 
 export { installInstructionBundle } from "../features/instructions/install-bundle.js";
 
 export type PgConnectionOptions = {
-	/**
-	 * Plain Postgres connection string (ADR21): `postgres://user:pass@host:port/db`.
-	 * Used for local development against docker-compose Postgres today; a
-	 * production deployment supplies an Azure Managed Identity-derived
-	 * connection string the same way (ADR12's "pure deployment/infra
-	 * config" framing) - no application-code branching between the two.
-	 */
 	connectionString: string;
+	managedIdentityClientId?: string;
+	connectionTimeoutMillis?: number;
+	queryTimeoutMillis?: number;
 };
 
 export type QueryExecutor = Pick<PoolClient, "query">;
@@ -49,7 +47,22 @@ export type TenantExecutor = NodePgDatabase<typeof schema> & QueryExecutor & {
 };
 
 export function createPgPool(options: PgConnectionOptions): Pool {
-	return new Pool({ connectionString: options.connectionString });
+	const credential = options.managedIdentityClientId ? new ManagedIdentityCredential({ clientId: options.managedIdentityClientId }) : undefined;
+	const password = credential ? async () => {
+		try {
+			const token = await credential.getToken("https://ossrdbms-aad.database.windows.net/.default", { abortSignal: AbortSignal.timeout(2000) });
+			if (!token?.token || token.expiresOnTimestamp <= Date.now()) throw new Error("Invalid database token.");
+			return token.token;
+		} catch {
+			throw new Error("Managed database authentication failed.");
+		}
+	} : undefined;
+	return new Pool({
+		...(password ? parseIntoClientConfig(options.connectionString) : { connectionString: options.connectionString }),
+		...(password ? { password } : {}),
+		connectionTimeoutMillis: options.connectionTimeoutMillis,
+		query_timeout: options.queryTimeoutMillis
+	});
 }
 
 /** Runs pending ADR43-runner migrations (schema + RLS policies) against the pool's target database. */

@@ -201,6 +201,7 @@ The site development server uses `http://127.0.0.1:5173`, with the backend on po
 
 - [Local API and PostgreSQL development](docs/local-dev-setup.md)
 - [Microsoft Entra ID setup](docs/auth-entra-id-setup.md)
+- [Production API host and container](docs/production-api.md)
 - [MCP registry setup](docs/mcp-registry-setup.md)
 - [Plugin installation and instruction loading](packages/cli/plugin/README.md)
 - [Release notes and contract changes](docs/release-notes.md)

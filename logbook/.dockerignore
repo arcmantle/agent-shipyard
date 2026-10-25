@@ -1,0 +1,16 @@
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!packages/
+!packages/core/
+!packages/core/package.json
+!packages/core/tsconfig*.json
+!packages/core/src/
+!packages/core/src/**
+!packages/api-pg/
+!packages/api-pg/package.json
+!packages/api-pg/tsconfig*.json
+!packages/api-pg/src/
+!packages/api-pg/src/**
+**/*.test.ts

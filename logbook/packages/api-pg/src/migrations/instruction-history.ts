@@ -22,6 +22,10 @@ export const instructionHistoryMigration: Migration = {
 		await db.run(sql`CREATE POLICY instruction_owner_isolation ON instruction_history
 			USING (tenant_id = current_setting('app.tenant_id', true) AND user_id = current_setting('app.instruction_user_id', true))
 			WITH CHECK (tenant_id = current_setting('app.tenant_id', true) AND user_id = current_setting('app.instruction_user_id', true))`);
-		await db.run(sql`GRANT SELECT, INSERT ON instruction_history TO agent_issues_app`);
+		await db.run(sql`DO $$ BEGIN
+			IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'agent_issues_app') THEN
+				GRANT SELECT, INSERT ON instruction_history TO agent_issues_app;
+			END IF;
+		END $$`);
 	}
 };
