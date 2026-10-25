@@ -7,6 +7,29 @@ infrastructure repository. Do not use a public runner to connect to PostgreSQL o
 reopen retired setup access. Local preparation is not publication or execution
 approval.
 
+## Terraform Deployment Access
+
+The general Terraform executor uses the existing private Apply identity, not a
+new feature-specific identity. Its protected access migration grants subscription
+Owner to Apply and subscription Reader to Plan. Existing state locks and firewall
+permissions remain. Approval also grants access to the automation-state container.
+The retired setup identity is not restored. This initial permission change needs
+one administrator sign-in after protected public approval. Later Terraform plans
+use OIDC without device-code sign-in or new resource-type permission bootstraps.
+
+Public **Request Logbook Deployment** selects the private Terraform root. The
+default is `logbook`; `automation` maintains deployment identities and grants.
+Approval binds the root, source revision, plan hash, cost review, and single-use
+claim. Apply uses only the saved binary plan and can register AzureRM providers.
+The reviewed monthly estimate limit remains USD 60 across configured roots.
+
+Owner is standing ARM authority and can change roles and identity trust, including
+its own. Azure does not enforce GitHub approval; the protected workflow controls
+execution. This does not grant Microsoft Graph tenant administration. The
+separate database executor remains available for its protected operation, but its
+resource-group boundary does not constrain the general Owner identity. Runtime,
+migration, and schema-owner database permissions remain separate and unchanged.
+
 ## Role Contract
 
 `configurePgRoles(pool, roles, passwords?)` is exported by
@@ -67,7 +90,7 @@ privately before use.
    A newly created GHCR package can require a separate public-visibility change.
 2. Use the normal protected infrastructure Plan and Apply to enable Entra
    authentication while retaining password recovery. Do not restore retired setup
-   access or add privileges to routine deployment identities.
+   access. Use the reviewed general Terraform access model above.
 3. Install the separate database executor's GitHub OIDC trust once through the
    protected `bootstrap-oidc` operation. Its initial Azure administrator sign-in
    creates only the reviewed custom role assignments: administrator management
@@ -79,7 +102,7 @@ privately before use.
    The private review binds the target, three distinct managed identities, source,
    image, operation, total monthly estimate, and expiry. Provisioning and setup
    have separate single-use claims. The privileged job and identities use an
-   isolated resource group outside the routine Apply Contributor scope. The job
+   isolated resource group. This does not restrict general Terraform Owner. The job
    uses the existing private Consumption environment, one replica, no automatic
    retry, no ingress, and a finite timeout. After each public approval, the
    private callback verifies approval and signs in automatically with the

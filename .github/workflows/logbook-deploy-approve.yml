@@ -40,8 +40,9 @@ jobs:
             if (process.env.REVIEW.length > 8192) throw new Error('Invalid review size');
             const bytes = Buffer.from(process.env.REVIEW, 'base64');
             const review = JSON.parse(bytes);
-            const fields = ['request_run_id', 'request_run_attempt', 'source_sha', 'plan_run_id', 'plan_run_attempt', 'infra_sha', 'plan_sha256', 'monthly_usd', 'counts', 'has_changes', 'created_at'];
+            const fields = ['root', 'request_run_id', 'request_run_attempt', 'source_sha', 'plan_run_id', 'plan_run_attempt', 'infra_sha', 'plan_sha256', 'monthly_usd', 'counts', 'has_changes', 'created_at'];
             if (Object.keys(review).some(field => !fields.includes(field))) throw new Error('Unexpected review field');
+            if (!/^[a-z][a-z0-9-]{0,47}$/.test(review.root) || ['bootstrap', 'logbook-prod'].includes(review.root)) throw new Error('Invalid Terraform root');
             for (const field of ['request_run_id', 'request_run_attempt', 'plan_run_id', 'plan_run_attempt']) {
               if (!/^[1-9][0-9]*$/.test(review[field])) throw new Error('Invalid run ID');
             }
@@ -59,11 +60,12 @@ jobs:
             core.setOutput('digest', createHash('sha256').update(bytes).digest('hex'));
             core.setOutput('has_changes', String(review.has_changes));
             await core.summary.addHeading('Logbook Deployment Review')
+              .addRaw(`Terraform root: ${review.root}\n\n`)
               .addTable([['Create', 'Update', 'Delete'], [String(review.counts.create), String(review.counts.update), String(review.counts.delete)]])
-              .addRaw(`Estimated application resources: USD ${review.monthly_usd.toFixed(2)}/month. These are manually reviewed estimates, not a billing cap. State storage, automation, tax, and additional usage are extra.`)
+              .addRaw(`Estimated resources across Terraform roots: USD ${review.monthly_usd.toFixed(2)}/month. These are manually reviewed estimates, not a billing cap. State storage usage, tax, and additional usage are extra.`)
               .addLink('Review the full private plan before approval', `https://github.com/arcmantle/agent-shipyard-infra/actions/runs/${review.plan_run_id}`)
               .addRaw(`\nPlan SHA-256: ${review.plan_sha256}\nSource commit: ${review.source_sha}\n`)
-              .addRaw(review.has_changes ? 'Approval authorizes this saved plan only.' : 'No changes. Apply will not run.')
+              .addRaw(review.has_changes ? 'Approval authorizes this saved plan and AzureRM automatic resource-provider registration in the configured subscription. Apply uses subscription Owner. This authority includes role and identity-trust management; inspect all such changes in the private plan.' : 'No changes. Apply will not run.')
               .write();
 
   approve:

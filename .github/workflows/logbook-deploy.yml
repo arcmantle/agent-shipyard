@@ -2,6 +2,11 @@ name: Request Logbook Deployment
 
 on:
   workflow_dispatch:
+    inputs:
+      root:
+        description: Private Terraform directory under terraform, excluding bootstrap
+        type: string
+        default: logbook
 
 permissions:
   contents: read
@@ -23,13 +28,18 @@ jobs:
           permission-actions: write
       - name: Request private plan
         uses: actions/github-script@v8
+        env:
+          TERRAFORM_ROOT: ${{ inputs.root }}
         with:
           github-token: ${{ steps.app.outputs.token }}
           script: |
+            const root = process.env.TERRAFORM_ROOT;
+            if (!/^[a-z][a-z0-9-]{0,47}$/.test(root) || ['bootstrap', 'logbook-prod'].includes(root)) throw new Error('Invalid Terraform root');
             await github.rest.actions.createWorkflowDispatch({
               owner: 'arcmantle', repo: 'agent-shipyard-infra',
               workflow_id: 'plan.yml', ref: 'main',
               inputs: {
+                root,
                 request_run_id: String(context.runId),
                 request_run_attempt: String(process.env.GITHUB_RUN_ATTEMPT),
                 source_sha: context.sha,
