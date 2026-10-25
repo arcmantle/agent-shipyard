@@ -1,4 +1,4 @@
-name: Request Logbook Deployment
+name: Terraform - Request Update
 
 on:
   workflow_dispatch:

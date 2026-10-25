@@ -10,18 +10,19 @@ approval.
 ## Terraform Deployment Access
 
 The general Terraform executor uses the existing private Apply identity, not a
-new feature-specific identity. Its protected access migration grants subscription
-Owner to Apply and subscription Reader to Plan. Existing state locks and firewall
-permissions remain. Approval also grants access to the automation-state container.
-The retired setup identity is not restored. This initial permission change needs
-one administrator sign-in after protected public approval. Later Terraform plans
-use OIDC without device-code sign-in or new resource-type permission bootstraps.
+new feature-specific identity. Its completed protected access installation granted
+subscription Owner to Apply and subscription Reader to Plan. Existing state locks,
+firewall permissions, and automation-state access remain. The retired setup identity
+is not restored. Terraform updates use OIDC without device-code sign-in or new
+resource-type permission bootstraps.
 
-Public **Request Logbook Deployment** selects the private Terraform root. The
+Public **Terraform - Request Update** selects the private Terraform root. The
 default is `logbook`; `automation` maintains deployment identities and grants.
 Approval binds the root, source revision, plan hash, cost review, and single-use
 claim. Apply uses only the saved binary plan and can register AzureRM providers.
 The reviewed monthly estimate limit remains USD 60 across configured roots.
+New installations use the separate **Terraform - Initial Setup** entry point and
+its shared public approval. Do not repeat bootstrap on the existing installation.
 
 Owner is standing ARM authority and can change roles and identity trust, including
 its own. Azure does not enforce GitHub approval; the protected workflow controls

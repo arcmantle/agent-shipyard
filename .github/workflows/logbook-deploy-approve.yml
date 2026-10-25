@@ -1,4 +1,4 @@
-name: Approve Logbook Deployment
+name: Terraform - Approve Update
 
 on:
   workflow_dispatch:

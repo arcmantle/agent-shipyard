@@ -1,15 +1,19 @@
-name: Logbook Infrastructure Checks
+name: Terraform - Validate
 
 on:
   pull_request:
     paths:
       - 'logbook/infra/**'
       - '.github/workflows/logbook-infra-*.yml'
+      - '.github/workflows/logbook-setup-approve.yml'
+      - '.github/scripts/initial-setup*'
   push:
     branches: [main]
     paths:
       - 'logbook/infra/**'
       - '.github/workflows/logbook-infra-*.yml'
+      - '.github/workflows/logbook-setup-approve.yml'
+      - '.github/scripts/initial-setup*'
 
 permissions:
   contents: read
@@ -26,6 +30,8 @@ jobs:
         with:
           terraform_version: '1.16.5'
           terraform_wrapper: false
+      - name: Verify initial setup approval
+        run: node --test .github/scripts/initial-setup.test.mjs
       - name: Check formatting
         run: terraform -chdir=logbook/infra/terraform fmt -check -recursive
       - name: Validate Terraform roots
