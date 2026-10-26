@@ -107,21 +107,27 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 				tenant_id: principals.tenantId, identities, owner_role: roles.owner, verification_table: "logbook_role_check_123_1"
 			});
 			const configure = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "configure", DATABASE_SETUP_CONFIG: configuration }, databaseOwner);
+			const missing = Object.fromEntries(Object.entries(identities).map(([kind, identity]) => [kind, kind === "setup" ? identity : { ...identity, role: `missing_${kind}_${suffix}` }]));
+			await expect(runDatabaseSetup({ DATABASE_SETUP_PHASE: "reconcile", DATABASE_SETUP_CONFIG: JSON.stringify({
+				...JSON.parse(configuration), identities: missing, owner_role: `missing_owner_${suffix}`
+			}) }, databaseOwner)).resolves.toBeUndefined();
 			await setup.query(`CREATE TABLE public.logbook_role_check_123_1 (value text); ALTER TABLE public.logbook_role_check_123_1 OWNER TO ${roles.owner}; INSERT INTO public.logbook_role_check_123_1 VALUES ('preserved')`);
 			for (const unsafe of [true, false]) {
 				await setup.query(`ALTER ROLE ${roles.migration} ${unsafe ? "BYPASSRLS" : "NOBYPASSRLS"}`);
-				await expect(configure()).rejects.toThrow(unsafe ? "attributes are not restricted" : "already exists");
+				await expect(configure()).rejects.toMatchObject(unsafe
+					? { message: expect.stringContaining("attributes are not restricted"), stage: "register principals and grant roles" }
+					: { code: "42P07", stage: "create migration probe as schema owner" });
 				expect((await setup.query("SELECT value FROM public.logbook_role_check_123_1")).rows).toEqual([{ value: "preserved" }]);
 			}
 			await setup.query("DROP TABLE public.logbook_role_check_123_1");
 			await setup.query(`CREATE FUNCTION public.setup_owned_check() RETURNS integer LANGUAGE sql AS 'SELECT 1'; ALTER FUNCTION public.setup_owned_check() OWNER TO ${operatorRole}`);
-			await expect(configure()).rejects.toThrow("owns database objects");
+			await expect(configure()).rejects.toMatchObject({ message: expect.stringContaining("owns database objects"), stage: "inspect setup session" });
 			await setup.query("DROP FUNCTION public.setup_owned_check()");
 			await configure();
 			expect((await setup.query("SELECT 1 FROM pg_auth_members WHERE member = $1::regrole AND grantor = $1::regrole AND roleid = ANY($2::regrole[])", [operatorRole, Object.values(roles)])).rows).toEqual([]);
 			expect((await setup.query("SELECT 1 FROM pg_class WHERE relname = 'logbook_role_check_123_1'")).rows).toEqual([]);
 			const verify = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "verify-denied", DATABASE_SETUP_CONFIG: configuration }, databaseOwner);
-			await expect(verify()).rejects.toThrow("still permitted");
+			await expect(verify()).rejects.toMatchObject({ message: "Setup login is still permitted.", stage: "verify setup login denial" });
 			await setup.query(`ALTER ROLE ${operatorRole} NOLOGIN`);
 			await expect(verify()).rejects.toThrow("Server-granted setup privileges remain");
 			const memberships = (await setup.query("SELECT roleid::regrole::text AS role, grantor::regrole::text AS grantor FROM pg_auth_members WHERE member = $1::regrole", [operatorRole])).rows;
