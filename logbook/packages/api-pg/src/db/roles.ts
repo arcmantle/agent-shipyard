@@ -31,7 +31,7 @@ export async function configurePgRoles(pool: Pool, roles: PgRoles, passwords?: P
 	return configureRoles(pool, roles, passwords);
 }
 
-export async function configurePgEntraRoles(pool: Pool, roles: PgRoles, principals: PgEntraPrincipals): Promise<void> {
+export async function configurePgEntraRoles(pool: Pool, roles: PgRoles, principals: PgEntraPrincipals, registrationPool: Pool = pool): Promise<void> {
 	const identifier = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 	if (![principals.tenantId, principals.migrationObjectId, principals.runtimeObjectId].every((value) => identifier.test(value))
 		|| !/^[a-z][a-z0-9_]{0,62}$/.test(principals.administrationRole) || principals.administrationRole.startsWith("pg_")
@@ -39,7 +39,59 @@ export async function configurePgEntraRoles(pool: Pool, roles: PgRoles, principa
 		|| principals.migrationObjectId.toLowerCase() === principals.runtimeObjectId.toLowerCase()) {
 		throw new Error("Database principals must have distinct object IDs and a valid tenant ID.");
 	}
+	const names = Object.values(roles);
+	if (names.length !== 3 || new Set(names).size !== 3 || names.some((name) => typeof name !== "string" || !/^[a-z][a-z0-9_]{0,62}$/.test(name) || name.startsWith("pg_"))) {
+		throw new Error("Database roles must have distinct, valid names.");
+	}
+	// Azure installs pgaadauth only in the postgres database; role mappings are server-wide.
+	await registerEntraPrincipals(registrationPool, roles, principals);
 	return configureRoles(pool, roles, undefined, principals);
+}
+
+async function registerEntraPrincipals(pool: Pool, roles: PgRoles, principals: PgEntraPrincipals): Promise<void> {
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		await client.query("SET LOCAL lock_timeout = '5s'");
+		await client.query("SET LOCAL statement_timeout = '30s'");
+		await client.query("SELECT pg_advisory_xact_lock(hashtext('logbook-role-setup'))");
+		const session = (await client.query("SELECT current_user AS role")).rows[0];
+		const administrator = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1 AND NOT rolcanlogin AND pg_has_role(current_user, oid, 'SET')", [principals.administrationRole]);
+		if (!administrator.rowCount || Object.values(roles).includes(session.role)) throw new Error("Setup requires the separate server administration role.");
+		await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(principals.administrationRole)}`);
+		for (const [kind, name] of Object.entries(roles)) {
+			const role = (await client.query("SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin, rolinherit FROM pg_roles WHERE rolname = $1", [name])).rows[0];
+			if (role && (role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolreplication || role.rolbypassrls || role.rolinherit || role.rolcanlogin !== (kind !== "owner"))) {
+				throw new Error("Database role attributes are not restricted.");
+			}
+		}
+		const mappings = (await client.query("SELECT * FROM pg_catalog.pgaadauth_list_principals(false)")).rows;
+		for (const kind of ["runtime", "migration"] as const) {
+			const objectId = principals[kind === "runtime" ? "runtimeObjectId" : "migrationObjectId"];
+			const matching = mappings.filter((mapping) => mapping.rolename === roles[kind]);
+			if (matching.length > 1 || matching.some((mapping) => mapping.principalType !== "service"
+				|| mapping.objectId?.toLowerCase() !== objectId.toLowerCase()
+				|| mapping.tenantId?.toLowerCase() !== principals.tenantId.toLowerCase()
+				|| mapping.isAdmin !== 0 || mapping.isMfa !== 0)
+				|| mappings.some((mapping) => mapping.objectId?.toLowerCase() === objectId.toLowerCase() && mapping.rolename !== roles[kind])) {
+				throw new Error("Database principal mapping differs from the approved identity.");
+			}
+			if (matching.length === 0) {
+				const existing = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [roles[kind]]);
+				if (existing.rowCount) throw new Error("An existing database role has no approved Entra mapping.");
+				await client.query("SELECT pg_catalog.pgaadauth_create_principal_with_oid($1, $2, 'service', false, false)", [roles[kind], objectId]);
+				await client.query(`ALTER ROLE ${roles[kind]} NOINHERIT`);
+			}
+			await client.query(`ALTER ROLE ${roles[kind]} PASSWORD NULL VALID UNTIL '-infinity'`);
+		}
+		if (mappings.some((mapping) => mapping.rolename === roles.owner)) throw new Error("The schema owner cannot be an Entra login.");
+		await client.query("COMMIT");
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
 }
 
 async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePasswords, principals?: PgEntraPrincipals): Promise<void> {
@@ -61,26 +113,8 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 			const administrator = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1 AND NOT rolcanlogin AND pg_has_role(current_user, oid, 'SET')", [principals.administrationRole]);
 			if (!administrator.rowCount || names.includes(session.role)) throw new Error("Setup requires the separate server administration role.");
 			await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(principals.administrationRole)}`);
-			const mappings = (await client.query("SELECT * FROM pg_catalog.pgaadauth_list_principals(false)")).rows;
-			for (const kind of ["runtime", "migration"] as const) {
-				const objectId = principals[kind === "runtime" ? "runtimeObjectId" : "migrationObjectId"];
-				const matching = mappings.filter((mapping) => mapping.rolename === roles[kind]);
-				if (matching.length > 1 || matching.some((mapping) => mapping.principalType !== "service"
-					|| mapping.objectId?.toLowerCase() !== objectId.toLowerCase()
-					|| mapping.tenantId?.toLowerCase() !== principals.tenantId.toLowerCase()
-					|| mapping.isAdmin !== 0 || mapping.isMfa !== 0)
-					|| mappings.some((mapping) => mapping.objectId?.toLowerCase() === objectId.toLowerCase() && mapping.rolename !== roles[kind])) {
-					throw new Error("Database principal mapping differs from the approved identity.");
-				}
-				if (matching.length === 0) {
-					const existing = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [roles[kind]]);
-					if (existing.rowCount) throw new Error("An existing database role has no approved Entra mapping.");
-					await client.query("SELECT pg_catalog.pgaadauth_create_principal_with_oid($1, $2, 'service', false, false)", [roles[kind], objectId]);
-					await client.query(`ALTER ROLE ${roles[kind]} NOINHERIT`);
-				}
-				await client.query(`ALTER ROLE ${roles[kind]} PASSWORD NULL VALID UNTIL '-infinity'`);
-			}
-			if (mappings.some((mapping) => mapping.rolename === roles.owner)) throw new Error("The schema owner cannot be an Entra login.");
+			const registered = await client.query("SELECT count(*)::int AS count FROM pg_roles WHERE rolname = ANY($1::text[])", [[roles.runtime, roles.migration]]);
+			if (registered.rows[0]?.count !== 2) throw new Error("Database principal mapping differs from the approved identity.");
 		}
 		for (const [kind, name] of Object.entries(roles)) {
 			const existing = await client.query("SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin, rolinherit FROM pg_roles WHERE rolname = $1", [name]);

@@ -61,6 +61,11 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 		pool.on("error", () => { process.stderr.write("Database setup connection failed.\n"); });
 		return [kind, pool];
 	})) as Record<"setup" | "runtime" | "migration", Pool>;
+	const registrationUrl = new URL(url);
+	registrationUrl.pathname = "/postgres";
+	registrationUrl.username = configuration.identities.setup.role;
+	const registration = createPgPool({ connectionString: registrationUrl.href, managedIdentityClientId: configuration.identities.setup.client_id, connectionTimeoutMillis: 5000, queryTimeoutMillis: 30000 });
+	registration.on("error", () => { process.stderr.write("Database setup connection failed.\n"); });
 	const phase = environment.DATABASE_SETUP_PHASE;
 	try {
 		if (phase === "verify-denied") {
@@ -100,7 +105,7 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 				await configurePgEntraRoles(pools.setup, roles, {
 					administrationRole, tenantId: configuration.tenant_id, runtimeObjectId: configuration.identities.runtime.principal_id,
 					migrationObjectId: configuration.identities.migration.principal_id
-				});
+				}, registration);
 				configured = true;
 				track("create migration probe as schema owner");
 				const migration = await pools.migration.connect();
@@ -200,6 +205,6 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 			}
 		}
 	} finally {
-		await Promise.all(Object.values(pools).map((pool) => pool.end()));
+		await Promise.all([...Object.values(pools), registration].map((pool) => pool.end()));
 	}
 }
