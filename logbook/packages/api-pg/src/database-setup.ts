@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 
 import { createPgPool, withTenantTransaction } from "./db/connection.js";
-import { configurePgEntraRoles, verifyPgRuntimeRole, type PgRoles } from "./db/roles.js";
+import { configurePgEntraRoles, roleSetupStages, verifyPgRuntimeRole, type PgRoles, type RoleAttributes } from "./db/roles.js";
 
 type Identity = { client_id: string; principal_id: string; role: string };
 type SetupConfiguration = {
@@ -16,9 +16,9 @@ type SetupConfiguration = {
 
 export const databaseSetupStages = ["validate configuration", "verify setup login denial", "verify setup privileges removed", "verify runtime restrictions",
 	"verify migration owner access", "inspect setup session", "register principals and grant roles", "create migration probe as schema owner",
-	"verify tenant isolation", "verify runtime privilege denial", "remove temporary setup privileges"] as const;
+	"verify tenant isolation", "verify runtime privilege denial", "remove temporary setup privileges", ...roleSetupStages] as const;
 
-export type DatabaseSetupFailure = Error & { stage?: string; cleanupFailed?: boolean };
+export type DatabaseSetupFailure = Error & { stage?: string; cleanupFailed?: boolean; roleAttributes?: RoleAttributes };
 
 export async function runDatabaseSetup(environment: NodeJS.ProcessEnv, administrationRole = "azure_pg_admin"): Promise<void> {
 	const progress = { stage: "validate configuration" };
@@ -105,7 +105,7 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 				await configurePgEntraRoles(pools.setup, roles, {
 					administrationRole, tenantId: configuration.tenant_id, runtimeObjectId: configuration.identities.runtime.principal_id,
 					migrationObjectId: configuration.identities.migration.principal_id
-				}, registration);
+				}, registration, track);
 				configured = true;
 				track("create migration probe as schema owner");
 				const migration = await pools.migration.connect();

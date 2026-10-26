@@ -115,7 +115,8 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 			for (const unsafe of [true, false]) {
 				await setup.query(`ALTER ROLE ${roles.migration} ${unsafe ? "BYPASSRLS" : "NOBYPASSRLS"}`);
 				await expect(configure()).rejects.toMatchObject(unsafe
-					? { message: expect.stringContaining("attributes are not restricted"), stage: "register principals and grant roles" }
+					? { message: expect.stringContaining("attributes are not restricted"), stage: "check administration role",
+						roleAttributes: { session_createrole: true, administration_createrole: true, session_inherits_administration: true } }
 					: { code: "42P07", stage: "create migration probe as schema owner" });
 				expect((await setup.query("SELECT value FROM public.logbook_role_check_123_1")).rows).toEqual([{ value: "preserved" }]);
 			}

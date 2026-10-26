@@ -31,7 +31,14 @@ export async function configurePgRoles(pool: Pool, roles: PgRoles, passwords?: P
 	return configureRoles(pool, roles, passwords);
 }
 
-export async function configurePgEntraRoles(pool: Pool, roles: PgRoles, principals: PgEntraPrincipals, registrationPool: Pool = pool): Promise<void> {
+export const roleSetupStages = ["check administration role", "list Entra principals", "create Entra principals", "restrict Entra principals",
+	"create database roles", "grant schema owner to setup", "grant database create to owner", "transfer public schema",
+	"grant migration owner membership", "grant database connect", "apply schema privileges"] as const;
+export type RoleSetupStage = (typeof roleSetupStages)[number];
+export type RoleAttributes = { session_createrole: boolean; administration_createrole: boolean; session_inherits_administration: boolean };
+
+export async function configurePgEntraRoles(pool: Pool, roles: PgRoles, principals: PgEntraPrincipals, registrationPool: Pool = pool,
+	track: (stage: RoleSetupStage) => void = () => {}): Promise<void> {
 	const identifier = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 	if (![principals.tenantId, principals.migrationObjectId, principals.runtimeObjectId].every((value) => identifier.test(value))
 		|| !/^[a-z][a-z0-9_]{0,62}$/.test(principals.administrationRole) || principals.administrationRole.startsWith("pg_")
@@ -44,11 +51,22 @@ export async function configurePgEntraRoles(pool: Pool, roles: PgRoles, principa
 		throw new Error("Database roles must have distinct, valid names.");
 	}
 	// Azure installs pgaadauth only in the postgres database; role mappings are server-wide.
-	await registerEntraPrincipals(registrationPool, roles, principals);
-	return configureRoles(pool, roles, undefined, principals);
+	track("check administration role");
+	const attributes: RoleAttributes = (await registrationPool.query(`SELECT
+		COALESCE((SELECT rolcreaterole FROM pg_roles WHERE rolname = current_user), false) AS session_createrole,
+		COALESCE((SELECT rolcreaterole FROM pg_roles WHERE rolname = $1), false) AS administration_createrole,
+		COALESCE(pg_has_role(current_user, (SELECT oid FROM pg_roles WHERE rolname = $1), 'USAGE'), false) AS session_inherits_administration`,
+		[principals.administrationRole])).rows[0];
+	try {
+		await registerEntraPrincipals(registrationPool, roles, principals, track);
+		return await configureRoles(pool, roles, undefined, principals, track);
+	} catch (error) {
+		if (error instanceof Error) Object.assign(error, { roleAttributes: attributes });
+		throw error;
+	}
 }
 
-async function registerEntraPrincipals(pool: Pool, roles: PgRoles, principals: PgEntraPrincipals): Promise<void> {
+async function registerEntraPrincipals(pool: Pool, roles: PgRoles, principals: PgEntraPrincipals, track: (stage: RoleSetupStage) => void): Promise<void> {
 	const client = await pool.connect();
 	try {
 		await client.query("BEGIN");
@@ -58,13 +76,14 @@ async function registerEntraPrincipals(pool: Pool, roles: PgRoles, principals: P
 		const session = (await client.query("SELECT current_user AS role")).rows[0];
 		const administrator = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1 AND NOT rolcanlogin AND pg_has_role(current_user, oid, 'SET')", [principals.administrationRole]);
 		if (!administrator.rowCount || Object.values(roles).includes(session.role)) throw new Error("Setup requires the separate server administration role.");
-		await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(principals.administrationRole)}`);
+		// Only a Microsoft Entra administrator can create Entra principals, so this runs as the session role.
 		for (const [kind, name] of Object.entries(roles)) {
 			const role = (await client.query("SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin, rolinherit FROM pg_roles WHERE rolname = $1", [name])).rows[0];
 			if (role && (role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolreplication || role.rolbypassrls || role.rolinherit || role.rolcanlogin !== (kind !== "owner"))) {
 				throw new Error("Database role attributes are not restricted.");
 			}
 		}
+		track("list Entra principals");
 		const mappings = (await client.query("SELECT * FROM pg_catalog.pgaadauth_list_principals(false)")).rows;
 		for (const kind of ["runtime", "migration"] as const) {
 			const objectId = principals[kind === "runtime" ? "runtimeObjectId" : "migrationObjectId"];
@@ -79,9 +98,12 @@ async function registerEntraPrincipals(pool: Pool, roles: PgRoles, principals: P
 			if (matching.length === 0) {
 				const existing = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [roles[kind]]);
 				if (existing.rowCount) throw new Error("An existing database role has no approved Entra mapping.");
+				track("create Entra principals");
 				await client.query("SELECT pg_catalog.pgaadauth_create_principal_with_oid($1, $2, 'service', false, false)", [roles[kind], objectId]);
+				track("restrict Entra principals");
 				await client.query(`ALTER ROLE ${roles[kind]} NOINHERIT`);
 			}
+			track("restrict Entra principals");
 			await client.query(`ALTER ROLE ${roles[kind]} PASSWORD NULL VALID UNTIL '-infinity'`);
 		}
 		if (mappings.some((mapping) => mapping.rolename === roles.owner)) throw new Error("The schema owner cannot be an Entra login.");
@@ -94,7 +116,8 @@ async function registerEntraPrincipals(pool: Pool, roles: PgRoles, principals: P
 	}
 }
 
-async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePasswords, principals?: PgEntraPrincipals): Promise<void> {
+async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePasswords, principals?: PgEntraPrincipals,
+	track: (stage: RoleSetupStage) => void = () => {}): Promise<void> {
 	const names = Object.values(roles);
 	if (names.length !== 3 || new Set(names).size !== 3 || names.some((name) => typeof name !== "string" || !/^[a-z][a-z0-9_]{0,62}$/.test(name) || name.startsWith("pg_"))) {
 		throw new Error("Database roles must have distinct, valid names.");
@@ -117,6 +140,7 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 			if (registered.rows[0]?.count !== 2) throw new Error("Database principal mapping differs from the approved identity.");
 		}
 		for (const [kind, name] of Object.entries(roles)) {
+			track("create database roles");
 			const existing = await client.query("SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin, rolinherit FROM pg_roles WHERE rolname = $1", [name]);
 			if (existing.rowCount === 0) {
 				await client.query(`CREATE ROLE ${name} ${kind === "owner" ? "NOLOGIN" : "LOGIN"} NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`);
@@ -128,7 +152,9 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 			}
 		}
 		if (principals) {
+			track("grant schema owner to setup");
 			await client.query(`GRANT ${roles.owner} TO ${client.escapeIdentifier(session.role)} WITH INHERIT FALSE, SET TRUE`);
+			track("grant database create to owner");
 			await client.query(`GRANT CREATE ON DATABASE ${client.escapeIdentifier(session.name)} TO ${roles.owner}`);
 		}
 		const memberships = await client.query(`SELECT member_role.rolname AS member, parent.rolname AS parent
@@ -160,14 +186,18 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 			AND (has_table_privilege($1, relation.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
 				OR has_any_column_privilege($1, relation.oid, 'SELECT, INSERT, UPDATE, REFERENCES'))`, [roles.runtime]);
 		if (outsideAccess.rowCount) throw new Error("Runtime access outside the application schema is not permitted.");
+		track("transfer public schema");
 		await client.query(`REVOKE ALL ON DATABASE ${quotedDatabase} FROM PUBLIC`);
 		await client.query("REVOKE CREATE ON SCHEMA public FROM PUBLIC");
 		await client.query(`ALTER SCHEMA public OWNER TO ${roles.owner}`);
+		track("grant migration owner membership");
 		await client.query(`GRANT ${roles.owner} TO ${roles.migration} WITH ADMIN FALSE, INHERIT FALSE, SET TRUE${principals ? ` GRANTED BY ${client.escapeIdentifier(principals.administrationRole)}` : ""}`);
+		track("grant database connect");
 		for (const name of [roles.migration, roles.runtime]) {
 			await client.query(`REVOKE ALL ON DATABASE ${quotedDatabase} FROM ${name}`);
 			await client.query(`GRANT CONNECT ON DATABASE ${quotedDatabase} TO ${name}`);
 		}
+		track("apply schema privileges");
 		await client.query(`SET LOCAL ROLE ${roles.owner}`);
 		await client.query(`REVOKE ALL ON SCHEMA public FROM ${roles.runtime}, ${roles.migration}`);
 		await client.query(`GRANT USAGE ON SCHEMA public TO ${roles.runtime}`);
