@@ -181,7 +181,7 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 				OR has_any_column_privilege($1, relation.oid, 'SELECT, INSERT, UPDATE, REFERENCES'))`, [roles.runtime]);
 		if (outsideAccess.rowCount) throw new Error("Runtime access outside the application schema is not permitted.");
 		track("transfer public schema");
-		const databaseOwner = (await client.query("SELECT datdba::regrole::text AS owner FROM pg_database WHERE datname = current_database()")).rows[0].owner as string;
+		const databaseOwner = (await client.query("SELECT owner.rolname AS owner FROM pg_database database JOIN pg_roles owner ON owner.oid = database.datdba WHERE database.datname = current_database()")).rows[0].owner as string;
 		// Database ACL changes take effect only when made by the database owner.
 		if (principals) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(databaseOwner)}`);
 		await client.query(`REVOKE ALL ON DATABASE ${quotedDatabase} FROM PUBLIC`);

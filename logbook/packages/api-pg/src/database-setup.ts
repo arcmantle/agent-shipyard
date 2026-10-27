@@ -188,12 +188,8 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 					await cleanup.query(`SET LOCAL ROLE ${cleanup.escapeIdentifier(session.role)}`);
 					const ownerExists = (await cleanup.query("SELECT to_regrole($1) IS NOT NULL AS present", [roles.owner])).rows[0]?.present === true;
 					if (ownerExists) await cleanup.query(`REVOKE CREATE ON DATABASE ${cleanup.escapeIdentifier(session.database)} FROM ${roles.owner}`);
-					const approvedRoles = "ARRAY(SELECT to_regrole(name) FROM unnest($1::text[]) name)";
-					const memberships = await cleanup.query(`SELECT roleid::regrole::text AS role, grantor::regrole::text AS grantor FROM pg_auth_members
-						WHERE member = current_user::regrole AND roleid = ANY(${approvedRoles}) AND pg_has_role(session_user, grantor, 'SET')`, [Object.values(roles)]);
-					for (const membership of memberships.rows) await cleanup.query(`REVOKE ${cleanup.escapeIdentifier(membership.role)} FROM ${cleanup.escapeIdentifier(session.role)} GRANTED BY ${cleanup.escapeIdentifier(membership.grantor)}`);
-					const remaining = await cleanup.query(`SELECT 1 FROM pg_auth_members WHERE member = current_user::regrole AND grantor = current_user::regrole AND roleid = ANY(${approvedRoles})
-						UNION ALL SELECT 1 WHERE has_database_privilege(to_regrole($2)::oid, current_database(), 'CREATE')`, [Object.values(roles), roles.owner]);
+					// The setup identity is a permanent administrator, so its owner grants (and the migration membership they back) stay.
+					const remaining = await cleanup.query("SELECT 1 WHERE has_database_privilege(to_regrole($1)::oid, current_database(), 'CREATE')", [roles.owner]);
 					if (remaining.rowCount) throw new Error("Temporary database setup privileges remain.");
 					await cleanup.query("COMMIT");
 				} catch (error) {
