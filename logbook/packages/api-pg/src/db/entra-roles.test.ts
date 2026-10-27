@@ -68,17 +68,6 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 		} finally {
 			await passwordLogin.end();
 		}
-		for (const patch of [
-			{ objectId: randomUUID() }, { tenantId: randomUUID() }, { principalType: "user" }, { isAdmin: 1 }, { isMfa: 1 }
-		]) {
-			const field = Object.keys(patch)[0];
-			await setup.query(`UPDATE entra_fixture.principals SET "${field}" = $1 WHERE rolename = $2`, [Object.values(patch)[0], roles.runtime]);
-			await expect(configurePgEntraRoles(operator, roles, principals)).rejects.toThrow("mapping differs");
-			await setup.query(`UPDATE entra_fixture.principals SET "${field}" = $1 WHERE rolename = $2`, [expected.find((row) => row.rolename === roles.runtime)[field], roles.runtime]);
-		}
-		await setup.query("DELETE FROM entra_fixture.principals WHERE rolename = $1", [roles.runtime]);
-		await expect(configurePgEntraRoles(operator, roles, principals)).rejects.toThrow("no approved Entra mapping");
-		await setup.query(`INSERT INTO entra_fixture.principals VALUES ($1, 'service', $2, $3, 0, 0)`, [roles.runtime, principals.runtimeObjectId, principals.tenantId]);
 		await setup.query(`ALTER ROLE ${roles.migration} BYPASSRLS`);
 		await setup.query("DELETE FROM entra_fixture.principals WHERE rolename = $1", [roles.runtime]);
 		await setup.query(`DROP OWNED BY ${roles.runtime}; DROP ROLE ${roles.runtime}`);

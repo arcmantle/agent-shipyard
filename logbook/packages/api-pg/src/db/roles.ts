@@ -94,29 +94,16 @@ async function registerEntraPrincipals(pool: Pool, roles: PgRoles, principals: P
 			}
 		}
 		track("list Entra principals");
-		const mappings = (await client.query("SELECT * FROM pg_catalog.pgaadauth_list_principals(false)")).rows;
 		for (const kind of ["runtime", "migration"] as const) {
 			const objectId = principals[kind === "runtime" ? "runtimeObjectId" : "migrationObjectId"];
-			const matching = mappings.filter((mapping) => mapping.rolename === roles[kind]);
-			if (matching.length > 1 || matching.some((mapping) => mapping.principalType !== "service"
-				|| mapping.objectId?.toLowerCase() !== objectId.toLowerCase()
-				|| mapping.tenantId?.toLowerCase() !== principals.tenantId.toLowerCase()
-				|| mapping.isAdmin !== 0 || mapping.isMfa !== 0)
-				|| mappings.some((mapping) => mapping.objectId?.toLowerCase() === objectId.toLowerCase() && mapping.rolename !== roles[kind])) {
-				throw new Error("Database principal mapping differs from the approved identity.");
-			}
-			if (matching.length === 0) {
-				const existing = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [roles[kind]]);
-				if (existing.rowCount) throw new Error("An existing database role has no approved Entra mapping.");
+			const existing = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [roles[kind]]);
+			if (!existing.rowCount) {
 				track("create Entra principals");
 				await client.query("SELECT pg_catalog.pgaadauth_create_principal_with_oid($1, $2, 'service', false, false)", [roles[kind], objectId]);
-				track("restrict Entra principals");
-				await client.query(`ALTER ROLE ${roles[kind]} NOINHERIT`);
 			}
 			track("restrict Entra principals");
-			await client.query(`ALTER ROLE ${roles[kind]} PASSWORD NULL VALID UNTIL '-infinity'`);
+			await client.query(`ALTER ROLE ${roles[kind]} NOINHERIT PASSWORD NULL VALID UNTIL '-infinity'`);
 		}
-		if (mappings.some((mapping) => mapping.rolename === roles.owner)) throw new Error("The schema owner cannot be an Entra login.");
 		await client.query("COMMIT");
 	} catch (error) {
 		await client.query("ROLLBACK");
@@ -145,7 +132,6 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 		if (principals) {
 			const administrator = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1 AND NOT rolcanlogin AND pg_has_role(current_user, oid, 'SET')", [principals.administrationRole]);
 			if (!administrator.rowCount || names.includes(session.role)) throw new Error("Setup requires the separate server administration role.");
-			await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(principals.administrationRole)}`);
 			const registered = await client.query("SELECT count(*)::int AS count FROM pg_roles WHERE rolname = ANY($1::text[])", [[roles.runtime, roles.migration]]);
 			if (registered.rows[0]?.count !== 2) throw new Error("Database principal mapping differs from the approved identity.");
 		}
@@ -153,10 +139,7 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 			track("create database roles");
 			const existing = await client.query("SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin, rolinherit FROM pg_roles WHERE rolname = $1", [name]);
 			if (existing.rowCount === 0) {
-				// azure_pg_admin lacks CREATEROLE on Azure; the setup administrator has it.
-				if (principals) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(session.role)}`);
 				await client.query(`CREATE ROLE ${name} ${kind === "owner" ? "NOLOGIN" : "LOGIN"} NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`);
-				if (principals) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(principals.administrationRole)}`);
 			} else {
 				const role = existing.rows[0];
 				if (role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolreplication || role.rolbypassrls || role.rolinherit || role.rolcanlogin !== (kind !== "owner")) {
@@ -167,8 +150,6 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 		if (principals) {
 			track("grant schema owner to setup");
 			await client.query(`GRANT ${roles.owner} TO ${client.escapeIdentifier(session.role)} WITH INHERIT FALSE, SET TRUE`);
-			track("grant database create to owner");
-			await client.query(`GRANT CREATE ON DATABASE ${client.escapeIdentifier(session.name)} TO ${roles.owner}`);
 		}
 		const memberships = await client.query(`SELECT member_role.rolname AS member, parent.rolname AS parent
 			FROM pg_auth_members membership JOIN pg_roles member_role ON member_role.oid = membership.member
@@ -200,12 +181,17 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 				OR has_any_column_privilege($1, relation.oid, 'SELECT, INSERT, UPDATE, REFERENCES'))`, [roles.runtime]);
 		if (outsideAccess.rowCount) throw new Error("Runtime access outside the application schema is not permitted.");
 		track("transfer public schema");
+		const databaseOwner = (await client.query("SELECT datdba::regrole::text AS owner FROM pg_database WHERE datname = current_database()")).rows[0].owner as string;
+		// Database ACL changes take effect only when made by the database owner.
+		if (principals) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(databaseOwner)}`);
 		await client.query(`REVOKE ALL ON DATABASE ${quotedDatabase} FROM PUBLIC`);
+		if (principals) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(session.role)}`);
 		await client.query("REVOKE CREATE ON SCHEMA public FROM PUBLIC");
 		await client.query(`ALTER SCHEMA public OWNER TO ${roles.owner}`);
 		track("grant migration owner membership");
-		await client.query(`GRANT ${roles.owner} TO ${roles.migration} WITH ADMIN FALSE, INHERIT FALSE, SET TRUE${principals ? ` GRANTED BY ${client.escapeIdentifier(principals.administrationRole)}` : ""}`);
+		await client.query(`GRANT ${roles.owner} TO ${roles.migration} WITH ADMIN FALSE, INHERIT FALSE, SET TRUE`);
 		track("grant database connect");
+		if (principals) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(databaseOwner)}`);
 		for (const name of [roles.migration, roles.runtime]) {
 			await client.query(`REVOKE ALL ON DATABASE ${quotedDatabase} FROM ${name}`);
 			await client.query(`GRANT CONNECT ON DATABASE ${quotedDatabase} TO ${name}`);
