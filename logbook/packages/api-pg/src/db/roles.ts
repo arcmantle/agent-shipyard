@@ -32,7 +32,7 @@ export async function configurePgRoles(pool: Pool, roles: PgRoles, passwords?: P
 }
 
 export const roleSetupStages = ["check administration role", "list Entra principals", "create Entra principals", "restrict Entra principals",
-	"create database roles", "grant schema owner to setup", "grant database create to owner", "transfer public schema",
+	"create database roles", "grant schema owner to setup", "transfer public schema",
 	"grant migration owner membership", "grant database connect", "apply schema privileges"] as const;
 export type RoleSetupStage = (typeof roleSetupStages)[number];
 export type RoleAttributes = { session_createrole: boolean; administration_createrole: boolean; session_inherits_administration: boolean;

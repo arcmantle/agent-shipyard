@@ -114,8 +114,17 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 			await expect(configure()).rejects.toMatchObject({ message: expect.stringContaining("owns database objects"), stage: "inspect setup session" });
 			await setup.query("DROP FUNCTION public.setup_owned_check()");
 			await configure();
+			const marker = `logbook-setup:${"a".repeat(64)}`;
+			const forced = (table: string) => `ALTER TABLE public.${table} ENABLE ROW LEVEL SECURITY; ALTER TABLE public.${table} FORCE ROW LEVEL SECURITY;`;
+			await setup.query(`CREATE TABLE public.logbook_role_check_99_1 (tenant_id text, value text); ALTER TABLE public.logbook_role_check_99_1 OWNER TO ${roles.owner};
+				${forced("logbook_role_check_99_1")} COMMENT ON TABLE public.logbook_role_check_99_1 IS '${marker}';
+				CREATE TABLE public.logbook_role_check_97_1 (tenant_id text, value text, payload text); ALTER TABLE public.logbook_role_check_97_1 OWNER TO ${roles.owner};
+				${forced("logbook_role_check_97_1")} COMMENT ON TABLE public.logbook_role_check_97_1 IS '${marker}';
+				CREATE TABLE public.logbook_role_check_98_1 (value text); ALTER TABLE public.logbook_role_check_98_1 OWNER TO ${roles.owner}`);
 			await configure();
-			expect((await setup.query("SELECT 1 FROM pg_class WHERE relname = 'logbook_role_check_123_1'")).rows).toEqual([]);
+			expect((await setup.query("SELECT relname FROM pg_class WHERE relname LIKE 'logbook_role_check_%' ORDER BY relname")).rows)
+				.toEqual([{ relname: "logbook_role_check_97_1" }, { relname: "logbook_role_check_98_1" }]);
+			await setup.query("DROP TABLE public.logbook_role_check_97_1, public.logbook_role_check_98_1");
 			const migrationSession = await setup.connect();
 			try {
 				await migrationSession.query(`SET SESSION AUTHORIZATION ${roles.migration}`);

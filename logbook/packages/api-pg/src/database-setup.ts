@@ -14,8 +14,8 @@ type SetupConfiguration = {
 	identities: Record<"setup" | "runtime" | "migration", Identity>;
 };
 
-export const databaseSetupStages = ["validate configuration", "verify setup login denial", "verify setup privileges removed", "verify runtime restrictions",
-	"verify migration owner access", "inspect setup session", "register principals and grant roles", "create migration probe as schema owner",
+export const databaseSetupStages = ["validate configuration", "verify runtime restrictions",
+	"inspect setup session", "register principals and grant roles", "create migration probe as schema owner",
 	"verify tenant isolation", "verify runtime privilege denial", "remove temporary setup privileges", ...roleSetupStages] as const;
 
 export type DatabaseSetupFailure = Error & { stage?: string; cleanupFailed?: boolean; roleAttributes?: RoleAttributes };
@@ -68,28 +68,6 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 	registration.on("error", () => { process.stderr.write("Database setup connection failed.\n"); });
 	const phase = environment.DATABASE_SETUP_PHASE;
 	try {
-		if (phase === "verify-denied") {
-			track("verify setup login denial");
-			let denied = false;
-			try {
-				await pools.setup.query("SELECT 1");
-			} catch (error) {
-				if (!["28000", "28P01"].includes((error as { code?: string }).code ?? "")) throw new Error("Setup login denial could not be verified.");
-				denied = true;
-			}
-			if (!denied) throw new Error("Setup login is still permitted.");
-			track("verify setup privileges removed");
-			const remaining = await pools.runtime.query(`SELECT 1 FROM pg_auth_members membership JOIN pg_roles role ON role.oid = membership.member WHERE role.rolname = $1
-				UNION ALL SELECT 1 FROM pg_shdepend dependency JOIN pg_roles role ON role.oid = dependency.refobjid
-				WHERE dependency.refclassid = 'pg_authid'::regclass AND dependency.deptype = 'o' AND role.rolname = $1
-				AND dependency.dbid IN (0, (SELECT oid FROM pg_database WHERE datname = current_database()))`, [configuration.identities.setup.role]);
-			if (remaining.rowCount) throw new Error("Server-granted setup privileges remain after administrator removal.");
-			track("verify runtime restrictions");
-			await verifyPgRuntimeRole(pools.runtime);
-			track("verify migration owner access");
-			await pools.migration.query(`SET ROLE ${roles.owner}`);
-			return;
-		}
 		if (!["configure", "reconcile"].includes(phase ?? "")) throw new Error("Invalid database setup phase.");
 		track("inspect setup session");
 		const session = (await pools.setup.query(`SELECT current_user AS role, current_database() AS database,
@@ -175,15 +153,18 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 					await cleanup.query("BEGIN");
 					await cleanup.query("SET LOCAL lock_timeout = '5s'");
 					await cleanup.query("SET LOCAL statement_timeout = '30s'");
-					if (probeCreated || phase === "reconcile") {
-						const probe = await cleanup.query(`SELECT relation.oid, relation.relowner = to_regrole($2) AS owned,
-							obj_description(relation.oid, 'pg_class') AS marker FROM pg_class relation
-							WHERE relation.relnamespace = 'public'::regnamespace AND relation.relname = $1`, [configuration.verification_table, roles.owner]);
-						if (probe.rows.length && (!probe.rows[0].owned || probe.rows[0].marker !== probeMarker)) throw new Error("Verification table does not belong to the approved setup.");
-						if (probe.rows.length) {
-							await cleanup.query(`SET LOCAL ROLE ${roles.owner}`);
-							await cleanup.query(`DROP TABLE public.${configuration.verification_table}`);
-						}
+					// Drop this run's probe and any probe left by an earlier failed run; only exact setup probes match.
+					const probes = await cleanup.query(`SELECT relation.relname AS name FROM pg_class relation
+						WHERE relation.relnamespace = 'public'::regnamespace AND relation.relkind = 'r' AND relation.relname ~ '^logbook_role_check_[0-9]+_[0-9]+$'
+						AND relation.relowner = to_regrole($1) AND obj_description(relation.oid, 'pg_class') ~ '^logbook-setup:[0-9a-f]{64}$'
+						AND (SELECT array_agg(attname::text ORDER BY attname) FROM pg_attribute WHERE attrelid = relation.oid AND attnum > 0 AND NOT attisdropped)
+							= ARRAY['tenant_id', 'value']`, [roles.owner]);
+					if (probes.rows.length) {
+						await cleanup.query(`SET LOCAL ROLE ${roles.owner}`);
+						for (const probe of probes.rows) await cleanup.query(`DROP TABLE public.${cleanup.escapeIdentifier(probe.name)}`);
+					}
+					if (probeCreated && (await cleanup.query("SELECT to_regclass($1) IS NOT NULL AS present", [`public.${configuration.verification_table}`])).rows[0]?.present) {
+						throw new Error("Verification table does not belong to the approved setup.");
 					}
 					await cleanup.query(`SET LOCAL ROLE ${cleanup.escapeIdentifier(session.role)}`);
 					const ownerExists = (await cleanup.query("SELECT to_regrole($1) IS NOT NULL AS present", [roles.owner])).rows[0]?.present === true;

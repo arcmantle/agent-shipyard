@@ -1,11 +1,12 @@
 # Production Database Roles
 
-This operation uses protected GitHub Actions execution. Its local contracts have
-passed against a disposable PostgreSQL database. Live Azure verification is not
-complete. A separate protected database setup workflow is in the private
-infrastructure repository. Do not use a public runner to connect to PostgreSQL or
-reopen retired setup access. Local preparation is not publication or execution
-approval.
+This operation uses protected GitHub Actions execution. Its local contracts pass
+against a disposable PostgreSQL database, and protected configure run 40597692802
+succeeded on Azure on 2026-10-27. Remaining live checks belong to the separate
+approved migration and application deployment operations. A separate protected
+database setup workflow is in the private infrastructure repository. Do not use a
+public runner to connect to PostgreSQL or reopen retired setup access. Local
+preparation is not publication or execution approval.
 
 ## Terraform Deployment Access
 
@@ -40,11 +41,11 @@ The operation requires PostgreSQL 16 or newer.
 
 The helper supports a non-superuser setup login with explicit permissions. The
 approved setup operation must provide database ownership, administration of the
-three application roles, permission to select the schema owner, and database
-CREATE permission for the schema owner during ownership setup. Do not use
+three application roles, and permission to select the schema owner. Do not use
 inherited owner permissions. The helper selects the owner only for schema grants
 and default privileges, then restores the setup role before credential changes.
-It does not grant or remove the setup identity's temporary capabilities.
+In production the setup identity is a permanent Entra administrator, so its grants
+remain valid after setup.
 
 | Role | Access |
 | --- | --- |
@@ -63,20 +64,19 @@ attributes, memberships, object ownership, or unprotected tenant tables stop set
 and roll back its transaction. Excess direct runtime table, schema, and database
 grants are removed during successful setup.
 
-Production uses `configurePgEntraRoles`. Its separate setup login must be able to
-select the existing `azure_pg_admin` server administration role. This permanent
-NOLOGIN role, not the temporary setup login, grants the migration-to-owner
-membership. Memberships from this server administration role are allowed only in
-the Entra setup path. Other incoming members still stop setup. The local
-password-based helper does not add this exception.
+Production uses `configurePgEntraRoles`. The setup identity is a permanent
+Microsoft Entra administrator. Azure restricts `azure_pg_admin` (it has no
+CREATEROLE and cannot be a durable grantor), so setup creates roles and grants the
+migration-to-owner membership as the setup identity. Database-level grants run as
+the database owner, because PostgreSQL applies database ACL changes from the owner.
 
-Entra registration and grants share one transaction. Existing principal mappings
-must match the approved object ID, tenant, service type, and non-administrator
-attributes. An unmapped existing login or changed mapping stops setup. Setup does
-not silently relabel roles. Entra workload passwords are cleared and their
-password validity is expired. A workload cannot restore its password validity.
-The live managed-identity login must still pass; local tests do not prove that the
-Azure Entra authentication path accepts this restriction.
+Azure installs the `pgaadauth` functions only in the `postgres` database. Setup
+registers runtime and migration principals through a separate setup connection to
+`postgres`, then grants permissions through the `logbook` connection. Registration
+creates a missing principal and accepts an existing role with the approved name.
+Entra workload passwords are cleared and their password validity is expired. A
+workload cannot restore its password validity. Live managed-identity login for
+runtime and migration passed on Azure.
 
 Use this only for a dedicated Logbook database. Setup removes PUBLIC database
 access, PUBLIC schema creation, and PUBLIC table grants. It does not transfer
@@ -109,17 +109,14 @@ privately before use.
    private callback verifies approval and signs in automatically with the
    separate executor. No device code or second approval is required. The
    database setup identity receives no ARM roles or GitHub federation.
-5. The setup command verifies exact Entra mappings and effective grants. A
+5. The setup command registers principals and applies effective grants. A
    disposable forced-RLS table verifies both tenant read and write isolation and
    denied runtime administrative operations. It is not an application migration.
-   The command removes this table, temporary schema-owner CREATE permission, and
-   setup grants that it can revoke. It rejects retained setup object ownership.
-6. The controller stops and removes the job, removes the temporary Entra
-   administrator assignment, and starts a fresh verification job. Authentication
-   denial alone is insufficient: the runtime connection must also verify that no
-   setup membership or ownership remains. The migration identity must still be
-   able to select the owner. Network, TLS, token, or timeout errors do not count as
-   verified login denial. Remove the verification job before reporting success.
+   The command removes this table and any table left by an earlier failed setup.
+   It rejects retained setup object ownership.
+6. The controller adds the setup administrator assignment only when it is
+   missing, runs one configure job, and removes the job before it reports success.
+   The setup identity stays an Entra administrator.
 7. In the separate approved migration operation, connect as `migration` and select
    `owner` on every connection, for example with PostgreSQL connection option
    `-c role=<approved-owner-role>`. Run `migratePgDatabase`, then run the approved
@@ -132,9 +129,9 @@ privately before use.
    successful connection alone does not prove isolation.
 
 All Azure and Terraform execution stays in Actions. Cancellation cleanup is a
-separate always-run step. Runner loss or failed cleanup is not a success: stop
-release and request a new reconciliation approval tied to the original
-verification table. Do not replay a consumed approval. Keep request and result
+separate always-run step that removes the setup job. A failed setup is not a
+success: fix the cause, then request a new configure approval. Configure is
+repeatable. Do not replay a consumed approval. Keep request and result
 artifacts private. Do not log tokens, passwords, raw database errors, or private
 target values.
 
