@@ -35,7 +35,9 @@ export const roleSetupStages = ["check administration role", "list Entra princip
 	"create database roles", "grant schema owner to setup", "grant database create to owner", "transfer public schema",
 	"grant migration owner membership", "grant database connect", "apply schema privileges"] as const;
 export type RoleSetupStage = (typeof roleSetupStages)[number];
-export type RoleAttributes = { session_createrole: boolean; administration_createrole: boolean; session_inherits_administration: boolean };
+export type RoleAttributes = { session_createrole: boolean; administration_createrole: boolean; session_inherits_administration: boolean;
+	database_owner_is_administration?: boolean; public_schema_owner_is_administration?: boolean; session_can_grant_database_create?: boolean;
+	administration_can_grant_database_create?: boolean; session_can_set_administration?: boolean; session_can_set_database_owner?: boolean };
 
 export async function configurePgEntraRoles(pool: Pool, roles: PgRoles, principals: PgEntraPrincipals, registrationPool: Pool = pool,
 	track: (stage: RoleSetupStage) => void = () => {}): Promise<void> {
@@ -57,6 +59,14 @@ export async function configurePgEntraRoles(pool: Pool, roles: PgRoles, principa
 		COALESCE((SELECT rolcreaterole FROM pg_roles WHERE rolname = $1), false) AS administration_createrole,
 		COALESCE(pg_has_role(current_user, (SELECT oid FROM pg_roles WHERE rolname = $1), 'USAGE'), false) AS session_inherits_administration`,
 		[principals.administrationRole])).rows[0];
+	Object.assign(attributes, (await pool.query(`SELECT
+		COALESCE((SELECT datdba = (SELECT oid FROM pg_roles WHERE rolname = $1) FROM pg_database WHERE datname = current_database()), false) AS database_owner_is_administration,
+		COALESCE((SELECT nspowner = (SELECT oid FROM pg_roles WHERE rolname = $1) FROM pg_namespace WHERE nspname = 'public'), false) AS public_schema_owner_is_administration,
+		has_database_privilege(current_user, current_database(), 'CREATE WITH GRANT OPTION') AS session_can_grant_database_create,
+		COALESCE(has_database_privilege($1, current_database(), 'CREATE WITH GRANT OPTION'), false) AS administration_can_grant_database_create,
+		COALESCE(pg_has_role(current_user, (SELECT oid FROM pg_roles WHERE rolname = $1), 'SET'), false) AS session_can_set_administration,
+		COALESCE(pg_has_role(current_user, (SELECT datdba FROM pg_database WHERE datname = current_database()), 'SET'), false) AS session_can_set_database_owner`,
+		[principals.administrationRole])).rows[0]);
 	try {
 		await registerEntraPrincipals(registrationPool, roles, principals, track);
 		return await configureRoles(pool, roles, undefined, principals, track);
@@ -143,7 +153,10 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 			track("create database roles");
 			const existing = await client.query("SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin, rolinherit FROM pg_roles WHERE rolname = $1", [name]);
 			if (existing.rowCount === 0) {
+				// azure_pg_admin lacks CREATEROLE on Azure; the setup administrator has it.
+				if (principals) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(session.role)}`);
 				await client.query(`CREATE ROLE ${name} ${kind === "owner" ? "NOLOGIN" : "LOGIN"} NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`);
+				if (principals) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(principals.administrationRole)}`);
 			} else {
 				const role = existing.rows[0];
 				if (role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolreplication || role.rolbypassrls || role.rolinherit || role.rolcanlogin !== (kind !== "owner")) {
