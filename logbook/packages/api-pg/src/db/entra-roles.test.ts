@@ -133,7 +133,8 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 				await migrationSession.query("RESET ROLE; RESET SESSION AUTHORIZATION");
 				migrationSession.release();
 			}
-			const migrate = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "migrate", DATABASE_SETUP_CONFIG: configuration }, databaseOwner);
+			const bundle = { version: `9.9.9-${suffix}`, items: [{ key: "skill/setup-check", kind: "skill" as const, body: "# Setup check" }] };
+			const migrate = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "migrate", DATABASE_SETUP_CONFIG: configuration }, databaseOwner, bundle);
 			const first = await migrate();
 			expect(first?.schema_migrations_before).toBe(0);
 			expect(first?.schema_migrations_after).toBeGreaterThan(0);
@@ -142,6 +143,16 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 				has_table_privilege($1, oid, 'SELECT') AS runtime_select FROM pg_class
 				WHERE relnamespace = 'public'::regnamespace AND relname IN ('entities', 'schema_migrations') ORDER BY relname`, [roles.runtime])).rows)
 				.toEqual([{ owner: roles.owner, runtime_select: true }, { owner: roles.owner, runtime_select: false }]);
+			const runtimeSession = await setup.connect();
+			try {
+				await runtimeSession.query(`SET SESSION AUTHORIZATION ${roles.runtime}`);
+				expect((await runtimeSession.query("SELECT item_key FROM instruction_defaults WHERE version = $1", [bundle.version])).rows)
+					.toEqual([{ item_key: "skill/setup-check" }]);
+				await expect(runtimeSession.query("DELETE FROM instruction_bundles WHERE version = $1", [bundle.version])).rejects.toMatchObject({ code: "42501" });
+			} finally {
+				await runtimeSession.query("RESET SESSION AUTHORIZATION");
+				runtimeSession.release();
+			}
 		} finally {
 			factory.mockRestore();
 		}

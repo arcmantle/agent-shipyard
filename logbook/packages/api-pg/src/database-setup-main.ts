@@ -1,7 +1,14 @@
+import { existsSync, readFileSync } from "node:fs";
+
+import type { InstructionBundle } from "@agent-issues/core";
+
 import { databaseSetupStages, runDatabaseSetup, type DatabaseSetupFailure } from "./database-setup.js";
 
+const bundleUrl = new URL("../instruction-defaults.json", import.meta.url);
+
 try {
-	const result = await runDatabaseSetup(process.env);
+	const bundle = existsSync(bundleUrl) ? JSON.parse(readFileSync(bundleUrl, "utf8")) as InstructionBundle : undefined;
+	const result = await runDatabaseSetup(process.env, undefined, bundle);
 	process.stdout.write(`${JSON.stringify({ event: "database-setup-complete", phase: process.env.DATABASE_SETUP_PHASE, ...result })}\n`);
 } catch (error) {
 	const failure = error as DatabaseSetupFailure & { code?: unknown };

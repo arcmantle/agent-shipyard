@@ -20,8 +20,10 @@ function invalidConfiguration(name: string): never {
 
 function readHostedSite() {
 	const publicDirectory = fileURLToPath(new URL("../public/", import.meta.url));
-	if (!existsSync(`${publicDirectory}index.html`)) return undefined;
-	const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
+	const bundleUrl = new URL("../instruction-defaults.json", import.meta.url);
+	if (!existsSync(`${publicDirectory}index.html`) || !existsSync(bundleUrl)) return undefined;
+	// Instruction reads are keyed by the bundle release that the migrate job installed from this image.
+	const { version } = JSON.parse(readFileSync(bundleUrl, "utf8")) as { version: string };
 	return { publicDirectory, instructionVersion: version };
 }
 

@@ -26,6 +26,13 @@ COPY packages/core/src ./packages/core/src
 COPY packages/site/index.html packages/site/tsconfig.json packages/site/vite.production.config.ts ./packages/site/
 COPY packages/site/src ./packages/site/src
 RUN pnpm --filter @agent-issues/site exec vite build --config vite.production.config.ts
+COPY packages/cli/package.json ./packages/cli/package.json
+COPY packages/cli/scripts/build-plugin.mjs ./packages/site/build-plugin.mjs
+COPY packages/cli/skills ./packages/cli/skills
+COPY packages/cli/.github/agents ./packages/cli/.github/agents
+COPY packages/cli/plugin/README.md ./packages/cli/plugin/README.md
+# The script runs from the site package so it resolves the site's installed markdown parser.
+RUN node packages/site/build-plugin.mjs --source-dir packages/cli --target-dir /plugin
 
 FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS runtime
 
@@ -33,6 +40,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080
 WORKDIR /app
 COPY --from=build --chown=node:node /release/ ./
 COPY --from=site --chown=node:node /workspace/packages/site/dist/ ./public/
+COPY --from=site --chown=node:node /plugin/instruction-defaults.json ./instruction-defaults.json
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \

@@ -8,10 +8,11 @@ function hash(content: string): string {
 	return createHash("sha256").update(content).digest("hex");
 }
 
-export async function installInstructionBundle(pool: Pool, bundle: InstructionBundle): Promise<void> {
+export async function installInstructionBundle(pool: Pool, bundle: InstructionBundle, options: { role?: string } = {}): Promise<void> {
 	const { items } = normalizeInstructionBundle(bundle);
 	const contentHash = hash(JSON.stringify(items));
 	await drizzle(pool).transaction(async (executor) => {
+		if (options.role) await executor.execute(sql`SELECT set_config('role', ${options.role}, true)`);
 		await executor.execute(sql`LOCK TABLE instruction_bundles IN EXCLUSIVE MODE`);
 		const existing = await executor.execute<{ content_hash: string }>(sql`SELECT content_hash FROM instruction_bundles WHERE version = ${bundle.version}`);
 		if (existing.rows.length) {

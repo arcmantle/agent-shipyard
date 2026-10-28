@@ -20,4 +20,15 @@
 !packages/site/vite.production.config.ts
 !packages/site/src/
 !packages/site/src/**
+!packages/cli/
+!packages/cli/package.json
+!packages/cli/scripts/
+!packages/cli/scripts/build-plugin.mjs
+!packages/cli/skills/
+!packages/cli/skills/**
+!packages/cli/.github/
+!packages/cli/.github/agents/
+!packages/cli/.github/agents/**
+!packages/cli/plugin/
+!packages/cli/plugin/README.md
 **/*.test.ts
