@@ -1,6 +1,32 @@
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 export type PgRoles = { owner: string; migration: string; runtime: string };
+
+/** Grants the runtime role only the reviewed table access; the caller's transaction must act as the schema owner. */
+export async function applyRuntimeTablePrivileges(client: PoolClient, roles: PgRoles): Promise<void> {
+	await client.query(`REVOKE ALL ON SCHEMA public FROM ${roles.runtime}, ${roles.migration}`);
+	await client.query(`GRANT USAGE ON SCHEMA public TO ${roles.runtime}`);
+	await client.query(`ALTER DEFAULT PRIVILEGES FOR ROLE ${roles.owner} REVOKE ALL ON TABLES FROM ${roles.runtime}, PUBLIC`);
+	await client.query(`ALTER DEFAULT PRIVILEGES FOR ROLE ${roles.owner} IN SCHEMA public REVOKE ALL ON TABLES FROM ${roles.runtime}`);
+	await client.query(`ALTER DEFAULT PRIVILEGES FOR ROLE ${roles.owner} IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC`);
+	await client.query(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${roles.runtime}, PUBLIC`);
+	const columnGrants = await client.query(`SELECT relation.relname, attribute.attname FROM pg_attribute attribute
+		JOIN pg_class relation ON relation.oid = attribute.attrelid WHERE relation.relnamespace = 'public'::regnamespace
+		AND attribute.attnum > 0 AND NOT attribute.attisdropped AND attribute.attacl IS NOT NULL`);
+	for (const column of columnGrants.rows) {
+		const table = client.escapeIdentifier(column.relname);
+		const name = client.escapeIdentifier(column.attname);
+		await client.query(`REVOKE ALL (${name}) ON public.${table} FROM ${roles.runtime}, PUBLIC`);
+	}
+	const tables = await client.query(`SELECT relname, relrowsecurity AND relforcerowsecurity AS tenant_scoped
+		FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r', 'p')
+		AND ((relrowsecurity AND relforcerowsecurity) OR relname IN ('instruction_bundles', 'instruction_defaults'))`);
+	for (const table of tables.rows) {
+		const quotedTable = `"${(table.relname as string).replaceAll('"', '""')}"`;
+		const privileges = table.tenant_scoped ? "SELECT, INSERT, UPDATE, DELETE" : "SELECT";
+		await client.query(`GRANT ${privileges} ON public.${quotedTable} TO ${roles.runtime}`);
+	}
+}
 export type PgRolePasswords = { migration: string; runtime: string };
 export type PgEntraPrincipals = { tenantId: string; migrationObjectId: string; runtimeObjectId: string; administrationRole: string };
 
@@ -198,28 +224,7 @@ async function configureRoles(pool: Pool, roles: PgRoles, passwords?: PgRolePass
 		}
 		track("apply schema privileges");
 		await client.query(`SET LOCAL ROLE ${roles.owner}`);
-		await client.query(`REVOKE ALL ON SCHEMA public FROM ${roles.runtime}, ${roles.migration}`);
-		await client.query(`GRANT USAGE ON SCHEMA public TO ${roles.runtime}`);
-		await client.query(`ALTER DEFAULT PRIVILEGES FOR ROLE ${roles.owner} REVOKE ALL ON TABLES FROM ${roles.runtime}, PUBLIC`);
-		await client.query(`ALTER DEFAULT PRIVILEGES FOR ROLE ${roles.owner} IN SCHEMA public REVOKE ALL ON TABLES FROM ${roles.runtime}`);
-		await client.query(`ALTER DEFAULT PRIVILEGES FOR ROLE ${roles.owner} IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC`);
-		await client.query(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${roles.runtime}, PUBLIC`);
-		const columnGrants = await client.query(`SELECT relation.relname, attribute.attname FROM pg_attribute attribute
-			JOIN pg_class relation ON relation.oid = attribute.attrelid WHERE relation.relnamespace = 'public'::regnamespace
-			AND attribute.attnum > 0 AND NOT attribute.attisdropped AND attribute.attacl IS NOT NULL`);
-		for (const column of columnGrants.rows) {
-			const table = client.escapeIdentifier(column.relname);
-			const name = client.escapeIdentifier(column.attname);
-			await client.query(`REVOKE ALL (${name}) ON public.${table} FROM ${roles.runtime}, PUBLIC`);
-		}
-		const tables = await client.query(`SELECT relname, relrowsecurity AND relforcerowsecurity AS tenant_scoped
-			FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r', 'p')
-			AND ((relrowsecurity AND relforcerowsecurity) OR relname IN ('instruction_bundles', 'instruction_defaults'))`);
-		for (const table of tables.rows) {
-			const quotedTable = `"${(table.relname as string).replaceAll('"', '""')}"`;
-			const privileges = table.tenant_scoped ? "SELECT, INSERT, UPDATE, DELETE" : "SELECT";
-			await client.query(`GRANT ${privileges} ON public.${quotedTable} TO ${roles.runtime}`);
-		}
+		await applyRuntimeTablePrivileges(client, roles);
 		await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(session.role)}`);
 		if (passwords) {
 			await client.query("SET LOCAL password_encryption = 'scram-sha-256'");

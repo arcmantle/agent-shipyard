@@ -5,26 +5,34 @@ import { fileURLToPath } from "node:url";
 
 import type { Pool } from "pg";
 
-import { createApiServer, createPgPool, EntraIdAuthProvider, type AuthProvider } from "./index.js";
-import { verifyPgRuntimeRole } from "./db/roles.js";
+import type { InstructionBundle } from "@agent-issues/core";
+
+import { createApiServer, createPgPool, EntraIdAuthProvider, installInstructionBundle, migratePgDatabase, type AuthProvider } from "./index.js";
+import { applyRuntimeTablePrivileges, verifyPgRuntimeRole } from "./db/roles.js";
 
 type ProductionOptions = {
 	environment: NodeJS.ProcessEnv;
 	pool?: Pool;
+	migrationPool?: Pool;
+	instructionBundle?: InstructionBundle;
 	authProvider?: AuthProvider;
 };
+
+const BUNDLE_URL = new URL("../instruction-defaults.json", import.meta.url);
+
+function readInstructionBundle(): InstructionBundle | undefined {
+	return existsSync(BUNDLE_URL) ? JSON.parse(readFileSync(BUNDLE_URL, "utf8")) as InstructionBundle : undefined;
+}
 
 function invalidConfiguration(name: string): never {
 	throw new Error(`Invalid production configuration: ${name}`);
 }
 
-function readHostedSite() {
+function readHostedSite(bundle: InstructionBundle | undefined) {
 	const publicDirectory = fileURLToPath(new URL("../public/", import.meta.url));
-	const bundleUrl = new URL("../instruction-defaults.json", import.meta.url);
-	if (!existsSync(`${publicDirectory}index.html`) || !existsSync(bundleUrl)) return undefined;
-	// Instruction reads are keyed by the bundle release that the migrate job installed from this image.
-	const { version } = JSON.parse(readFileSync(bundleUrl, "utf8")) as { version: string };
-	return { publicDirectory, instructionVersion: version };
+	if (!existsSync(`${publicDirectory}index.html`) || !bundle) return undefined;
+	// Instruction reads are keyed by the bundle release installed from this image.
+	return { publicDirectory, instructionVersion: bundle.version };
 }
 
 function readConfiguration(environment: NodeJS.ProcessEnv) {
@@ -54,11 +62,64 @@ function readConfiguration(environment: NodeJS.ProcessEnv) {
 	if (!/^\d+$/.test(shutdownValue) || Number(shutdownValue) < 1 || Number(shutdownValue) > 30000) {
 		invalidConfiguration("SHUTDOWN_TIMEOUT_MS");
 	}
-	return { connectionString: connectionString!, managedIdentityClientId, tenantId, clientId, host, port: Number(portValue), shutdownTimeoutMs: Number(shutdownValue) };
+	const migration = readMigrationConfiguration(environment, identifier);
+	return { connectionString: connectionString!, managedIdentityClientId, tenantId, clientId, host, port: Number(portValue), shutdownTimeoutMs: Number(shutdownValue), migration };
+}
+
+function readMigrationConfiguration(environment: NodeJS.ProcessEnv, identifier: RegExp) {
+	if (environment.MIGRATE_ON_START === undefined || environment.MIGRATE_ON_START === "false") return undefined;
+	if (environment.MIGRATE_ON_START !== "true") invalidConfiguration("MIGRATE_ON_START");
+	const role = /^[a-z][a-z0-9_]{0,62}$/;
+	const managedIdentityClientId = environment.DATABASE_MIGRATION_IDENTITY_CLIENT_ID ?? "";
+	const migrationRole = environment.DATABASE_MIGRATION_ROLE ?? "";
+	const ownerRole = environment.DATABASE_OWNER_ROLE ?? "";
+	if (!identifier.test(managedIdentityClientId)) invalidConfiguration("DATABASE_MIGRATION_IDENTITY_CLIENT_ID");
+	if (!role.test(migrationRole) || migrationRole.startsWith("pg_")) invalidConfiguration("DATABASE_MIGRATION_ROLE");
+	if (!role.test(ownerRole) || ownerRole.startsWith("pg_") || ownerRole === migrationRole) invalidConfiguration("DATABASE_OWNER_ROLE");
+	const runtimeRole = decodeURIComponent(new URL(environment.DATABASE_URL!).username);
+	if (!role.test(runtimeRole) || runtimeRole.startsWith("pg_") || [migrationRole, ownerRole].includes(runtimeRole)) invalidConfiguration("DATABASE_URL");
+	return { managedIdentityClientId, migrationRole, ownerRole, runtimeRole };
+}
+
+async function migrateOnStart(pool: Pool, roles: { owner: string; migration: string; runtime: string }, bundle: InstructionBundle | undefined): Promise<void> {
+	await migratePgDatabase(pool, { role: roles.owner });
+	if (bundle) await installInstructionBundle(pool, bundle, { role: roles.owner });
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(roles.owner)}`);
+		await applyRuntimeTablePrivileges(client, roles);
+		await client.query("COMMIT");
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
 }
 
 export async function startProductionApi(options: ProductionOptions) {
 	const configuration = readConfiguration(options.environment);
+	const bundle = options.instructionBundle ?? readInstructionBundle();
+	if (configuration.migration) {
+		const migrationUrl = new URL(configuration.connectionString);
+		migrationUrl.username = configuration.migration.migrationRole;
+		const migrationPool = options.migrationPool ?? createPgPool({
+			connectionString: migrationUrl.href,
+			managedIdentityClientId: configuration.migration.managedIdentityClientId,
+			connectionTimeoutMillis: 5000,
+			queryTimeoutMillis: 120000
+		});
+		try {
+			await migrateOnStart(migrationPool, {
+				owner: configuration.migration.ownerRole,
+				migration: configuration.migration.migrationRole,
+				runtime: configuration.migration.runtimeRole
+			}, bundle);
+		} finally {
+			await migrationPool.end();
+		}
+	}
 	const pool = options.pool ?? createPgPool({
 		connectionString: configuration.connectionString,
 		managedIdentityClientId: configuration.managedIdentityClientId,
@@ -74,7 +135,7 @@ export async function startProductionApi(options: ProductionOptions) {
 		pool,
 		authProvider: options.authProvider ?? new EntraIdAuthProvider(configuration),
 		authMetadata: { provider: "entra", tenantId: configuration.tenantId, clientId: configuration.clientId },
-		site: readHostedSite(),
+		site: readHostedSite(bundle),
 		readinessCheck: async () => {
 			if (closing) throw new Error("API is stopping.");
 			await verifyPgRuntimeRole(pool);
