@@ -22,7 +22,7 @@ async function generateTestKeys(): Promise<TestKeys> {
 
 async function signTestToken(
 	privateKey: CryptoKey,
-	claims: { oid?: string; tid?: string; name?: string; iss?: string; aud?: string; expiresInSeconds?: number }
+	claims: { oid?: string; tid?: string; name?: string; iss?: string; aud?: string; expiresInSeconds?: number; scp?: string; roles?: string[] }
 ): Promise<string> {
 	const {
 		oid = "user-object-id",
@@ -30,10 +30,12 @@ async function signTestToken(
 		name,
 		iss = ISSUER,
 		aud = CLIENT_ID,
-		expiresInSeconds = 3600
+		expiresInSeconds = 3600,
+		scp = "access_as_user",
+		roles
 	} = claims;
 
-	return new SignJWT({ oid, tid, name })
+	return new SignJWT({ oid, tid, name, ...(scp !== "" && { scp }), ...(roles && { roles }) })
 		.setProtectedHeader({ alg: "RS256", kid: "test-key" })
 		.setIssuer(iss)
 		.setAudience(aud)
@@ -105,6 +107,24 @@ describe("EntraIdAuthProvider", () => {
 		const token = await signTestToken(keys.privateKey, { expiresInSeconds: -60 });
 
 		await expect(provider.validateToken(token)).rejects.toThrow();
+	});
+
+	it("accepts the API scope among other delegated scopes", async () => {
+		const provider = new EntraIdAuthProvider({ tenantId: TENANT_ID, clientId: CLIENT_ID, jwks: keys.jwks });
+		const token = await signTestToken(keys.privateKey, { oid: "user-abc", scp: "openid access_as_user" });
+
+		await expect(provider.validateToken(token)).resolves.toEqual({ userId: "user-abc", tenantId: TENANT_ID });
+	});
+
+	it.each([
+		["no delegated scope", { scp: "" }],
+		["a different scope", { scp: "User.Read" }],
+		["an app-only token with roles", { scp: "", roles: ["access_as_user"] }]
+	])("rejects a token with %s", async (_name, claims) => {
+		const provider = new EntraIdAuthProvider({ tenantId: TENANT_ID, clientId: CLIENT_ID, jwks: keys.jwks });
+		const token = await signTestToken(keys.privateKey, claims);
+
+		await expect(provider.validateToken(token)).rejects.toThrow(/access_as_user/);
 	});
 
 	it("rejects a token missing the oid/tid claims", async () => {

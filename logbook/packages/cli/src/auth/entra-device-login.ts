@@ -21,7 +21,8 @@ export const acquireEntraDeviceCodeSession: DeviceCodeLoginFn = async ({ tenantI
 	});
 
 	const result = await app.acquireTokenByDeviceCode({
-		scopes: ["User.Read"],
+		// The API accepts only its own delegated scope, never Microsoft Graph tokens.
+		scopes: [`api://${clientId}/access_as_user`],
 		deviceCodeCallback: (response) => {
 			onDeviceCode(response.message);
 		}

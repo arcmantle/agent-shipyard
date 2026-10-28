@@ -45,21 +45,37 @@ registration to allow public-client (no client secret) authentication:
 
 No redirect URI, client secret, or certificate is needed for this flow.
 
-### API permissions
+### Expose the API scope
 
-By default the CLI's login requests the `User.Read` Microsoft Graph scope,
-which is enough to sign in and resolve your identity. Under **API
-permissions** in the app registration, confirm `Microsoft Graph → User.Read`
-is present (it's added by default to new registrations) and click
-**Grant admin consent** if your tenant requires it for the app to be usable
-without an individual consent prompt per user.
+The service accepts only access tokens that are issued for this app
+registration and carry the delegated `access_as_user` scope. It rejects
+Microsoft Graph tokens and app-only tokens.
 
-> The cloud API's own token-validation seam (`EntraIdAuthProvider` in
-> `packages/api-pg`) doesn't require any additional scope beyond this today -
-> it validates the `oid`/`tid` claims already present on a standard signed-in
-> token. If a future issue introduces API-specific scopes, this guide will
-> need an additional "expose an API" step; nothing here needs to change
-> until then.
+1. Go to **Expose an API**. Next to **Application ID URI**, click **Add** and
+   accept the default `api://<client-id>`. Click **Save**.
+2. Click **Add a scope** and fill in:
+   - **Scope name**: `access_as_user`
+   - **Who can consent**: Admins and users
+   - **Admin consent display name**: `Access Logbook`
+   - **Admin consent description**: `Access Logbook as the signed-in user.`
+   - **State**: Enabled
+3. Go to **Manifest**. Set `requestedAccessTokenVersion` (in the `api`
+   object) to `2`, then click **Save**. Version 2 tokens use the client ID as
+   the audience and the `/v2.0` issuer that the service validates.
+4. Go to **API permissions** and remove `Microsoft Graph → User.Read`. The
+   CLI does not use Microsoft Graph.
+
+### Restrict sign-in to assigned users
+
+1. Go to **Enterprise applications**, then open the application with the same
+   name.
+2. Go to **Properties**, set **Assignment required?** to **Yes**, and click
+   **Save**.
+3. Go to **Users and groups** and add each user who can use the service. To
+   add a person from outside the tenant, invite the person as a guest under
+   **Users → Invite external user** first, then assign the guest.
+
+Entra then refuses to issue a token to a user who is not assigned.
 
 ## 4. Run the CLI login
 
