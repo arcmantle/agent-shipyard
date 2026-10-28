@@ -25,7 +25,6 @@ describe("production API host", () => {
 	const roles = { owner: `owner_${suffix}`, migration: `migration_${suffix}`, runtime: `runtime_${suffix}` };
 	let setup: Pool;
 	let migration: Pool;
-	let migrationUrl: string;
 	let runtimeUrl: string;
 
 	beforeAll(async () => {
@@ -37,7 +36,6 @@ describe("production API host", () => {
 		await configurePgRoles(setup, roles, passwords);
 		url.username = roles.migration;
 		url.password = passwords.migration;
-		migrationUrl = url.href;
 		migration = new Pool({ connectionString: url.href, options: `-c role=${roles.owner}` });
 		await migratePgDatabase(migration);
 		await configurePgRoles(setup, roles);
@@ -182,39 +180,34 @@ describe("production API host", () => {
 		}
 	});
 
-	it("migrates, installs instruction defaults, and grants runtime access before listening when enabled", async () => {
-		const migrationEnvironment = {
-			...environment,
-			MIGRATE_ON_START: "true",
-			DATABASE_MIGRATION_IDENTITY_CLIENT_ID: "44444444-4444-4444-8444-444444444444",
-			DATABASE_MIGRATION_ROLE: roles.migration,
-			DATABASE_OWNER_ROLE: roles.owner,
-			DATABASE_URL: `postgres://${roles.runtime}@127.0.0.1:1/logbook?sslmode=verify-full`
-		};
+	it("runs the database setup migrate phase with a unique probe table before listening", async () => {
+		const setupConfiguration = { database_url: "postgres://server.postgres.database.azure.com/logbook?sslmode=verify-full", owner_role: "logbook_owner" };
 		const instructionBundle = { version: `9.8.7-${suffix}`, items: [{ key: "skill/startup-check", kind: "skill" as const, body: "# Startup check" }] };
-		await expect(startProductionApi({ environment: { ...migrationEnvironment, DATABASE_OWNER_ROLE: "" } })).rejects.toThrow("DATABASE_OWNER_ROLE");
+		await expect(startProductionApi({ environment: { ...environment, DATABASE_SETUP_CONFIG: "not-json" } })).rejects.toThrow("DATABASE_SETUP_CONFIG");
+		const calls: Array<{ phase?: string; config: Record<string, unknown>; bundle: unknown; listening: boolean }> = [];
+		let listening = false;
+		const setupDatabase = vi.fn(async (setupEnvironment: NodeJS.ProcessEnv, _role?: string, bundle?: unknown) => {
+			calls.push({ phase: setupEnvironment.DATABASE_SETUP_PHASE, config: JSON.parse(setupEnvironment.DATABASE_SETUP_CONFIG!), bundle, listening });
+			return undefined;
+		});
 		for (let start = 0; start < 2; start++) {
-			const pool = createPgPool({ connectionString: runtimeUrl });
 			const handle = await startProductionApi({
-				environment: migrationEnvironment,
-				pool,
-				migrationPool: new Pool({ connectionString: migrationUrl }),
+				environment: { ...environment, DATABASE_SETUP_CONFIG: JSON.stringify(setupConfiguration) },
+				pool: { query: vi.fn(), end: vi.fn(async () => {}), on: vi.fn(), removeListener: vi.fn() } as unknown as Pool,
 				instructionBundle,
+				setupDatabase,
 				authProvider: new LocalAuthProvider({ secret: "production-host-test-only" })
 			});
-			try {
-				expect((await fetch(`${handle.url}/health/ready`)).status).toBe(200);
-				const runtime = createPgPool({ connectionString: runtimeUrl });
-				try {
-					expect((await runtime.query("SELECT item_key FROM instruction_defaults WHERE version = $1", [instructionBundle.version])).rows)
-						.toEqual([{ item_key: "skill/startup-check" }]);
-					await expect(runtime.query("DELETE FROM instruction_bundles WHERE version = $1", [instructionBundle.version])).rejects.toMatchObject({ code: "42501" });
-				} finally {
-					await runtime.end();
-				}
-			} finally {
-				await handle.close();
-			}
+			listening = true;
+			await handle.close();
+			listening = false;
 		}
+		expect(calls.map(({ phase, bundle, listening: wasListening }) => ({ phase, bundle, wasListening })))
+			.toEqual([{ phase: "migrate", bundle: instructionBundle, wasListening: false }, { phase: "migrate", bundle: instructionBundle, wasListening: false }]);
+		for (const call of calls) {
+			expect(call.config).toMatchObject(setupConfiguration);
+			expect(call.config.verification_table).toMatch(/^logbook_role_check_[1-9][0-9]*_[1-9][0-9]*$/);
+		}
+		expect(calls[0]!.config.verification_table).not.toBe(calls[1]!.config.verification_table);
 	});
 });

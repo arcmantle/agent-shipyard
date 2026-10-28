@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from "pg";
 export type PgRoles = { owner: string; migration: string; runtime: string };
 
 /** Grants the runtime role only the reviewed table access; the caller's transaction must act as the schema owner. */
-export async function applyRuntimeTablePrivileges(client: PoolClient, roles: PgRoles): Promise<void> {
+async function applyRuntimeTablePrivileges(client: PoolClient, roles: PgRoles): Promise<void> {
 	await client.query(`REVOKE ALL ON SCHEMA public FROM ${roles.runtime}, ${roles.migration}`);
 	await client.query(`GRANT USAGE ON SCHEMA public TO ${roles.runtime}`);
 	await client.query(`ALTER DEFAULT PRIVILEGES FOR ROLE ${roles.owner} REVOKE ALL ON TABLES FROM ${roles.runtime}, PUBLIC`);
