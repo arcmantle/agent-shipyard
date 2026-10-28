@@ -113,6 +113,13 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 			await setup.query(`CREATE FUNCTION public.setup_owned_check() RETURNS integer LANGUAGE sql AS 'SELECT 1'; ALTER FUNCTION public.setup_owned_check() OWNER TO ${operatorSql}`);
 			await expect(configure()).rejects.toMatchObject({ message: expect.stringContaining("owns database objects"), stage: "inspect setup session" });
 			await setup.query("DROP FUNCTION public.setup_owned_check()");
+			// Azure makes the only Entra administrator the owner of databases created through ARM.
+			await admin.query(`ALTER DATABASE ${database} OWNER TO ${operatorSql}`);
+			try {
+				await configure();
+			} finally {
+				await admin.query(`ALTER DATABASE ${database} OWNER TO ${databaseOwner}`);
+			}
 			await configure();
 			const marker = `logbook-setup:${"a".repeat(64)}`;
 			const forced = (table: string) => `ALTER TABLE public.${table} ENABLE ROW LEVEL SECURITY; ALTER TABLE public.${table} FORCE ROW LEVEL SECURITY;`;

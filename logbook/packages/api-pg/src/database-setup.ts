@@ -76,6 +76,7 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 		track("inspect setup session");
 		const session = (await pools.setup.query(`SELECT current_user AS role, current_database() AS database,
 			EXISTS (SELECT 1 FROM pg_shdepend WHERE refclassid = 'pg_authid'::regclass AND refobjid = current_user::regrole AND deptype = 'o'
+				AND classid <> 'pg_database'::regclass
 				AND dbid IN (0, (SELECT oid FROM pg_database WHERE datname = current_database()))) AS owns_objects`)).rows[0];
 		if (session?.role !== configuration.identities.setup.role || session.owns_objects) throw new Error("Setup identity changed or owns database objects.");
 		let configured = false;
