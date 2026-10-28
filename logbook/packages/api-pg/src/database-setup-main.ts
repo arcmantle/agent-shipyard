@@ -2,7 +2,7 @@ import { databaseSetupStages, runDatabaseSetup, type DatabaseSetupFailure } from
 
 try {
 	const result = await runDatabaseSetup(process.env);
-	process.stdout.write(`${JSON.stringify({ event: "database-setup-complete", ...result })}\n`);
+	process.stdout.write(`${JSON.stringify({ event: "database-setup-complete", phase: process.env.DATABASE_SETUP_PHASE, ...result })}\n`);
 } catch (error) {
 	const failure = error as DatabaseSetupFailure & { code?: unknown };
 	const phase = ["configure", "reconcile", "migrate"].find((value) => value === process.env.DATABASE_SETUP_PHASE);
