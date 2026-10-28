@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: agent_issues
           POSTGRES_PASSWORD: agent_issues_dev_only
@@ -37,7 +37,7 @@ jobs:
         run: >-
           docker run --rm --network host
           --volume "$PWD/logbook/docker/postgres-init:/init:ro"
-          postgres:16
+          postgres:16-alpine
           psql postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues
           --set ON_ERROR_STOP=1 --file /init/01-app-role.sql
       - run: pnpm --dir logbook --filter @agent-issues/core build
