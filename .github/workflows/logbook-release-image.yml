@@ -60,24 +60,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: docker/setup-buildx-action@v3
-      - name: Build the release image for the smoke check
-        uses: docker/build-push-action@v6
-        with:
-          context: logbook
-          file: logbook/docker/api.Dockerfile
-          platforms: linux/amd64
-          load: true
-          tags: logbook-api:smoke
-          cache-to: type=gha,mode=max
-      - name: Smoke check the runtime
-        run: |
-          set +e
-          output=$(docker run --rm logbook-api:smoke 2>&1)
-          code=$?
-          set -e
-          test "$code" -eq 1
-          test "$output" = "Production API startup failed."
-          test "$(docker run --rm --entrypoint id logbook-api:smoke -un)" = "node"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -93,9 +75,21 @@ jobs:
           push: true
           tags: ${{ env.IMAGE }}:source-${{ github.sha }}
           labels: org.opencontainers.image.source=https://github.com/arcmantle/agent-shipyard
-          cache-from: type=gha
           provenance: mode=max
           sbom: true
+      # The manifest is written only after the published digest passes this check.
+      - name: Smoke check the published digest
+        env:
+          REFERENCE: ${{ env.IMAGE }}@${{ steps.image.outputs.digest }}
+        run: |
+          docker pull --quiet "$REFERENCE"
+          set +e
+          output=$(docker run --rm "$REFERENCE" 2>&1)
+          code=$?
+          set -e
+          test "$code" -eq 1
+          test "$output" = "Production API startup failed."
+          test "$(docker run --rm --entrypoint id "$REFERENCE" -un)" = "node"
       - uses: actions/attest-build-provenance@v3
         with:
           subject-name: ${{ env.IMAGE }}
