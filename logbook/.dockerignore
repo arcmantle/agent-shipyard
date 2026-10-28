@@ -13,4 +13,11 @@
 !packages/api-pg/tsconfig*.json
 !packages/api-pg/src/
 !packages/api-pg/src/**
+!packages/site/
+!packages/site/package.json
+!packages/site/index.html
+!packages/site/tsconfig.json
+!packages/site/vite.production.config.ts
+!packages/site/src/
+!packages/site/src/**
 **/*.test.ts

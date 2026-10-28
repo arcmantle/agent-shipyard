@@ -32,7 +32,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.10.0'
-      - run: pnpm --dir logbook --filter @agent-issues/api-pg... install --frozen-lockfile --ignore-scripts
+      - run: pnpm --dir logbook --filter @agent-issues/api-pg... --filter @agent-issues/site... install --frozen-lockfile --ignore-scripts
       - name: Create the test application role
         run: >-
           docker run --rm --network host
@@ -43,6 +43,9 @@ jobs:
       - run: pnpm --dir logbook --filter @agent-issues/core build
       - run: pnpm --dir logbook --filter @agent-issues/api-pg typecheck
       - run: pnpm --dir logbook --filter @agent-issues/api-pg exec vitest run
+      - run: pnpm --dir logbook --filter @agent-issues/site typecheck
+      - run: pnpm --dir logbook --filter @agent-issues/site exec vitest run
+      - run: pnpm --dir logbook --filter @agent-issues/site exec vite build --config vite.production.config.ts
 
   publish:
     needs: verify
@@ -90,6 +93,7 @@ jobs:
           test "$code" -eq 1
           test "$output" = "Production API startup failed."
           test "$(docker run --rm --entrypoint id "$REFERENCE" -un)" = "node"
+          docker run --rm --entrypoint test "$REFERENCE" -f public/index.html
       - uses: actions/attest-build-provenance@v3
         with:
           subject-name: ${{ env.IMAGE }}

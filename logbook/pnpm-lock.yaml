@@ -343,6 +343,9 @@ importers:
       '@agent-issues/core':
         specifier: workspace:*
         version: link:../core
+      '@azure/msal-browser':
+        specifier: 5.26.0
+        version: 5.26.0
       '@blocknote/core':
         specifier: ^0.55.0
         version: 0.55.0(@types/hast@3.0.5)

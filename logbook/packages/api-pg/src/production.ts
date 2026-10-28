@@ -1,5 +1,7 @@
 import { once } from "node:events";
+import { existsSync, readFileSync } from "node:fs";
 import { isIP } from "node:net";
+import { fileURLToPath } from "node:url";
 
 import type { Pool } from "pg";
 
@@ -14,6 +16,13 @@ type ProductionOptions = {
 
 function invalidConfiguration(name: string): never {
 	throw new Error(`Invalid production configuration: ${name}`);
+}
+
+function readHostedSite() {
+	const publicDirectory = fileURLToPath(new URL("../public/", import.meta.url));
+	if (!existsSync(`${publicDirectory}index.html`)) return undefined;
+	const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
+	return { publicDirectory, instructionVersion: version };
 }
 
 function readConfiguration(environment: NodeJS.ProcessEnv) {
@@ -63,6 +72,7 @@ export async function startProductionApi(options: ProductionOptions) {
 		pool,
 		authProvider: options.authProvider ?? new EntraIdAuthProvider(configuration),
 		authMetadata: { provider: "entra", tenantId: configuration.tenantId, clientId: configuration.clientId },
+		site: readHostedSite(),
 		readinessCheck: async () => {
 			if (closing) throw new Error("API is stopping.");
 			await verifyPgRuntimeRole(pool);

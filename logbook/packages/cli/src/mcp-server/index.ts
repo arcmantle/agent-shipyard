@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { openLocalDaemonStore, readBuildContentHash, resolveWorkspaceObservation, type LocalDaemonStoreOptions } from "@agent-issues/api-local";
 import {
 	BACKFILLABLE_BODY_KINDS,
+	ConfirmationTokenStore,
 	InstructionFragmentError,
 	InstructionResetAllError,
 	InstructionWriteError,
@@ -31,7 +32,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { resolveProjectIdentity } from "../runtime/project-identity.js";
-import { ConfirmationTokenStore } from "../runtime/confirmation-tokens.js";
 import { resolveMcpWorkspaceScope, type McpWorkspaceScope } from "./client-workspace.js";
 import { formatInstructionResponse } from "./instruction-response.js";
 import { formatMarkdownResponse } from "./markdown-response.js";

@@ -14,12 +14,25 @@ RUN pnpm --filter @agent-issues/core build \
 	&& pnpm --filter @agent-issues/api-pg build \
 	&& pnpm --filter @agent-issues/api-pg deploy --prod --legacy /release
 
+FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS site
+
+WORKDIR /workspace
+RUN npm install --global pnpm@11.10.0
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/core/package.json ./packages/core/package.json
+COPY packages/site/package.json ./packages/site/package.json
+RUN pnpm --filter @agent-issues/site... install --frozen-lockfile --ignore-scripts
+COPY packages/core/src ./packages/core/src
+COPY packages/site/index.html packages/site/tsconfig.json packages/site/vite.production.config.ts ./packages/site/
+COPY packages/site/src ./packages/site/src
+RUN pnpm --filter @agent-issues/site exec vite build --config vite.production.config.ts
+
 FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS runtime
 
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080
 WORKDIR /app
 COPY --from=build --chown=node:node /release/ ./
-RUN mkdir -p /app/public && chown node:node /app/public
+COPY --from=site --chown=node:node /workspace/packages/site/dist/ ./public/
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \

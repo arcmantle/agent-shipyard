@@ -43,6 +43,8 @@ export type VersionHandshakeOptions = {
 
 export type CreateJsonRpcAppOptions = {
 	authProvider: AuthProvider;
+	/** Shared with hosts that publish writes made outside `/rpc`, such as the hosted site routes. */
+	changeEvents?: ChangeEventBroadcaster;
 	/**
 	 * Opens the `StorageDriver` a request's dispatched method runs against,
 	 * given the auth-seam-resolved identity (ADR44) and the client's
@@ -141,9 +143,7 @@ async function resolveIdentity(request: Request, authProvider: AuthProvider): Pr
 export function createJsonRpcApp(options: CreateJsonRpcAppOptions): Express {
 	const { authProvider, createStore, versionHandshake } = options;
 	const app = express();
-	// Canonical synchronization can transfer a whole project's revision chains.
-	app.use(express.json({ limit: "50mb" }));
-	const changeEvents = new ChangeEventBroadcaster();
+	const changeEvents = options.changeEvents ?? new ChangeEventBroadcaster();
 
 	app.get("/events", async (request, response) => {
 		const versionCheck = checkVersionHandshake(request, versionHandshake);
@@ -170,7 +170,8 @@ export function createJsonRpcApp(options: CreateJsonRpcAppOptions): Express {
 		request.on("close", unsubscribe);
 	});
 
-	app.post("/rpc", async (request, response) => {
+	// Canonical synchronization can transfer a whole project's revision chains.
+	app.post("/rpc", express.json({ limit: "50mb" }), async (request, response) => {
 		const versionCheck = checkVersionHandshake(request, versionHandshake);
 		if (!versionCheck.ok) {
 			response.status(409).json(versionMismatchErrorBody(versionCheck));
