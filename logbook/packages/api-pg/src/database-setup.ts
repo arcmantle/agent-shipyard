@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Pool } from "pg";
 
-import { createPgPool, withTenantTransaction } from "./db/connection.js";
+import { createPgPool, migratePgDatabase, withTenantTransaction } from "./db/connection.js";
 import { configurePgEntraRoles, roleSetupStages, verifyPgRuntimeRole, type PgRoles, type RoleAttributes } from "./db/roles.js";
 
 type Identity = { client_id: string; principal_id: string; role: string };
@@ -16,14 +16,15 @@ type SetupConfiguration = {
 
 export const databaseSetupStages = ["validate configuration", "verify runtime restrictions",
 	"inspect setup session", "register principals and grant roles", "create migration probe as schema owner",
-	"verify tenant isolation", "verify runtime privilege denial", "remove temporary setup privileges", ...roleSetupStages] as const;
+	"verify tenant isolation", "verify runtime privilege denial", "remove temporary setup privileges", "run schema migrations as schema owner", ...roleSetupStages] as const;
 
 export type DatabaseSetupFailure = Error & { stage?: string; cleanupFailed?: boolean; roleAttributes?: RoleAttributes };
+export type DatabaseMigrationResult = { schema_migrations_before: number; schema_migrations_after: number };
 
-export async function runDatabaseSetup(environment: NodeJS.ProcessEnv, administrationRole = "azure_pg_admin"): Promise<void> {
+export async function runDatabaseSetup(environment: NodeJS.ProcessEnv, administrationRole = "azure_pg_admin"): Promise<DatabaseMigrationResult | undefined> {
 	const progress = { stage: "validate configuration" };
 	try {
-		await runSetupStages(environment, administrationRole, (next) => { progress.stage = next; }, progress);
+		return await runSetupStages(environment, administrationRole, (next) => { progress.stage = next; }, progress);
 	} catch (error) {
 		const failure = (error instanceof Error ? error : new Error("Unclassified setup failure.")) as DatabaseSetupFailure;
 		failure.stage ??= progress.stage;
@@ -31,7 +32,7 @@ export async function runDatabaseSetup(environment: NodeJS.ProcessEnv, administr
 	}
 }
 
-async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole: string, track: (stage: (typeof databaseSetupStages)[number]) => void, progress: { stage: string }): Promise<void> {
+async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole: string, track: (stage: (typeof databaseSetupStages)[number]) => void, progress: { stage: string }): Promise<DatabaseMigrationResult | undefined> {
 	const configuration: SetupConfiguration = JSON.parse(environment.DATABASE_SETUP_CONFIG ?? "null");
 	const identifier = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 	const roleName = /^[a-z][a-z0-9_]{0,62}$/;
@@ -68,7 +69,7 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 	registration.on("error", () => { process.stderr.write("Database setup connection failed.\n"); });
 	const phase = environment.DATABASE_SETUP_PHASE;
 	try {
-		if (!["configure", "reconcile"].includes(phase ?? "")) throw new Error("Invalid database setup phase.");
+		if (!["configure", "reconcile", "migrate"].includes(phase ?? "")) throw new Error("Invalid database setup phase.");
 		track("inspect setup session");
 		const session = (await pools.setup.query(`SELECT current_user AS role, current_database() AS database,
 			EXISTS (SELECT 1 FROM pg_shdepend WHERE refclassid = 'pg_authid'::regclass AND refobjid = current_user::regrole AND deptype = 'o'
@@ -77,14 +78,25 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 		let configured = false;
 		let probeCreated = false;
 		let primaryError: unknown;
+		let result: DatabaseMigrationResult | undefined;
 		try {
-			if (phase === "configure") {
-				track("register principals and grant roles");
-				await configurePgEntraRoles(pools.setup, roles, {
+			if (phase !== "reconcile") {
+				const entraPrincipals = {
 					administrationRole, tenantId: configuration.tenant_id, runtimeObjectId: configuration.identities.runtime.principal_id,
 					migrationObjectId: configuration.identities.migration.principal_id
-				}, registration, track);
+				};
+				track("register principals and grant roles");
+				await configurePgEntraRoles(pools.setup, roles, entraPrincipals, registration, track);
 				configured = true;
+				if (phase === "migrate") {
+					track("run schema migrations as schema owner");
+					const before = await countAppliedMigrations();
+					await migratePgDatabase(pools.migration, { role: roles.owner });
+					result = { schema_migrations_before: before, schema_migrations_after: await countAppliedMigrations() };
+					// New tables have no default runtime grants; role setup grants only the reviewed ones.
+					track("register principals and grant roles");
+					await configurePgEntraRoles(pools.setup, roles, entraPrincipals, registration, track);
+				}
 				track("create migration probe as schema owner");
 				const migration = await pools.migration.connect();
 				try {
@@ -144,6 +156,23 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 					if (primaryError === undefined) throw cleanupError;
 					if (primaryError instanceof Error) (primaryError as DatabaseSetupFailure).cleanupFailed = true;
 				}
+			}
+		}
+		return result;
+		async function countAppliedMigrations(): Promise<number> {
+			const client = await pools.migration.connect();
+			try {
+				await client.query("BEGIN READ ONLY");
+				await client.query(`SET LOCAL ROLE ${roles.owner}`);
+				const ledger = (await client.query("SELECT to_regclass('public.schema_migrations') IS NOT NULL AS present")).rows[0]?.present === true;
+				const count = ledger ? Number((await client.query("SELECT count(*) AS applied FROM public.schema_migrations")).rows[0].applied) : 0;
+				await client.query("COMMIT");
+				return count;
+			} catch (error) {
+				await client.query("ROLLBACK");
+				throw error;
+			} finally {
+				client.release();
 			}
 		}
 		async function removeTemporarySetupPrivileges(): Promise<void> {

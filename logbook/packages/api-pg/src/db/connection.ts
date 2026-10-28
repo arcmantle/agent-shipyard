@@ -84,10 +84,11 @@ export function createPgPool(options: PgConnectionOptions): Pool {
 }
 
 /** Runs pending ADR43-runner migrations (schema + RLS policies) against the pool's target database. */
-export async function migratePgDatabase(pool: Pool): Promise<void> {
+export async function migratePgDatabase(pool: Pool, options: { role?: string } = {}): Promise<void> {
 	const client = await pool.connect();
 	try {
 		await client.query("BEGIN");
+		if (options.role) await client.query(`SET LOCAL ROLE ${client.escapeIdentifier(options.role)}`);
 		await client.query("SELECT pg_advisory_xact_lock(hashtext(current_database()), hashtext(current_schema()))");
 				const sourceProfile = await inspectPgSourceProfile(client, [...migrations.map(({ id }) => id), "legacy-v7-direct"]);
 		if (!sourceProfile.supported) {

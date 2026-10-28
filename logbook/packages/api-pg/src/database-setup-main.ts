@@ -1,11 +1,11 @@
 import { databaseSetupStages, runDatabaseSetup, type DatabaseSetupFailure } from "./database-setup.js";
 
 try {
-	await runDatabaseSetup(process.env);
-	process.stdout.write('{"event":"database-setup-complete"}\n');
+	const result = await runDatabaseSetup(process.env);
+	process.stdout.write(`${JSON.stringify({ event: "database-setup-complete", ...result })}\n`);
 } catch (error) {
 	const failure = error as DatabaseSetupFailure & { code?: unknown };
-	const phase = ["configure", "reconcile"].find((value) => value === process.env.DATABASE_SETUP_PHASE);
+	const phase = ["configure", "reconcile", "migrate"].find((value) => value === process.env.DATABASE_SETUP_PHASE);
 	const stage = databaseSetupStages.find((value) => value === failure?.stage);
 	const code = typeof failure?.code === "string" && /^[A-Z0-9_]{1,32}$/i.test(failure.code) ? failure.code : undefined;
 	// Only fixed messages from setup code are printed; driver and network messages can contain private names.

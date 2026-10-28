@@ -133,6 +133,15 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 				await migrationSession.query("RESET ROLE; RESET SESSION AUTHORIZATION");
 				migrationSession.release();
 			}
+			const migrate = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "migrate", DATABASE_SETUP_CONFIG: configuration }, databaseOwner);
+			const first = await migrate();
+			expect(first?.schema_migrations_before).toBe(0);
+			expect(first?.schema_migrations_after).toBeGreaterThan(0);
+			await expect(migrate()).resolves.toEqual({ schema_migrations_before: first?.schema_migrations_after, schema_migrations_after: first?.schema_migrations_after });
+			expect((await setup.query(`SELECT pg_get_userbyid(relowner) AS owner,
+				has_table_privilege($1, oid, 'SELECT') AS runtime_select FROM pg_class
+				WHERE relnamespace = 'public'::regnamespace AND relname IN ('entities', 'schema_migrations') ORDER BY relname`, [roles.runtime])).rows)
+				.toEqual([{ owner: roles.owner, runtime_select: true }, { owner: roles.owner, runtime_select: false }]);
 		} finally {
 			factory.mockRestore();
 		}
