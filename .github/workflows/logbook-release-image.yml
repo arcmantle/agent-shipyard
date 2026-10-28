@@ -33,6 +33,13 @@ jobs:
         with:
           version: '11.10.0'
       - run: pnpm --dir logbook --filter @agent-issues/api-pg... install --frozen-lockfile --ignore-scripts
+      - name: Create the test application role
+        run: >-
+          docker run --rm --network host
+          --volume "$PWD/logbook/docker/postgres-init:/init:ro"
+          postgres:16
+          psql postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues
+          --set ON_ERROR_STOP=1 --file /init/01-app-role.sql
       - run: pnpm --dir logbook --filter @agent-issues/core build
       - run: pnpm --dir logbook --filter @agent-issues/api-pg typecheck
       - run: pnpm --dir logbook --filter @agent-issues/api-pg exec vitest run
