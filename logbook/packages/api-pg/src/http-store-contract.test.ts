@@ -913,7 +913,10 @@ describe("HttpStore over a real JSON-RPC gate", () => {
 			(reader: StorageDriver) => reader.saveInstructionSource(input),
 			(reader: StorageDriver) => reader.commitInstructionChanges({ version, changes: [{ operation: "save", key: "skill/prepare", body: "Batch", expectedRevision: 1 }] }),
 			(reader: StorageDriver) => reader.resetInstructionSource({ version, key: "skill/prepare", expectedRevision: 1 }),
-			(reader: StorageDriver) => reader.createInstructionFragment({ version, key: "fragment/private", body: "Private" })
+			(reader: StorageDriver) => reader.restoreInstructionRevision({ version, key: "skill/prepare", revision: 1, expectedRevision: 1 }),
+			(reader: StorageDriver) => reader.resetInstructionAll({ version, expectedRevisions: [] }),
+			(reader: StorageDriver) => reader.createInstructionFragment({ version, key: "fragment/private", body: "Private" }),
+			(reader: StorageDriver) => reader.removeInstructionFragment({ version, key: "fragment/private", expectedRevision: 1 })
 		]) {
 			await expect(change(store([]))).rejects.toThrow("requires the Logbook.Admin role");
 		}
