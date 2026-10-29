@@ -180,14 +180,14 @@ describe("production API host", () => {
 		}
 	});
 
-	it("runs the database setup migrate phase with a unique probe table before listening", async () => {
+	it("runs database setup with a unique probe table before listening", async () => {
 		const setupConfiguration = { database_url: "postgres://server.postgres.database.azure.com/logbook?sslmode=verify-full", owner_role: "logbook_owner" };
 		const instructionBundle = { version: `9.8.7-${suffix}`, items: [{ key: "skill/startup-check", kind: "skill" as const, body: "# Startup check" }] };
 		await expect(startProductionApi({ environment: { ...environment, DATABASE_SETUP_CONFIG: "not-json" } })).rejects.toThrow("DATABASE_SETUP_CONFIG");
-		const calls: Array<{ phase?: string; config: Record<string, unknown>; bundle: unknown; listening: boolean }> = [];
+		const calls: Array<{ config: Record<string, unknown>; bundle: unknown; listening: boolean }> = [];
 		let listening = false;
 		const setupDatabase = vi.fn(async (setupEnvironment: NodeJS.ProcessEnv, _role?: string, bundle?: unknown) => {
-			calls.push({ phase: setupEnvironment.DATABASE_SETUP_PHASE, config: JSON.parse(setupEnvironment.DATABASE_SETUP_CONFIG!), bundle, listening });
+			calls.push({ config: JSON.parse(setupEnvironment.DATABASE_SETUP_CONFIG!), bundle, listening });
 			return undefined;
 		});
 		for (let start = 0; start < 2; start++) {
@@ -202,8 +202,8 @@ describe("production API host", () => {
 			await handle.close();
 			listening = false;
 		}
-		expect(calls.map(({ phase, bundle, listening: wasListening }) => ({ phase, bundle, wasListening })))
-			.toEqual([{ phase: "migrate", bundle: instructionBundle, wasListening: false }, { phase: "migrate", bundle: instructionBundle, wasListening: false }]);
+		expect(calls.map(({ bundle, listening: wasListening }) => ({ bundle, wasListening })))
+			.toEqual([{ bundle: instructionBundle, wasListening: false }, { bundle: instructionBundle, wasListening: false }]);
 		for (const call of calls) {
 			expect(call.config).toMatchObject(setupConfiguration);
 			expect(call.config.verification_table).toMatch(/^logbook_role_check_[1-9][0-9]*_[1-9][0-9]*$/);

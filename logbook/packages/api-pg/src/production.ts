@@ -86,7 +86,6 @@ export async function startProductionApi(options: ProductionOptions) {
 		// Each start creates and removes its own tenant-isolation probe table.
 		const verificationTable = `logbook_role_check_${Math.floor(Date.now() / 1000)}_${randomInt(1, 1_000_000_000)}`;
 		await (options.setupDatabase ?? runDatabaseSetup)({
-			DATABASE_SETUP_PHASE: "migrate",
 			DATABASE_SETUP_CONFIG: JSON.stringify({ ...configuration.setup, verification_table: verificationTable })
 		}, undefined, bundle);
 	}

@@ -95,18 +95,18 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 				database_url: "postgres://private.postgres.database.azure.com/logbook?sslmode=verify-full",
 				tenant_id: principals.tenantId, identities, owner_role: roles.owner, verification_table: "logbook_role_check_123_1"
 			});
-			const configure = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "configure", DATABASE_SETUP_CONFIG: configuration }, databaseOwner);
-			const missing = Object.fromEntries(Object.entries(identities).map(([kind, identity]) => [kind, kind === "setup" ? identity : { ...identity, role: `missing_${kind}_${suffix}` }]));
-			await expect(runDatabaseSetup({ DATABASE_SETUP_PHASE: "reconcile", DATABASE_SETUP_CONFIG: JSON.stringify({
-				...JSON.parse(configuration), identities: missing, owner_role: `missing_owner_${suffix}`
-			}) }, databaseOwner)).resolves.toBeUndefined();
+			const bundle = { version: `9.9.9-${suffix}`, items: [{ key: "skill/setup-check", kind: "skill" as const, body: "# Setup check" }] };
+			const configure = () => runDatabaseSetup({ DATABASE_SETUP_CONFIG: configuration }, databaseOwner, bundle);
+			const first = await configure();
+			expect(first?.schema_migrations_before).toBe(0);
+			expect(first?.schema_migrations_after).toBeGreaterThan(0);
 			await setup.query(`CREATE TABLE public.logbook_role_check_123_1 (value text); ALTER TABLE public.logbook_role_check_123_1 OWNER TO ${roles.owner}; INSERT INTO public.logbook_role_check_123_1 VALUES ('preserved')`);
 			for (const unsafe of [true, false]) {
 				await setup.query(`ALTER ROLE ${roles.migration} ${unsafe ? "BYPASSRLS" : "NOBYPASSRLS"}`);
 				await expect(configure()).rejects.toMatchObject(unsafe
 					? { message: expect.stringContaining("attributes are not restricted"), stage: "check administration role",
 						roleAttributes: { session_createrole: true, administration_createrole: true, session_inherits_administration: true } }
-					: { code: "42P07", stage: "create migration probe as schema owner" });
+					: { message: expect.stringMatching(/unsupported source profile/i), stage: "run schema migrations as schema owner" });
 				expect((await setup.query("SELECT value FROM public.logbook_role_check_123_1")).rows).toEqual([{ value: "preserved" }]);
 			}
 			await setup.query("DROP TABLE public.logbook_role_check_123_1");
@@ -128,7 +128,8 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 				CREATE TABLE public.logbook_role_check_97_1 (tenant_id text, value text, payload text); ALTER TABLE public.logbook_role_check_97_1 OWNER TO ${roles.owner};
 				${forced("logbook_role_check_97_1")} COMMENT ON TABLE public.logbook_role_check_97_1 IS '${marker}';
 				CREATE TABLE public.logbook_role_check_98_1 (value text); ALTER TABLE public.logbook_role_check_98_1 OWNER TO ${roles.owner}`);
-			await configure();
+			// A leftover probe stops migration once; cleanup removes only exact setup probes, so the next start can succeed.
+			await expect(configure()).rejects.toMatchObject({ stage: "run schema migrations as schema owner" });
 			expect((await setup.query("SELECT relname FROM pg_class WHERE relname LIKE 'logbook_role_check_%' ORDER BY relname")).rows)
 				.toEqual([{ relname: "logbook_role_check_97_1" }, { relname: "logbook_role_check_98_1" }]);
 			await setup.query("DROP TABLE public.logbook_role_check_97_1, public.logbook_role_check_98_1");
@@ -140,12 +141,7 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 				await migrationSession.query("RESET ROLE; RESET SESSION AUTHORIZATION");
 				migrationSession.release();
 			}
-			const bundle = { version: `9.9.9-${suffix}`, items: [{ key: "skill/setup-check", kind: "skill" as const, body: "# Setup check" }] };
-			const migrate = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "migrate", DATABASE_SETUP_CONFIG: configuration }, databaseOwner, bundle);
-			const first = await migrate();
-			expect(first?.schema_migrations_before).toBe(0);
-			expect(first?.schema_migrations_after).toBeGreaterThan(0);
-			await expect(migrate()).resolves.toEqual({ schema_migrations_before: first?.schema_migrations_after, schema_migrations_after: first?.schema_migrations_after });
+			await expect(configure()).resolves.toEqual({ schema_migrations_before: first?.schema_migrations_after, schema_migrations_after: first?.schema_migrations_after });
 			expect((await setup.query(`SELECT pg_get_userbyid(relowner) AS owner,
 				has_table_privilege($1, oid, 'SELECT') AS runtime_select FROM pg_class
 				WHERE relnamespace = 'public'::regnamespace AND relname IN ('entities', 'schema_migrations') ORDER BY relname`, [roles.runtime])).rows)

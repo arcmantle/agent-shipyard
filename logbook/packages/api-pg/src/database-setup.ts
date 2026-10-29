@@ -16,13 +16,13 @@ type SetupConfiguration = {
 	identities: Record<"setup" | "runtime" | "migration", Identity>;
 };
 
-export const databaseSetupStages = ["validate configuration", "verify runtime restrictions",
+const databaseSetupStages = ["validate configuration", "verify runtime restrictions",
 	"inspect setup session", "register principals and grant roles", "create migration probe as schema owner",
 	"verify tenant isolation", "verify runtime privilege denial", "remove temporary setup privileges", "run schema migrations as schema owner",
 	"install instruction defaults as schema owner", ...roleSetupStages] as const;
 
-export type DatabaseSetupFailure = Error & { stage?: string; cleanupFailed?: boolean; roleAttributes?: RoleAttributes };
-export type DatabaseMigrationResult = { schema_migrations_before: number; schema_migrations_after: number };
+type DatabaseSetupFailure = Error & { stage?: string; cleanupFailed?: boolean; roleAttributes?: RoleAttributes };
+type DatabaseMigrationResult = { schema_migrations_before: number; schema_migrations_after: number };
 
 export async function runDatabaseSetup(environment: NodeJS.ProcessEnv, administrationRole = "azure_pg_admin", instructionBundle?: InstructionBundle): Promise<DatabaseMigrationResult | undefined> {
 	const progress = { stage: "validate configuration" };
@@ -70,9 +70,7 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 	registrationUrl.username = configuration.identities.setup.role;
 	const registration = createPgPool({ connectionString: registrationUrl.href, managedIdentityClientId: configuration.identities.setup.client_id, connectionTimeoutMillis: 5000, queryTimeoutMillis: 30000 });
 	registration.on("error", () => { process.stderr.write("Database setup connection failed.\n"); });
-	const phase = environment.DATABASE_SETUP_PHASE;
 	try {
-		if (!["configure", "reconcile", "migrate"].includes(phase ?? "")) throw new Error("Invalid database setup phase.");
 		track("inspect setup session");
 		const session = (await pools.setup.query(`SELECT current_user AS role, current_database() AS database,
 			EXISTS (SELECT 1 FROM pg_shdepend WHERE refclassid = 'pg_authid'::regclass AND refobjid = current_user::regrole AND deptype = 'o'
@@ -82,81 +80,77 @@ async function runSetupStages(environment: NodeJS.ProcessEnv, administrationRole
 		let configured = false;
 		let probeCreated = false;
 		let primaryError: unknown;
-		let result: DatabaseMigrationResult | undefined;
+		let result: DatabaseMigrationResult;
 		try {
-			if (phase !== "reconcile") {
-				const entraPrincipals = {
-					administrationRole, tenantId: configuration.tenant_id, runtimeObjectId: configuration.identities.runtime.principal_id,
-					migrationObjectId: configuration.identities.migration.principal_id
-				};
-				track("register principals and grant roles");
-				await configurePgEntraRoles(pools.setup, roles, entraPrincipals, registration, track);
-				configured = true;
-				if (phase === "migrate") {
-					track("run schema migrations as schema owner");
-					const before = await countAppliedMigrations();
-					await migratePgDatabase(pools.migration, { role: roles.owner });
-					result = { schema_migrations_before: before, schema_migrations_after: await countAppliedMigrations() };
-					if (instructionBundle) {
-						track("install instruction defaults as schema owner");
-						await installInstructionBundle(pools.migration, instructionBundle, { role: roles.owner });
-					}
-					// New tables have no default runtime grants; role setup grants only the reviewed ones.
-					track("register principals and grant roles");
-					await configurePgEntraRoles(pools.setup, roles, entraPrincipals, registration, track);
-				}
-				track("create migration probe as schema owner");
-				const migration = await pools.migration.connect();
+			const entraPrincipals = {
+				administrationRole, tenantId: configuration.tenant_id, runtimeObjectId: configuration.identities.runtime.principal_id,
+				migrationObjectId: configuration.identities.migration.principal_id
+			};
+			track("register principals and grant roles");
+			await configurePgEntraRoles(pools.setup, roles, entraPrincipals, registration, track);
+			configured = true;
+			track("run schema migrations as schema owner");
+			const before = await countAppliedMigrations();
+			await migratePgDatabase(pools.migration, { role: roles.owner });
+			result = { schema_migrations_before: before, schema_migrations_after: await countAppliedMigrations() };
+			if (instructionBundle) {
+				track("install instruction defaults as schema owner");
+				await installInstructionBundle(pools.migration, instructionBundle, { role: roles.owner });
+			}
+			// New tables have no default runtime grants; role setup grants only the reviewed ones.
+			track("register principals and grant roles");
+			await configurePgEntraRoles(pools.setup, roles, entraPrincipals, registration, track);
+			track("create migration probe as schema owner");
+			const migration = await pools.migration.connect();
+			try {
+				await migration.query("BEGIN");
+				await migration.query(`SET LOCAL ROLE ${roles.owner}`);
+				await migration.query(`CREATE TABLE public.${configuration.verification_table} (tenant_id text NOT NULL, value text NOT NULL)`);
+				await migration.query(`COMMENT ON TABLE public.${configuration.verification_table} IS ${migration.escapeLiteral(probeMarker)}`);
+				await migration.query(`ALTER TABLE public.${configuration.verification_table} ENABLE ROW LEVEL SECURITY`);
+				await migration.query(`ALTER TABLE public.${configuration.verification_table} FORCE ROW LEVEL SECURITY`);
+				await migration.query(`CREATE POLICY tenant_check ON public.${configuration.verification_table} USING (tenant_id = current_setting('app.tenant_id', true)) WITH CHECK (tenant_id = current_setting('app.tenant_id', true))`);
+				await migration.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON public.${configuration.verification_table} TO ${roles.runtime}`);
+				await migration.query("COMMIT");
+				probeCreated = true;
+			} catch (error) {
+				await migration.query("ROLLBACK");
+				throw error;
+			} finally {
+				migration.release(true);
+			}
+			track("verify runtime restrictions");
+			await verifyPgRuntimeRole(pools.runtime);
+			track("verify tenant isolation");
+			for (const tenant of ["setup-check-a", "setup-check-b"]) {
+				await withTenantTransaction(pools.runtime, tenant, async (client) => {
+					await client.query(`INSERT INTO public.${configuration.verification_table} VALUES ($1, $2)`, [tenant, tenant]);
+				});
+			}
+			for (const tenant of ["setup-check-a", "setup-check-b"]) {
+				await withTenantTransaction(pools.runtime, tenant, async (client) => {
+					const rows = (await client.query(`SELECT tenant_id FROM public.${configuration.verification_table}`)).rows;
+					if (rows.length !== 1 || rows[0].tenant_id !== tenant) throw new Error("Tenant read isolation failed.");
+					const changed = await client.query(`UPDATE public.${configuration.verification_table} SET value = 'forbidden' WHERE tenant_id <> $1`, [tenant]);
+					if (changed.rowCount !== 0) throw new Error("Tenant write isolation failed.");
+				});
+			}
+			track("verify runtime privilege denial");
+			for (const statement of [`ALTER TABLE public.${configuration.verification_table} DISABLE ROW LEVEL SECURITY`, `SET ROLE ${roles.owner}`, `SET ROLE ${roles.migration}`, `CREATE ROLE logbook_forbidden_check`]) {
 				try {
-					await migration.query("BEGIN");
-					await migration.query(`SET LOCAL ROLE ${roles.owner}`);
-					await migration.query(`CREATE TABLE public.${configuration.verification_table} (tenant_id text NOT NULL, value text NOT NULL)`);
-					await migration.query(`COMMENT ON TABLE public.${configuration.verification_table} IS ${migration.escapeLiteral(probeMarker)}`);
-					await migration.query(`ALTER TABLE public.${configuration.verification_table} ENABLE ROW LEVEL SECURITY`);
-					await migration.query(`ALTER TABLE public.${configuration.verification_table} FORCE ROW LEVEL SECURITY`);
-					await migration.query(`CREATE POLICY tenant_check ON public.${configuration.verification_table} USING (tenant_id = current_setting('app.tenant_id', true)) WITH CHECK (tenant_id = current_setting('app.tenant_id', true))`);
-					await migration.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON public.${configuration.verification_table} TO ${roles.runtime}`);
-					await migration.query("COMMIT");
-					probeCreated = true;
+					await pools.runtime.query(statement);
 				} catch (error) {
-					await migration.query("ROLLBACK");
-					throw error;
-				} finally {
-					migration.release(true);
+					if ((error as { code?: string }).code === "42501") continue;
+					throw new Error("Runtime privilege denial could not be verified.");
 				}
-				track("verify runtime restrictions");
-				await verifyPgRuntimeRole(pools.runtime);
-				track("verify tenant isolation");
-				for (const tenant of ["setup-check-a", "setup-check-b"]) {
-					await withTenantTransaction(pools.runtime, tenant, async (client) => {
-						await client.query(`INSERT INTO public.${configuration.verification_table} VALUES ($1, $2)`, [tenant, tenant]);
-					});
-				}
-				for (const tenant of ["setup-check-a", "setup-check-b"]) {
-					await withTenantTransaction(pools.runtime, tenant, async (client) => {
-						const rows = (await client.query(`SELECT tenant_id FROM public.${configuration.verification_table}`)).rows;
-						if (rows.length !== 1 || rows[0].tenant_id !== tenant) throw new Error("Tenant read isolation failed.");
-						const changed = await client.query(`UPDATE public.${configuration.verification_table} SET value = 'forbidden' WHERE tenant_id <> $1`, [tenant]);
-						if (changed.rowCount !== 0) throw new Error("Tenant write isolation failed.");
-					});
-				}
-				track("verify runtime privilege denial");
-				for (const statement of [`ALTER TABLE public.${configuration.verification_table} DISABLE ROW LEVEL SECURITY`, `SET ROLE ${roles.owner}`, `SET ROLE ${roles.migration}`, `CREATE ROLE logbook_forbidden_check`]) {
-					try {
-						await pools.runtime.query(statement);
-					} catch (error) {
-						if ((error as { code?: string }).code === "42501") continue;
-						throw new Error("Runtime privilege denial could not be verified.");
-					}
-					throw new Error("Runtime privilege restriction failed.");
-				}
+				throw new Error("Runtime privilege restriction failed.");
 			}
 		} catch (error) {
 			if (error instanceof Error) (error as DatabaseSetupFailure).stage ??= progress.stage;
 			primaryError = error;
 			throw error;
 		} finally {
-			if (configured || phase === "reconcile") {
+			if (configured) {
 				try {
 					track("remove temporary setup privileges");
 					await removeTemporarySetupPrivileges();
