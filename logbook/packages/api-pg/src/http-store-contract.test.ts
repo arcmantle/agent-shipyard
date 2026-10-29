@@ -903,6 +903,24 @@ describe("HttpStore over a real JSON-RPC gate", () => {
 		await expect(store.retrieveInstruction({ version: "1.0.0", key: "skill/prepare" })).rejects.toThrow("Cannot use a pool after calling end");
 	});
 
+	it("allows instruction changes only for the Logbook.Admin role when the identity carries roles", async () => {
+		const tenantId = createTestTenantId();
+		const version = `admin-${randomUUID()}`;
+		await installInstructionBundle(adminPool, { version, items: [{ key: "skill/prepare", kind: "skill", body: "Default" }] });
+		const store = (roles: string[]) => new PgStore(appPool, tenantId).withAuthenticatedIdentity({ tenantId, userId: "alice", roles });
+		const input = { version, key: "skill/prepare", body: "Admin override", expectedRevision: 1 };
+		for (const change of [
+			(reader: StorageDriver) => reader.saveInstructionSource(input),
+			(reader: StorageDriver) => reader.commitInstructionChanges({ version, changes: [{ operation: "save", key: "skill/prepare", body: "Batch", expectedRevision: 1 }] }),
+			(reader: StorageDriver) => reader.resetInstructionSource({ version, key: "skill/prepare", expectedRevision: 1 }),
+			(reader: StorageDriver) => reader.createInstructionFragment({ version, key: "fragment/private", body: "Private" })
+		]) {
+			await expect(change(store([]))).rejects.toThrow("requires the Logbook.Admin role");
+		}
+		expect(await store([]).retrieveInstruction({ version, key: "skill/prepare" })).toMatchObject({ body: "Default" });
+		await expect(store(["Logbook.Admin"]).saveInstructionSource(input)).resolves.toMatchObject({ body: "Admin override" });
+	});
+
 	it("assembles owner-scoped nested fragments through PostgreSQL and HTTP with revision metadata", async () => {
 		const tenantId = createTestTenantId();
 		const version = `assembly-${randomUUID()}`;

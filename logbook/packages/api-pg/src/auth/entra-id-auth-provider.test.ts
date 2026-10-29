@@ -57,14 +57,21 @@ describe("EntraIdAuthProvider", () => {
 
 		const identity = await provider.validateToken(`Bearer ${token}`);
 
-		expect(identity).toEqual({ userId: "user-abc", tenantId: TENANT_ID });
+		expect(identity).toEqual({ userId: "user-abc", tenantId: TENANT_ID, roles: [] });
+	});
+
+	it("returns the user's app roles", async () => {
+		const provider = new EntraIdAuthProvider({ tenantId: TENANT_ID, clientId: CLIENT_ID, jwks: keys.jwks });
+		const token = await signTestToken(keys.privateKey, { oid: "user-abc", tid: TENANT_ID, roles: ["Logbook.Admin"] });
+
+		await expect(provider.validateToken(token)).resolves.toMatchObject({ roles: ["Logbook.Admin"] });
 	});
 
 	it("returns the trusted Entra name claim as the display name", async () => {
 		const provider = new EntraIdAuthProvider({ tenantId: TENANT_ID, clientId: CLIENT_ID, jwks: keys.jwks });
 		const token = await signTestToken(keys.privateKey, { oid: "user-abc", tid: TENANT_ID, name: "Ada Lovelace" });
 
-		await expect(provider.validateToken(token)).resolves.toEqual({ userId: "user-abc", tenantId: TENANT_ID, displayName: "Ada Lovelace" });
+		await expect(provider.validateToken(token)).resolves.toEqual({ userId: "user-abc", tenantId: TENANT_ID, displayName: "Ada Lovelace", roles: [] });
 	});
 
 	it("accepts a bare token with no 'Bearer ' prefix", async () => {
@@ -73,7 +80,7 @@ describe("EntraIdAuthProvider", () => {
 
 		const identity = await provider.validateToken(token);
 
-		expect(identity).toEqual({ userId: "user-abc", tenantId: TENANT_ID });
+		expect(identity).toEqual({ userId: "user-abc", tenantId: TENANT_ID, roles: [] });
 	});
 
 	it("rejects a token whose issuer belongs to a different tenant", async () => {
@@ -113,7 +120,7 @@ describe("EntraIdAuthProvider", () => {
 		const provider = new EntraIdAuthProvider({ tenantId: TENANT_ID, clientId: CLIENT_ID, jwks: keys.jwks });
 		const token = await signTestToken(keys.privateKey, { oid: "user-abc", scp: "openid access_as_user" });
 
-		await expect(provider.validateToken(token)).resolves.toEqual({ userId: "user-abc", tenantId: TENANT_ID });
+		await expect(provider.validateToken(token)).resolves.toEqual({ userId: "user-abc", tenantId: TENANT_ID, roles: [] });
 	});
 
 	it.each([
@@ -154,7 +161,7 @@ describe("EntraIdAuthProvider", () => {
 		const entraProvider = new EntraIdAuthProvider({ tenantId: TENANT_ID, clientId: CLIENT_ID, jwks: keys.jwks });
 		const entraToken = await signTestToken(keys.privateKey, { oid: "user-abc", tid: TENANT_ID });
 
-		expect(await resolveIdentity(entraProvider, entraToken)).toEqual({ userId: "user-abc", tenantId: TENANT_ID });
+		expect(await resolveIdentity(entraProvider, entraToken)).toEqual({ userId: "user-abc", tenantId: TENANT_ID, roles: [] });
 		expect(await resolveIdentity(fakeProvider, "token-123")).toEqual({ userId: "fake-token-123", tenantId: "fake-tenant" });
 	});
 });

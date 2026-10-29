@@ -68,6 +68,7 @@ export class EntraIdAuthProvider implements AuthProvider {
 			throw new Error(`Entra ID token lacks the delegated ${LOGBOOK_API_SCOPE} scope.`);
 		}
 
-		return { userId, tenantId, ...(displayName !== undefined && { displayName }) };
+		const roles = Array.isArray(payload.roles) ? payload.roles.filter((role): role is string => typeof role === "string") : [];
+		return { userId, tenantId, ...(displayName !== undefined && { displayName }), roles };
 	}
 }
