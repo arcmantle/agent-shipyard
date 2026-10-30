@@ -9,6 +9,7 @@ import {
 	saveSavedLogin,
 	setActiveSavedLogin,
 	toSavedLoginView,
+	type EntraRefreshState,
 	type SavedLoginStoreOptions,
 	type RemoteSavedLogin
 } from "../../auth/auth-session.js";
@@ -23,6 +24,7 @@ export type DeviceCodeLoginResult = {
 	displayName?: string;
 	accessToken: string;
 	expiresAt: string;
+	entraRefresh?: EntraRefreshState;
 };
 
 /** Reports the human-readable device-code instructions Entra returns (e.g. "go to microsoft.com/devicelogin and enter code ABCD-EFGH"). */
@@ -70,7 +72,8 @@ export async function performRemoteLogin(
 		userId: result.userId,
 		displayName: result.displayName,
 		accessToken: result.accessToken,
-		expiresAt: result.expiresAt
+		expiresAt: result.expiresAt,
+		...(result.entraRefresh && { entraRefresh: result.entraRefresh })
 	};
 
 	await saveSavedLogin(login, dependencies.storeOptions);
