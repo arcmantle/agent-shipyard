@@ -38,7 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for root in bootstrap logbook; do
+          for root in bootstrap logbook examples/logbook-backend modules/logbook-backend; do
             terraform -chdir="logbook/infra/terraform/$root" init -backend=false -input=false -lockfile=readonly
             terraform -chdir="logbook/infra/terraform/$root" validate
           done
+      - name: Test the Logbook backend module
+        run: terraform -chdir=logbook/infra/terraform/modules/logbook-backend test

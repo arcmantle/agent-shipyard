@@ -1,5 +1,38 @@
 # Azure Terraform
 
+## Run Your Own Logbook Backend
+
+[modules/logbook-backend](modules/logbook-backend) deploys a complete Logbook
+backend to your own Azure subscription and Entra ID tenant. It creates:
+
+- The Entra ID app registration, its `access_as_user` scope, the Reader, Writer,
+  and Admin app roles, and optional role assignments (`user_roles`).
+- PostgreSQL Flexible Server with Entra-only sign-in and the `logbook` database.
+- Three managed identities for database setup, runtime, and migration. The API
+  prepares the database itself on each start.
+- A Container Apps environment and the API Container App, which also serves the
+  hosted site.
+- An optional custom domain with a managed certificate.
+
+[examples/logbook-backend](examples/logbook-backend) is a complete root. The
+account that runs Terraform needs Contributor and User Access Administrator (or
+Owner) on the subscription, and permission to create Entra app registrations.
+
+1. Copy the example root and add a remote backend.
+2. Set `subscription_id` and `api_image`, for example
+   `ghcr.io/arcmantle/logbook-api@sha256:<digest>` from a Logbook release.
+3. Set `user_roles` to map your Entra object ID to `admin`.
+4. Run `terraform init` and `terraform apply`.
+5. Run `agent-issues auth login --name <name> --url <service_url output>`.
+
+For a custom domain, apply once without it. Create a CNAME record to the
+`container_app_fqdn` output and a TXT record `asuid.<domain>` with the
+`custom_domain_verification_id` output. Then set `custom_domain` and apply again.
+
+The rest of this document describes the deployment of the Arcmantle instance.
+
+## Arcmantle Deployment
+
 This directory prepares Azure Blob storage for Terraform state. It does not yet
 deploy PostgreSQL or the Logbook service.
 
