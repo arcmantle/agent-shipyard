@@ -7,6 +7,7 @@ import {
 	encodeIssueCommentRecordKey,
 	encodeCanonicalReference,
 	encodePlanEntryRecordKey,
+	DEFAULT_EPIC_ID,
 	DEFAULT_PROJECT_ID,
 	deriveMigratedEntityIdentity,
 	getAllowedRelationType,
@@ -28,6 +29,10 @@ import {
 	type CanonicalIssueCommentChain,
 	type CanonicalPlanEntryChain,
 	type CompletionObservation,
+	type MigrationBundle,
+	type MigrationRecordCounts,
+	type RelationRecord,
+	type RelationType,
 	type UserDirectoryRecord,
 	type SynchronizeStore
 } from "@agent-issues/core";
@@ -288,6 +293,47 @@ function getContextProjectId(query: SqliteQuerySurface, executor: SqliteExecutor
 	throw new Error(`Cannot resolve project for context ${contextKey}.`);
 }
 
+export function exportMigrationBundle(executor: SqliteExecutor): MigrationBundle {
+	const relationRows = executor.drizzle.all(sql`SELECT from_id, to_id, type, created_by, created_at FROM relations WHERE tenant_id = ${executor.tenantId} ORDER BY from_id, to_id, type`) as Array<{ from_id: string; to_id: string; type: string; created_by: string | null; created_at: string }>;
+	return {
+		chains: exportCanonicalChains(executor),
+		relations: relationRows.map((row): RelationRecord => ({ fromId: row.from_id, toId: row.to_id, type: row.type as RelationType, createdBy: row.created_by ?? "", createdAt: row.created_at }))
+	};
+}
+
+export function countMigrationRecords(executor: SqliteExecutor): MigrationRecordCounts {
+	const tenantId = executor.tenantId;
+	const row = executor.drizzle.all(sql`SELECT
+		(SELECT count(*) FROM entities WHERE tenant_id = ${tenantId}) AS entities,
+		(SELECT count(*) FROM relations WHERE tenant_id = ${tenantId}) AS relations,
+		(SELECT count(*) FROM contexts WHERE tenant_id = ${tenantId}) AS contexts,
+		(SELECT count(*) FROM context_terms WHERE tenant_id = ${tenantId}) AS context_terms,
+		(SELECT count(*) FROM issue_comments WHERE tenant_id = ${tenantId}) AS issue_comments,
+		(SELECT count(*) FROM plan_entries WHERE tenant_id = ${tenantId}) AS plan_entries,
+		(SELECT count(*) FROM completion_observations WHERE tenant_id = ${tenantId}) AS completion_observations,
+		(SELECT count(*) FROM revision_entries WHERE tenant_id = ${tenantId}) AS revision_entries`)[0] as Record<string, number>;
+	return {
+		entities: Number(row.entities), relations: Number(row.relations), contexts: Number(row.contexts), contextTerms: Number(row.context_terms),
+		issueComments: Number(row.issue_comments), planEntries: Number(row.plan_entries), completionObservations: Number(row.completion_observations), revisionEntries: Number(row.revision_entries)
+	};
+}
+
+export function importMigrationBundle(executor: SqliteExecutor, bundle: MigrationBundle): MigrationRecordCounts {
+	return executor.drizzle.transaction((tx) => {
+		const seeded = [deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId, deriveMigratedEntityIdentity("epic", DEFAULT_EPIC_ID).stableId];
+		const existing = tx.all(sql`SELECT
+			(SELECT count(*) FROM entities WHERE tenant_id = ${executor.tenantId} AND id NOT IN (${seeded[0]}, ${seeded[1]})) +
+			(SELECT count(*) FROM issue_comments WHERE tenant_id = ${executor.tenantId}) +
+			(SELECT count(*) FROM plan_entries WHERE tenant_id = ${executor.tenantId}) AS records`)[0] as { records: number };
+		if (Number(existing.records) > 0) throw new Error("The migration target already contains records. Migrate only into an empty tenant.");
+		importCanonicalChains(executor, bundle.chains);
+		for (const relation of bundle.relations) {
+			tx.run(sql`INSERT OR IGNORE INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}, ${relation.toId}, ${relation.type}, ${relation.createdBy || null}, ${relation.createdAt})`);
+		}
+		return countMigrationRecords(executor);
+	});
+}
+
 /**
  * The synchronize feature class (ADR "Backends mirror one another per
  * feature, behind all-async feature interfaces"): a thin, promise-returning
@@ -303,6 +349,18 @@ export class LocalSynchronizeStore implements SynchronizeStore {
 
 	public async importCanonicalChains(bundle: CanonicalChainBundle): Promise<CanonicalChainImportResult> {
 		return importCanonicalChains(this.executor, bundle);
+	}
+
+	public async exportMigrationBundle(): Promise<MigrationBundle> {
+		return exportMigrationBundle(this.executor);
+	}
+
+	public async importMigrationBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
+		return importMigrationBundle(this.executor, bundle);
+	}
+
+	public async countMigrationRecords(): Promise<MigrationRecordCounts> {
+		return countMigrationRecords(this.executor);
 	}
 }
 

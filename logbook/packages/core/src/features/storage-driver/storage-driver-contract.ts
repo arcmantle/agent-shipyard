@@ -2597,6 +2597,41 @@ export function runStorageDriverContractSuite(options: StorageDriverContractOpti
 		});
 	});
 
+	describe(`storage-driver seam: migration bundle (${label})`, () => {
+		it("moves every project and relation into an empty tenant with equal counts, then refuses a second import", async () => {
+			const first = await openStoreForProject("migration-first");
+			const second = await openStoreForProject("migration-second");
+			const target = await openStore();
+			try {
+				const initiative = await first.createEntity({ kind: "initiative", title: "Migrated initiative" });
+				const plan = await first.createEntity({ kind: "plan", title: "Migrated plan", parentId: initiative.id });
+				const issue = await first.createEntity({ kind: "issue", title: "Migrated issue", parentId: initiative.id });
+				await first.createPlanEntry({ planId: plan.id, role: "decision", body: "Migrate every record." });
+				await first.createIssueComment({ issueId: issue.id, body: "Migrated comment." });
+				await first.upsertContext({ title: "Migration", summary: "Migration terms." });
+				await first.defineContextTerm({ term: "Bundle", definition: "Every record of a tenant." });
+				const blocker = await second.createEntity({ kind: "issue", title: "Other project blocker" });
+				const blocked = await second.createEntity({ kind: "issue", title: "Other project blocked" });
+				await second.linkEntities({ fromId: blocker.id, toId: blocked.id, relationType: "blocks" });
+
+				const bundle = await first.exportMigrationBundle();
+				const sourceCounts = await first.countMigrationRecords();
+				expect(bundle.relations).toEqual(expect.arrayContaining([expect.objectContaining({ fromId: blocker.id, toId: blocked.id, type: "blocks" })]));
+
+				await expect(target.importMigrationBundle(bundle)).resolves.toEqual(sourceCounts);
+				await expect(target.countMigrationRecords()).resolves.toEqual(sourceCounts);
+				await expect(target.getEntityDetails(blocked.id)).resolves.toMatchObject({
+					incoming: expect.arrayContaining([expect.objectContaining({ relationType: "blocks", entity: expect.objectContaining({ id: blocker.id }) })])
+				});
+				await expect(target.importMigrationBundle(bundle)).rejects.toThrow(/already contains records/);
+			} finally {
+				await first.close();
+				await second.close();
+				await target.close();
+			}
+		});
+	});
+
 	describe(`storage-driver seam: context lifecycle (${label})`, () => {
 		it("resolves a nested issue scope through its owning initiative", async () => {
 			const store = await openStore();

@@ -5,6 +5,7 @@ import type {
 	CanonicalIssueCommentChain,
 	AuthIdentity,
 	CanonicalChainBundle,
+	MigrationBundle,
 	ContextDetails,
 	ContextDirectory,
 	ContextListResult,
@@ -297,6 +298,18 @@ export class PgStore implements StorageDriver {
 
 	public async importCanonicalChains(bundle: CanonicalChainBundle) {
 		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor).importCanonicalChains(bundle));
+	}
+
+	public async exportMigrationBundle() {
+		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor).exportMigrationBundle());
+	}
+
+	public async importMigrationBundle(bundle: MigrationBundle) {
+		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor).importMigrationBundle(bundle));
+	}
+
+	public async countMigrationRecords() {
+		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor).countMigrationRecords());
 	}
 
 	public async upsertUser(input: Parameters<StorageDriver["upsertUser"]>[0]) {

@@ -33,6 +33,7 @@ import {
 	type CanonicalChainImportResult,
 	type SynchronizeRecordKind
 } from "../synchronize/canonical-chain.js";
+import { decodeMigrationBundle, encodeMigrationBundle, type MigrationBundle, type MigrationRecordCounts } from "../migration/migration-bundle.js";
 import type {
 	DatabaseSnapshot,
 	DeleteResult,
@@ -314,6 +315,18 @@ export class HttpStore implements StorageDriver {
 
 	public importCanonicalChains(bundle: CanonicalChainBundle): Promise<CanonicalChainImportResult> {
 		return this.call("importCanonicalChains", { bundle: encodeCanonicalChainBundle(bundle) });
+	}
+
+	public async exportMigrationBundle(): Promise<MigrationBundle> {
+		return decodeMigrationBundle(await this.call("exportMigrationBundle"));
+	}
+
+	public importMigrationBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
+		return this.call("importMigrationBundle", { bundle: encodeMigrationBundle(bundle) });
+	}
+
+	public countMigrationRecords(): Promise<MigrationRecordCounts> {
+		return this.call("countMigrationRecords");
 	}
 
 	public upsertUser(input: Parameters<StorageDriver["upsertUser"]>[0]): ReturnType<StorageDriver["upsertUser"]> {

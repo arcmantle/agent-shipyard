@@ -1,6 +1,7 @@
 export type CommandFamily =
 	| "auth"
 	| "backfill"
+	| "cloud"
 	| "comments"
 	| "context"
 	| "daemon"
@@ -28,6 +29,8 @@ function resolveCommandFamily(argv: readonly string[]): CommandFamily {
 			return "auth";
 		case "backfill-bodies":
 			return "backfill";
+		case "cloud":
+			return "cloud";
 		case "comment":
 			return "comments";
 		case "context":

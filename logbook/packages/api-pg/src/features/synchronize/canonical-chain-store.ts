@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import {
+	DEFAULT_EPIC_ID,
 	DEFAULT_PROJECT_ID,
 	CompletionObservationConflictError,
 	deriveMigratedEntityIdentity,
@@ -29,6 +30,10 @@ import {
 	type CanonicalIssueCommentChain,
 	type CanonicalPlanEntryChain,
 	type CompletionObservation,
+	type MigrationBundle,
+	type MigrationRecordCounts,
+	type RelationRecord,
+	type RelationType,
 	type UserDirectoryRecord,
 	type SynchronizeStore
 } from "@agent-issues/core";
@@ -333,6 +338,52 @@ function parseStringArray(value: string): string[] {
 	try { const parsed = JSON.parse(value) as unknown; return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []; } catch { return []; }
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function exportMigrationBundle(executor: TenantExecutor): Promise<MigrationBundle> {
+	const relations = await executor.execute(sql`SELECT from_id, to_id, type, created_by, created_at FROM relations WHERE tenant_id=${executor.tenantId} ORDER BY from_id, to_id, type`);
+	return {
+		chains: await exportCanonicalChains(executor),
+		relations: (relations.rows as Array<{ from_id: string; to_id: string; type: string; created_by: string | null; created_at: string }>).map((row): RelationRecord => ({ fromId: row.from_id, toId: row.to_id, type: row.type as RelationType, createdBy: row.created_by ?? "", createdAt: row.created_at }))
+	};
+}
+
+export async function countMigrationRecords(executor: TenantExecutor): Promise<MigrationRecordCounts> {
+	const tenantId = executor.tenantId;
+	const result = await executor.execute(sql`SELECT
+		(SELECT count(*) FROM entities WHERE tenant_id=${tenantId}) AS entities,
+		(SELECT count(*) FROM relations WHERE tenant_id=${tenantId}) AS relations,
+		(SELECT count(*) FROM contexts WHERE tenant_id=${tenantId}) AS contexts,
+		(SELECT count(*) FROM context_terms WHERE tenant_id=${tenantId}) AS context_terms,
+		(SELECT count(*) FROM issue_comments WHERE tenant_id=${tenantId}) AS issue_comments,
+		(SELECT count(*) FROM plan_entries WHERE tenant_id=${tenantId}) AS plan_entries,
+		(SELECT count(*) FROM completion_observations WHERE tenant_id=${tenantId}) AS completion_observations,
+		(SELECT count(*) FROM revision_entries WHERE tenant_id=${tenantId}) AS revision_entries`);
+	const row = result.rows[0] as Record<string, string | number>;
+	return {
+		entities: Number(row.entities), relations: Number(row.relations), contexts: Number(row.contexts), contextTerms: Number(row.context_terms),
+		issueComments: Number(row.issue_comments), planEntries: Number(row.plan_entries), completionObservations: Number(row.completion_observations), revisionEntries: Number(row.revision_entries)
+	};
+}
+
+export async function importMigrationBundle(executor: TenantExecutor, bundle: MigrationBundle): Promise<MigrationRecordCounts> {
+	const seededProject = deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId;
+	const seededEpic = deriveMigratedEntityIdentity("epic", DEFAULT_EPIC_ID).stableId;
+	const existing = await executor.execute(sql`SELECT
+		(SELECT count(*) FROM entities WHERE tenant_id=${executor.tenantId} AND id NOT IN (${seededProject}::uuid, ${seededEpic}::uuid)) +
+		(SELECT count(*) FROM issue_comments WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM plan_entries WHERE tenant_id=${executor.tenantId}) AS records`);
+	if (Number((existing.rows[0] as { records: string | number }).records) > 0) {
+		throw new Error("The migration target already contains records. Migrate only into an empty tenant.");
+	}
+	await importCanonicalChains(executor, bundle.chains);
+	for (const relation of bundle.relations) {
+		const createdBy = UUID_PATTERN.test(relation.createdBy) ? relation.createdBy : null;
+		await executor.execute(sql`INSERT INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}::uuid, ${relation.toId}::uuid, ${relation.type}, ${createdBy}::uuid, ${relation.createdAt}) ON CONFLICT DO NOTHING`);
+	}
+	return countMigrationRecords(executor);
+}
+
 /**
  * The synchronize feature class (ADR "Backends mirror one another per
  * feature, behind all-async feature interfaces"): a thin wrapper over the
@@ -349,5 +400,17 @@ export class PgSynchronizeStore implements SynchronizeStore {
 
 	public async importCanonicalChains(bundle: CanonicalChainBundle): Promise<CanonicalChainImportResult> {
 		return importCanonicalChains(this.executor, bundle);
+	}
+
+	public async exportMigrationBundle(): Promise<MigrationBundle> {
+		return exportMigrationBundle(this.executor);
+	}
+
+	public async importMigrationBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
+		return importMigrationBundle(this.executor, bundle);
+	}
+
+	public async countMigrationRecords(): Promise<MigrationRecordCounts> {
+		return countMigrationRecords(this.executor);
 	}
 }
