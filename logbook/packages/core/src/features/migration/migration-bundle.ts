@@ -2,15 +2,31 @@ import { RESERVED_SYSTEM_AUTHOR, type RelationRecord } from "../entity-store/dom
 import { decodeCanonicalChainBundle, encodeCanonicalChainBundle, type CanonicalChainBundle, type CanonicalChainWireBundle } from "../synchronize/canonical-chain.js";
 import { deriveUserIdentity, SYSTEM_AUTHENTICATION_SUBJECT } from "../user-directory/user-directory.js";
 
+/** Stored issue-breakdown draft row; the snapshot stays opaque JSON text. */
+export type MigrationIssueBreakdownDraft = {
+	id: string;
+	targetId: string;
+	status: string;
+	snapshotJson: string;
+	snapshotDigest: string;
+	approvedAt: string | null;
+	createdIssueReferences: string;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type MigrationProjectSettings = { projectId: string; prospectorSettings: string };
+
 /** Everything a one-time local-to-cloud migration carries for one tenant. */
 export type MigrationBundle = {
 	chains: CanonicalChainBundle;
 	relations: RelationRecord[];
+	issueBreakdownDrafts: MigrationIssueBreakdownDraft[];
+	projectSettings: MigrationProjectSettings[];
 };
 
-export type MigrationWireBundle = {
+export type MigrationWireBundle = Omit<MigrationBundle, "chains"> & {
 	chains: CanonicalChainWireBundle;
-	relations: RelationRecord[];
 };
 
 /** Record counts for each migrated feature, used to verify a migration. */
@@ -23,15 +39,19 @@ export type MigrationRecordCounts = {
 	planEntries: number;
 	completionObservations: number;
 	revisionEntries: number;
+	issueBreakdownDrafts: number;
+	projectSettings: number;
 };
 
 export function encodeMigrationBundle(bundle: MigrationBundle): MigrationWireBundle {
-	return { chains: encodeCanonicalChainBundle(bundle.chains), relations: bundle.relations };
+	return { ...bundle, chains: encodeCanonicalChainBundle(bundle.chains) };
 }
 
 export function decodeMigrationBundle(bundle: MigrationWireBundle): MigrationBundle {
-	if (!Array.isArray(bundle.relations)) throw new Error("Invalid migration bundle: relations must be an array.");
-	return { chains: decodeCanonicalChainBundle(bundle.chains), relations: bundle.relations };
+	for (const section of ["relations", "issueBreakdownDrafts", "projectSettings"] as const) {
+		if (!Array.isArray(bundle[section])) throw new Error(`Invalid migration bundle: ${section} must be an array.`);
+	}
+	return { ...bundle, chains: decodeCanonicalChainBundle(bundle.chains) };
 }
 
 /** Lists the features whose source and destination counts differ. */
@@ -65,6 +85,7 @@ export function assignMigrationAuthorship(bundle: MigrationBundle, owner?: { use
 	});
 	const { chains } = bundle;
 	return {
+		...bundle,
 		chains: {
 			...chains,
 			entities: chains.entities.map(chain),

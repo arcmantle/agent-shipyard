@@ -2613,13 +2613,22 @@ export function runStorageDriverContractSuite(options: StorageDriverContractOpti
 				const blocker = await second.createEntity({ kind: "issue", title: "Other project blocker" });
 				const blocked = await second.createEntity({ kind: "issue", title: "Other project blocked" });
 				await second.linkEntities({ fromId: blocker.id, toId: blocked.id, relationType: "blocks" });
+				await first.setProspectorSettings({ tagPrefix: "migrated-" });
+				await second.setProspectorSettings({ tagPrefix: "other-" });
+				const draft = await first.createIssueBreakdownDraft({
+					targetId: initiative.id,
+					issues: [{ key: "only", title: "Only issue", outcome: "Moved.", scope: [], workMode: "AFK", acceptanceCriteria: [], relationReferences: [] }]
+				});
 
 				const bundle = await first.exportMigrationBundle();
 				const sourceCounts = await first.countMigrationRecords();
 				expect(bundle.relations).toEqual(expect.arrayContaining([expect.objectContaining({ fromId: blocker.id, toId: blocked.id, type: "blocks" })]));
+				expect(sourceCounts).toMatchObject({ issueBreakdownDrafts: 1, projectSettings: 2 });
 
 				await expect(target.importMigrationBundle(bundle)).resolves.toEqual(sourceCounts);
 				await expect(target.countMigrationRecords()).resolves.toEqual(sourceCounts);
+				await expect(target.getIssueBreakdownDraft({ draftId: draft.id })).resolves.toEqual(await first.getIssueBreakdownDraft({ draftId: draft.id }));
+				expect((await target.exportMigrationBundle()).projectSettings).toEqual(bundle.projectSettings);
 				await expect(target.getEntityDetails(blocked.id)).resolves.toMatchObject({
 					incoming: expect.arrayContaining([expect.objectContaining({ relationType: "blocks", entity: expect.objectContaining({ id: blocker.id }) })])
 				});

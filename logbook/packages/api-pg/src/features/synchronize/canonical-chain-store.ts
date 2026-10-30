@@ -342,9 +342,13 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 export async function exportMigrationBundle(executor: TenantExecutor): Promise<MigrationBundle> {
 	const relations = await executor.execute(sql`SELECT from_id, to_id, type, created_by, created_at FROM relations WHERE tenant_id=${executor.tenantId} ORDER BY from_id, to_id, type`);
+	const drafts = await executor.execute(sql`SELECT * FROM issue_breakdown_drafts WHERE tenant_id=${executor.tenantId} ORDER BY created_at, id`);
+	const settings = await executor.execute(sql`SELECT project_id, prospector_settings FROM project_settings WHERE tenant_id=${executor.tenantId} ORDER BY project_id`);
 	return {
 		chains: await exportCanonicalChains(executor),
-		relations: (relations.rows as Array<{ from_id: string; to_id: string; type: string; created_by: string | null; created_at: string }>).map((row): RelationRecord => ({ fromId: row.from_id, toId: row.to_id, type: row.type as RelationType, createdBy: row.created_by ?? "", createdAt: row.created_at }))
+		relations: (relations.rows as Array<{ from_id: string; to_id: string; type: string; created_by: string | null; created_at: string }>).map((row): RelationRecord => ({ fromId: row.from_id, toId: row.to_id, type: row.type as RelationType, createdBy: row.created_by ?? "", createdAt: row.created_at })),
+		issueBreakdownDrafts: (drafts.rows as Array<{ id: string; target_id: string; status: string; snapshot_json: string; snapshot_digest: string; approved_at: string | null; created_issue_references: string; created_at: string; updated_at: string }>).map((row) => ({ id: row.id, targetId: row.target_id, status: row.status, snapshotJson: row.snapshot_json, snapshotDigest: row.snapshot_digest, approvedAt: row.approved_at, createdIssueReferences: row.created_issue_references, createdAt: row.created_at, updatedAt: row.updated_at })),
+		projectSettings: (settings.rows as Array<{ project_id: string; prospector_settings: string }>).map((row) => ({ projectId: row.project_id, prospectorSettings: row.prospector_settings }))
 	};
 }
 
@@ -358,11 +362,14 @@ export async function countMigrationRecords(executor: TenantExecutor): Promise<M
 		(SELECT count(*) FROM issue_comments WHERE tenant_id=${tenantId}) AS issue_comments,
 		(SELECT count(*) FROM plan_entries WHERE tenant_id=${tenantId}) AS plan_entries,
 		(SELECT count(*) FROM completion_observations WHERE tenant_id=${tenantId}) AS completion_observations,
-		(SELECT count(*) FROM revision_entries WHERE tenant_id=${tenantId}) AS revision_entries`);
+		(SELECT count(*) FROM revision_entries WHERE tenant_id=${tenantId}) AS revision_entries,
+		(SELECT count(*) FROM issue_breakdown_drafts WHERE tenant_id=${tenantId}) AS issue_breakdown_drafts,
+		(SELECT count(*) FROM project_settings WHERE tenant_id=${tenantId}) AS project_settings`);
 	const row = result.rows[0] as Record<string, string | number>;
 	return {
 		entities: Number(row.entities), relations: Number(row.relations), contexts: Number(row.contexts), contextTerms: Number(row.context_terms),
-		issueComments: Number(row.issue_comments), planEntries: Number(row.plan_entries), completionObservations: Number(row.completion_observations), revisionEntries: Number(row.revision_entries)
+		issueComments: Number(row.issue_comments), planEntries: Number(row.plan_entries), completionObservations: Number(row.completion_observations), revisionEntries: Number(row.revision_entries),
+		issueBreakdownDrafts: Number(row.issue_breakdown_drafts), projectSettings: Number(row.project_settings)
 	};
 }
 
@@ -380,6 +387,12 @@ export async function importMigrationBundle(executor: TenantExecutor, bundle: Mi
 	for (const relation of bundle.relations) {
 		const createdBy = UUID_PATTERN.test(relation.createdBy) ? relation.createdBy : null;
 		await executor.execute(sql`INSERT INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}::uuid, ${relation.toId}::uuid, ${relation.type}, ${createdBy}::uuid, ${relation.createdAt}) ON CONFLICT DO NOTHING`);
+	}
+	for (const draft of bundle.issueBreakdownDrafts) {
+		await executor.execute(sql`INSERT INTO issue_breakdown_drafts (tenant_id, id, target_id, status, snapshot_json, snapshot_digest, approved_at, created_issue_references, created_at, updated_at) VALUES (${executor.tenantId}, ${draft.id}::uuid, ${draft.targetId}::uuid, ${draft.status}, ${draft.snapshotJson}, ${draft.snapshotDigest}, ${draft.approvedAt}, ${draft.createdIssueReferences}, ${draft.createdAt}, ${draft.updatedAt})`);
+	}
+	for (const settings of bundle.projectSettings) {
+		await executor.execute(sql`INSERT INTO project_settings (tenant_id, project_id, prospector_settings) VALUES (${executor.tenantId}, ${settings.projectId}::uuid, ${settings.prospectorSettings}) ON CONFLICT (tenant_id, project_id) DO UPDATE SET prospector_settings = excluded.prospector_settings`);
 	}
 	return countMigrationRecords(executor);
 }
