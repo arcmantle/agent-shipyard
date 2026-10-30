@@ -903,12 +903,18 @@ describe("HttpStore over a real JSON-RPC gate", () => {
 		await expect(store.retrieveInstruction({ version: "1.0.0", key: "skill/prepare" })).rejects.toThrow("Cannot use a pool after calling end");
 	});
 
-	it("allows instruction changes only for the Logbook.Admin role when the identity carries roles", async () => {
+	it("limits changes by Entra app role when the identity carries roles", async () => {
 		const tenantId = createTestTenantId();
 		const version = `admin-${randomUUID()}`;
 		await installInstructionBundle(adminPool, { version, items: [{ key: "skill/prepare", kind: "skill", body: "Default" }] });
 		const store = (roles: string[]) => new PgStore(appPool, tenantId).withAuthenticatedIdentity({ tenantId, userId: "alice", roles });
 		const input = { version, key: "skill/prepare", body: "Admin override", expectedRevision: 1 };
+		for (const roles of [[], ["Logbook.Reader"]]) {
+			await expect(store(roles).createEntity({ kind: "initiative", title: "Denied" })).rejects.toThrow("requires the Logbook.Writer role");
+			await expect(store(roles).deleteTenant(tenantId)).rejects.toThrow("requires the Logbook.Admin role");
+		}
+		const created = await store(["Logbook.Writer"]).createEntity({ kind: "initiative", title: "Written" });
+		expect(await store(["Logbook.Reader"]).getEntityDetails(created.id)).toMatchObject({ entity: { title: "Written" } });
 		for (const change of [
 			(reader: StorageDriver) => reader.saveInstructionSource(input),
 			(reader: StorageDriver) => reader.commitInstructionChanges({ version, changes: [{ operation: "save", key: "skill/prepare", body: "Batch", expectedRevision: 1 }] }),
@@ -918,7 +924,7 @@ describe("HttpStore over a real JSON-RPC gate", () => {
 			(reader: StorageDriver) => reader.createInstructionFragment({ version, key: "fragment/private", body: "Private" }),
 			(reader: StorageDriver) => reader.removeInstructionFragment({ version, key: "fragment/private", expectedRevision: 1 })
 		]) {
-			await expect(change(store([]))).rejects.toThrow("requires the Logbook.Admin role");
+			await expect(change(store(["Logbook.Writer"]))).rejects.toThrow("requires the Logbook.Admin role");
 		}
 		expect(await store([]).retrieveInstruction({ version, key: "skill/prepare" })).toMatchObject({ body: "Default" });
 		await expect(store(["Logbook.Admin"]).saveInstructionSource(input)).resolves.toMatchObject({ body: "Admin override" });

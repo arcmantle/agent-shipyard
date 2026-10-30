@@ -47,7 +47,7 @@ import type {
 	TenantSummary,
 	UnlinkResult
 } from "@agent-issues/core";
-import { computeIssueCommentContentHash, createReverseFieldPatch, encodeCanonicalReference, isDirectEntitySelector, ISSUE_COMMENT_REVERSE_PATCH_REGISTRY, IssueCommentConflictError, LOGBOOK_ADMIN_ROLE, materializeIssueCommentFromPatches, measureHistory, projectProposedIssueBreakdown, projectProposedPlan, shortEntityReference, SYSTEM_AUTHENTICATION_SUBJECT, toEntitySummary, type SearchCapability, type SearchDiagnostic, type SearchRequest, type SearchResponse } from "@agent-issues/core";
+import { computeIssueCommentContentHash, createReverseFieldPatch, encodeCanonicalReference, isDirectEntitySelector, ISSUE_COMMENT_REVERSE_PATCH_REGISTRY, IssueCommentConflictError, guardStorageAccess, materializeIssueCommentFromPatches, measureHistory, projectProposedIssueBreakdown, projectProposedPlan, shortEntityReference, SYSTEM_AUTHENTICATION_SUBJECT, toEntitySummary, type SearchCapability, type SearchDiagnostic, type SearchRequest, type SearchResponse } from "@agent-issues/core";
 import type { Pool } from "pg";
 
 import { withTenantTransaction, type TenantExecutor } from "./db/connection.js";
@@ -136,7 +136,7 @@ export class PgStore implements StorageDriver {
 	}
 
 	public async saveInstructionSource(input: Parameters<StorageDriver["saveInstructionSource"]>[0]) {
-		return this.instructionChange((store) => store.saveInstructionSource(input));
+		return this.instructionTransaction((store) => store.saveInstructionSource(input));
 	}
 
 	public async listInstructionHistory(input: Parameters<StorageDriver["listInstructionHistory"]>[0]) {
@@ -148,11 +148,11 @@ export class PgStore implements StorageDriver {
 	}
 
 	public async restoreInstructionRevision(input: Parameters<StorageDriver["restoreInstructionRevision"]>[0]) {
-		return this.instructionChange((store) => store.restoreInstructionRevision(input));
+		return this.instructionTransaction((store) => store.restoreInstructionRevision(input));
 	}
 
 	public async resetInstructionSource(input: Parameters<StorageDriver["resetInstructionSource"]>[0]) {
-		return this.instructionChange((store) => store.resetInstructionSource(input));
+		return this.instructionTransaction((store) => store.resetInstructionSource(input));
 	}
 
 	public async inspectInstructionReset(input: Parameters<StorageDriver["inspectInstructionReset"]>[0]) {
@@ -164,25 +164,19 @@ export class PgStore implements StorageDriver {
 	}
 
 	public async resetInstructionAll(input: Parameters<StorageDriver["resetInstructionAll"]>[0]) {
-		return this.instructionChange((store) => store.resetInstructionAll(input));
+		return this.instructionTransaction((store) => store.resetInstructionAll(input));
 	}
 
 	public async commitInstructionChanges(input: Parameters<StorageDriver["commitInstructionChanges"]>[0]) {
-		return this.instructionChange((store) => store.commitInstructionChanges(input));
+		return this.instructionTransaction((store) => store.commitInstructionChanges(input));
 	}
 
 	public async createInstructionFragment(input: Parameters<StorageDriver["createInstructionFragment"]>[0]) {
-		return this.instructionChange((store) => store.createInstructionFragment(input));
+		return this.instructionTransaction((store) => store.createInstructionFragment(input));
 	}
 
 	public async removeInstructionFragment(input: Parameters<StorageDriver["removeInstructionFragment"]>[0]) {
-		return this.instructionChange((store) => store.removeInstructionFragment(input));
-	}
-
-	protected instructionChange<T>(operation: (store: PgInstructionStore) => Promise<T>): Promise<T> {
-		const roles = this.actorIdentity?.roles;
-		if (roles && !roles.includes(LOGBOOK_ADMIN_ROLE)) throw new Error(`Changing instructions requires the ${LOGBOOK_ADMIN_ROLE} role.`);
-		return this.instructionTransaction(operation);
+		return this.instructionTransaction((store) => store.removeInstructionFragment(input));
 	}
 
 	protected instructionTransaction<T>(operation: (store: PgInstructionStore) => Promise<T>): Promise<T> {
@@ -249,7 +243,7 @@ export class PgStore implements StorageDriver {
 	}
 
 	public withAuthenticatedIdentity(identity: AuthIdentity): StorageDriver {
-		return new PgStore(this.pool, this.tenantId, this.projectIdentity, identity);
+		return guardStorageAccess(new PgStore(this.pool, this.tenantId, this.projectIdentity, identity), identity.roles);
 	}
 
 	protected mutation<T>(fn: (executor: TenantExecutor, actorId: string) => Promise<T>): Promise<T> {

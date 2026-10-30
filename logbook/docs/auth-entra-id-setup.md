@@ -77,13 +77,20 @@ Microsoft Graph tokens and app-only tokens.
 
 Entra then refuses to issue a token to a user who is not assigned.
 
-### Choose who can change instructions
+### Choose what each user can do
 
-Terraform defines the **Logbook Admin** app role (`Logbook.Admin`) on this app
-registration. In **Enterprise applications → Users and groups**, click **Add
-user/group**, select the user, and select the **Logbook Admin** role. Other users
-can read instructions but cannot save, reset, restore, or change fragments. A
-user gets a new role only after signing in again.
+Terraform defines three app roles on this app registration. In **Enterprise
+applications → Users and groups**, click **Add user/group**, select the user,
+and select one role:
+
+| Role | Access |
+| --- | --- |
+| **Logbook Reader** (`Logbook.Reader`) | Read only. |
+| **Logbook Writer** (`Logbook.Writer`) | Read and change project data: issues, plans, comments, contexts, settings, and synchronization. |
+| **Logbook Admin** (`Logbook.Admin`) | All changes, including instructions and tenant administration. |
+
+A user with no Logbook role can only read. A user gets a new role only after
+signing in again.
 
 ## 4. Run the CLI login
 

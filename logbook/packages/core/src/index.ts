@@ -48,4 +48,5 @@ export * from "./rpc/create-json-rpc-app.js";
 export * from "./site/confirmation-tokens.js";
 export * from "./site/site-routes.js";
 export * from "./auth/auth-provider.js";
+export * from "./auth/storage-access.js";
 export * from "./auth/local-auth-provider.js";
