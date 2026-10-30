@@ -29,7 +29,9 @@ locals {
     runtime   = "${replace(var.name_prefix, "-", "_")}_runtime"
     migration = "${replace(var.name_prefix, "-", "_")}_migration"
   }
-  database_identities = var.existing_database_identities != null ? var.existing_database_identities.identities : {
+  # Callers can pass identities derived from a sensitive variable; only their presence decides this.
+  uses_existing_identities = nonsensitive(var.existing_database_identities != null)
+  database_identities = local.uses_existing_identities ? var.existing_database_identities.identities : {
     for kind, role in local.database_roles : kind => {
       id           = azurerm_user_assigned_identity.database[kind].id
       client_id    = azurerm_user_assigned_identity.database[kind].client_id
@@ -37,7 +39,7 @@ locals {
       role         = role
     }
   }
-  database_owner_role = var.existing_database_identities != null ? var.existing_database_identities.owner_role : "${replace(var.name_prefix, "-", "_")}_owner"
+  database_owner_role = local.uses_existing_identities ? var.existing_database_identities.owner_role : "${replace(var.name_prefix, "-", "_")}_owner"
   database_host       = azurerm_postgresql_flexible_server.logbook.fqdn
 }
 
@@ -125,8 +127,7 @@ resource "azuread_app_role_assignment" "users" {
 
 # The API prepares the database on start: setup is the Entra administrator, runtime serves requests, migration owns schema changes.
 resource "azurerm_user_assigned_identity" "database" {
-  # Callers can pass identities derived from a sensitive variable; only their presence decides this.
-  for_each            = nonsensitive(var.existing_database_identities == null) ? local.database_roles : {}
+  for_each            = local.uses_existing_identities ? {} : local.database_roles
   name                = "${var.name_prefix}-db-${each.key}"
   resource_group_name = var.resource_group_name
   location            = var.location

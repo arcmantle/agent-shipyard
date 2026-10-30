@@ -128,7 +128,7 @@ run "existing_resources" {
     existing_database_identities = {
       owner_role = "logbook_owner"
       identities = {
-        setup     = { id = "/subscriptions/s/resourceGroups/g/providers/Microsoft.ManagedIdentity/userAssignedIdentities/logbook-db-setup", client_id = "00000000-0000-4000-8000-000000000011", principal_id = "00000000-0000-4000-8000-000000000021", role = "logbook-db-setup" }
+        setup     = { id = "/subscriptions/s/resourceGroups/g/providers/Microsoft.ManagedIdentity/userAssignedIdentities/logbook-db-setup", client_id = sensitive("00000000-0000-4000-8000-000000000011"), principal_id = "00000000-0000-4000-8000-000000000021", role = "logbook-db-setup" }
         runtime   = { id = "/subscriptions/s/resourceGroups/g/providers/Microsoft.ManagedIdentity/userAssignedIdentities/logbook-db-runtime", client_id = "00000000-0000-4000-8000-000000000012", principal_id = "00000000-0000-4000-8000-000000000022", role = "logbook_runtime" }
         migration = { id = "/subscriptions/s/resourceGroups/g/providers/Microsoft.ManagedIdentity/userAssignedIdentities/logbook-db-migration", client_id = "00000000-0000-4000-8000-000000000013", principal_id = "00000000-0000-4000-8000-000000000023", role = "logbook_migration" }
       }
@@ -162,6 +162,7 @@ run "existing_resources" {
       azurerm_postgresql_flexible_server_active_directory_administrator.setup.object_id == "00000000-0000-4000-8000-000000000021" &&
       azurerm_postgresql_flexible_server_active_directory_administrator.setup.principal_name == "logbook-db-setup" &&
       one(azurerm_container_app.api.identity).identity_ids == toset([for kind in ["setup", "runtime", "migration"] : "/subscriptions/s/resourceGroups/g/providers/Microsoft.ManagedIdentity/userAssignedIdentities/logbook-db-${kind}"]) &&
+      !issensitive(one(azurerm_container_app.api.identity).identity_ids) &&
       one([for item in azurerm_container_app.api.template[0].container[0].env : item.value if item.name == "ENTRA_CLIENT_ID"]) == "00000000-0000-4000-8000-000000000004" &&
       one([for item in azurerm_container_app.api.template[0].container[0].env : item.value if item.name == "DATABASE_MANAGED_IDENTITY_CLIENT_ID"]) == "00000000-0000-4000-8000-000000000012"
     )
