@@ -48,7 +48,7 @@ import type {
 	TenantSummary,
 	UnlinkResult
 } from "@agent-issues/core";
-import { computeIssueCommentContentHash, createReverseFieldPatch, encodeCanonicalReference, isDirectEntitySelector, ISSUE_COMMENT_REVERSE_PATCH_REGISTRY, IssueCommentConflictError, guardStorageAccess, materializeIssueCommentFromPatches, measureHistory, projectProposedIssueBreakdown, projectProposedPlan, shortEntityReference, SYSTEM_AUTHENTICATION_SUBJECT, toEntitySummary, type SearchCapability, type SearchDiagnostic, type SearchRequest, type SearchResponse } from "@agent-issues/core";
+import { computeIssueCommentContentHash, createReverseFieldPatch, encodeCanonicalReference, isDirectEntitySelector, ISSUE_COMMENT_REVERSE_PATCH_REGISTRY, IssueCommentConflictError, assignMigrationAuthorship, guardStorageAccess, materializeIssueCommentFromPatches, measureHistory, projectProposedIssueBreakdown, projectProposedPlan, shortEntityReference, SYSTEM_AUTHENTICATION_SUBJECT, toEntitySummary, type SearchCapability, type SearchDiagnostic, type SearchRequest, type SearchResponse } from "@agent-issues/core";
 import type { Pool } from "pg";
 
 import { withTenantTransaction, type TenantExecutor } from "./db/connection.js";
@@ -305,7 +305,8 @@ export class PgStore implements StorageDriver {
 	}
 
 	public async importMigrationBundle(bundle: MigrationBundle) {
-		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor).importMigrationBundle(bundle));
+		const owned = assignMigrationAuthorship(bundle, this.actorIdentity);
+		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor).importMigrationBundle(owned));
 	}
 
 	public async countMigrationRecords() {

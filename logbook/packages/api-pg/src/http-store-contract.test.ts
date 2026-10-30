@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { HttpStore, LocalAuthProvider, type StorageDriver } from "@agent-issues/core";
+import { deriveUserIdentity, HttpStore, LocalAuthProvider, SYSTEM_AUTHENTICATION_SUBJECT, type StorageDriver } from "@agent-issues/core";
 import { runStorageDriverContractSuite } from "@agent-issues/core/storage-driver-contract";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Pool } from "pg";
@@ -893,6 +893,30 @@ describe("HttpStore over a real JSON-RPC gate", () => {
 			await adminPool.query("DELETE FROM instruction_defaults WHERE version = $1", [version]);
 			await adminPool.query("DELETE FROM instruction_bundles WHERE version = $1", [version]);
 		}
+	});
+
+	it("gives migrated local authorship to the signed-in importer and keeps every revision readable", async () => {
+		const sourceTenant = createTestTenantId();
+		const targetTenant = createTestTenantId();
+		const local = new PgStore(appPool, sourceTenant).withAuthenticatedIdentity({ tenantId: sourceTenant, userId: "local:alice", displayName: "alice" });
+		const created = await local.createEntity({ kind: "issue", title: "Local first", body: "First" });
+		await local.updateEntity({ entityId: created.id, title: "Local second", expectedRevision: created.revision, expectedContentHash: created.contentHash });
+		const legacy = await local.createEntity({ kind: "issue", title: "Legacy system record" });
+		const bundle = await local.exportMigrationBundle();
+		const legacyChain = bundle.chains.entities.find((chain) => chain.head.id === legacy.id)!;
+		legacyChain.head = { ...legacyChain.head, createdBy: "system", updatedBy: "system" };
+
+		const target = new PgStore(appPool, targetTenant).withAuthenticatedIdentity({ tenantId: targetTenant, userId: "entra-oid-ada", displayName: "Ada", roles: ["Logbook.Admin"] });
+		await target.importMigrationBundle(bundle);
+
+		const localUser = deriveUserIdentity("local:alice").id;
+		const owner = deriveUserIdentity("entra-oid-ada").id;
+		const migrated = await target.exportMigrationBundle();
+		expect(JSON.stringify(migrated)).not.toContain(localUser);
+		expect(migrated.chains.users.map((user) => user.authenticationSubject)).toContain("entra-oid-ada");
+		expect(migrated.chains.entities.find((chain) => chain.head.id === created.id)?.head).toMatchObject({ createdBy: owner, updatedBy: owner });
+		expect(migrated.chains.entities.find((chain) => chain.head.id === legacy.id)?.head.createdBy).toBe(deriveUserIdentity(SYSTEM_AUTHENTICATION_SUBJECT).id);
+		await expect(target.materializeEntityRevision({ entityId: created.id, revision: 1 })).resolves.toMatchObject({ title: "Local first", headRevision: 2 });
 	});
 
 	it("rejects instruction retrieval when storage is unavailable", async () => {
