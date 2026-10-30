@@ -913,6 +913,25 @@ describe("storage-driver seam: tenant administration (SqliteStore)", () => {
 });
 
 describe("migration bundle instructions (SqliteStore)", () => {
+	it("exports the earlier revisions of an entity that moved to another project", async () => {
+		const store = await openTestStore();
+		try {
+			const previousProject = await store.createEntity({ kind: "project", title: "Previous project" });
+			const issue = await store.createEntity({ kind: "issue", title: "Moved issue" });
+			await store.updateEntity({ entityId: issue.id, title: "Moved issue, edited", expectedRevision: issue.revision, expectedContentHash: issue.contentHash });
+			const db = new Database(path.join(tempDir!, "test.db"));
+			try {
+				db.prepare("UPDATE revision_entries SET project_id = ? WHERE record_kind = 'entity' AND record_key LIKE ? AND revision = 1").run(previousProject.id, `%${issue.id}`);
+			} finally {
+				db.close();
+			}
+
+			const bundle = await store.exportMigrationBundle();
+			expect(bundle.chains.entities.find((chain) => chain.head.id === issue.id)?.deltas.map((delta) => delta.revision)).toEqual([1, 2]);
+		} finally {
+			await store.close();
+		}
+	});
 	it("exports and counts the local owner instruction tables", async () => {
 		const store = await openTestStore();
 		try {
