@@ -34,17 +34,16 @@ Running the cloud API and Postgres locally (so the whole dual-mode cloud
 path - not just the auth seam - runs without any Azure dependency) was
 tracked under ISS39 (cloud API single Postgres gate) and ISS40
 (HttpStore/backend switch). Both are now complete: `PgStore`, the Express
-JSON-RPC gate, the change/event stream, saved remote logins, and `synchronize`
+JSON-RPC gate, the change/event stream, and saved remote logins
 work end to end against the local Postgres started
 below (see "Local Postgres"). There's no bundled long-running local cloud
 API server yet, though - starting one for manual testing still means
 writing a small script that calls `createApiServer` directly with a
 `LocalAuthProvider`.
 
-One known gap: `synchronize` currently replicates the `entities` and
-`history_entries` tables but not `relations`, so data that depends on
-relations (e.g. derived initiative status) can disagree between the local
-and cloud copies of the same project until that's fixed (tracked as ISS60).
+`synchronize` is disabled: it does not carry issue-breakdown drafts, project
+settings, personal instructions, or relations outside the current project.
+Use `agent-issues cloud migrate` to move local data to the cloud.
 
 ## Local Postgres (ISS39, partial)
 

@@ -25,9 +25,11 @@ export interface RuntimeAccessBoundaryViolation {
 const allowedMethodInfrastructure = new Set([
 	"api-pg/src/db/connection.ts",
 	"api-pg/src/db/migration-runner.ts",
+	"api-pg/src/db/roles.ts",
 	"api-pg/src/db/source-profile.ts",
 	"api-pg/src/db/tenant-admin.ts",
-	"api-pg/src/db/test-tenant-cleanup.ts"
+	"api-pg/src/db/test-tenant-cleanup.ts",
+	"api-pg/src/database-setup.ts"
 ]);
 const SQLITE_ADAPTER_MODULE = "api-local/src/db/sqlite-connection.ts";
 const SQLITE_RAW_METHODS = new Set(["prepare", "exec", "transaction", "pragma", "all", "get", "run"]);
