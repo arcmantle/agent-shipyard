@@ -301,16 +301,16 @@ export class PgStore implements StorageDriver {
 	}
 
 	public async exportMigrationBundle() {
-		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor).exportMigrationBundle());
+		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor, this.actorIdentity?.userId).exportMigrationBundle());
 	}
 
 	public async importMigrationBundle(bundle: MigrationBundle) {
 		const owned = assignMigrationAuthorship(bundle, this.actorIdentity);
-		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor).importMigrationBundle(owned));
+		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor, this.actorIdentity?.userId).importMigrationBundle(owned));
 	}
 
 	public async countMigrationRecords() {
-		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor).countMigrationRecords());
+		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor, this.actorIdentity?.userId).countMigrationRecords());
 	}
 
 	public async upsertUser(input: Parameters<StorageDriver["upsertUser"]>[0]) {

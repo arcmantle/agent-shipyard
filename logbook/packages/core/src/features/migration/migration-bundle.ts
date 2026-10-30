@@ -17,12 +17,20 @@ export type MigrationIssueBreakdownDraft = {
 
 export type MigrationProjectSettings = { projectId: string; prospectorSettings: string };
 
+/** One owner's personal instruction state; the importer becomes its owner. */
+export type MigrationInstructions = {
+	overrides: Array<{ itemKey: string; kind: string; body: string; revision: number; contentHash: string; defaultVersion: string }>;
+	personalFragments: Array<{ itemKey: string; revision: number; body: string; contentHash: string; removed: boolean }>;
+	history: Array<{ itemKey: string; revision: number; kind: string; body: string; contentHash: string; defaultVersion: string; isDefault: boolean }>;
+};
+
 /** Everything a one-time local-to-cloud migration carries for one tenant. */
 export type MigrationBundle = {
 	chains: CanonicalChainBundle;
 	relations: RelationRecord[];
 	issueBreakdownDrafts: MigrationIssueBreakdownDraft[];
 	projectSettings: MigrationProjectSettings[];
+	instructions: MigrationInstructions;
 };
 
 export type MigrationWireBundle = Omit<MigrationBundle, "chains"> & {
@@ -41,6 +49,9 @@ export type MigrationRecordCounts = {
 	revisionEntries: number;
 	issueBreakdownDrafts: number;
 	projectSettings: number;
+	instructionOverrides: number;
+	instructionPersonalFragments: number;
+	instructionHistory: number;
 };
 
 export function encodeMigrationBundle(bundle: MigrationBundle): MigrationWireBundle {
@@ -50,6 +61,9 @@ export function encodeMigrationBundle(bundle: MigrationBundle): MigrationWireBun
 export function decodeMigrationBundle(bundle: MigrationWireBundle): MigrationBundle {
 	for (const section of ["relations", "issueBreakdownDrafts", "projectSettings"] as const) {
 		if (!Array.isArray(bundle[section])) throw new Error(`Invalid migration bundle: ${section} must be an array.`);
+	}
+	for (const section of ["overrides", "personalFragments", "history"] as const) {
+		if (!Array.isArray(bundle.instructions?.[section])) throw new Error(`Invalid migration bundle: instructions.${section} must be an array.`);
 	}
 	return { ...bundle, chains: decodeCanonicalChainBundle(bundle.chains) };
 }

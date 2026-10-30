@@ -895,6 +895,28 @@ describe("HttpStore over a real JSON-RPC gate", () => {
 		}
 	});
 
+	it("moves personal instruction overrides, history, and fragments to the signed-in importer", async () => {
+		const sourceTenant = createTestTenantId();
+		const targetTenant = createTestTenantId();
+		const version = `migration-${randomUUID()}`;
+		await installInstructionBundle(adminPool, { version, items: [{ key: "skill/prepare", kind: "skill", body: "Default <!-- include:fragment/rules -->" }, { key: "fragment/rules", kind: "fragment", body: "Default rules" }] });
+		const local = new PgStore(appPool, sourceTenant).withAuthenticatedIdentity({ tenantId: sourceTenant, userId: "local:alice" });
+		const first = await local.saveInstructionSource({ version, key: "skill/prepare", body: "First <!-- include:fragment/rules -->", expectedRevision: 1 });
+		await local.createInstructionFragment({ version, key: "fragment/private", body: "private notes" });
+		await local.saveInstructionSource({ version, key: "skill/prepare", body: "Personal <!-- include:fragment/rules --> <!-- include:fragment/private -->", expectedRevision: first.source.revision });
+		const expected = await local.retrieveInstruction({ version, key: "skill/prepare" });
+		const bundle = await local.exportMigrationBundle();
+		expect(bundle.instructions.overrides).toHaveLength(1);
+		expect(bundle.instructions.personalFragments).toHaveLength(1);
+
+		const target = new PgStore(appPool, targetTenant).withAuthenticatedIdentity({ tenantId: targetTenant, userId: "entra-oid-ada", roles: ["Logbook.Admin"] });
+		const counts = await target.importMigrationBundle(bundle);
+
+		expect(counts).toMatchObject({ instructionOverrides: 1, instructionPersonalFragments: 1, instructionHistory: bundle.instructions.history.length });
+		await expect(target.retrieveInstruction({ version, key: "skill/prepare" })).resolves.toMatchObject({ body: expected.body });
+		await expect(target.listInstructionHistory({ version, key: "skill/prepare" })).resolves.toMatchObject({ revisions: expect.arrayContaining([expect.objectContaining({ body: "First <!-- include:fragment/rules -->" })]) });
+	});
+
 	it("gives migrated local authorship to the signed-in importer and keeps every revision readable", async () => {
 		const sourceTenant = createTestTenantId();
 		const targetTenant = createTestTenantId();

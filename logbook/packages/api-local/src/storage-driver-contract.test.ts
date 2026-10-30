@@ -911,3 +911,30 @@ describe("storage-driver seam: tenant administration (SqliteStore)", () => {
 		}
 	});
 });
+
+describe("migration bundle instructions (SqliteStore)", () => {
+	it("exports and counts the local owner instruction tables", async () => {
+		const store = await openTestStore();
+		try {
+			const db = new Database(path.join(tempDir!, "test.db"));
+			try {
+				db.prepare("INSERT INTO instruction_overrides (item_key, kind, body, revision, content_hash, default_version) VALUES (?, ?, ?, ?, ?, ?)").run("skill/prepare", "skill", "Local", 2, "hash-2", "1.0.0");
+				db.prepare("INSERT INTO instruction_history (item_key, revision, kind, body, content_hash, default_version, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)").run("skill/prepare", 1, "skill", "Default", "hash-1", "1.0.0", 1);
+				db.prepare("INSERT INTO instruction_personal_fragments (item_key, revision, body, content_hash, removed) VALUES (?, ?, ?, ?, ?)").run("fragment/mine", 1, "Mine", "hash-3", 0);
+			} finally {
+				db.close();
+			}
+
+			await expect(store.exportMigrationBundle()).resolves.toMatchObject({
+				instructions: {
+					overrides: [{ itemKey: "skill/prepare", kind: "skill", body: "Local", revision: 2, contentHash: "hash-2", defaultVersion: "1.0.0" }],
+					history: [{ itemKey: "skill/prepare", revision: 1, kind: "skill", body: "Default", contentHash: "hash-1", defaultVersion: "1.0.0", isDefault: true }],
+					personalFragments: [{ itemKey: "fragment/mine", revision: 1, body: "Mine", contentHash: "hash-3", removed: false }]
+				}
+			});
+			await expect(store.countMigrationRecords()).resolves.toMatchObject({ instructionOverrides: 1, instructionHistory: 1, instructionPersonalFragments: 1 });
+		} finally {
+			await store.close();
+		}
+	});
+});

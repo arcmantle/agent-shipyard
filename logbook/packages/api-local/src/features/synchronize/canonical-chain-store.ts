@@ -30,6 +30,7 @@ import {
 	type CanonicalPlanEntryChain,
 	type CompletionObservation,
 	type MigrationBundle,
+	type MigrationInstructions,
 	type MigrationRecordCounts,
 	type RelationRecord,
 	type RelationType,
@@ -301,7 +302,20 @@ export function exportMigrationBundle(executor: SqliteExecutor): MigrationBundle
 		chains: exportCanonicalChains(executor),
 		relations: relationRows.map((row): RelationRecord => ({ fromId: row.from_id, toId: row.to_id, type: row.type as RelationType, createdBy: row.created_by ?? "", createdAt: row.created_at })),
 		issueBreakdownDrafts: draftRows.map((row) => ({ id: row.id, targetId: row.target_id, status: row.status, snapshotJson: row.snapshot_json, snapshotDigest: row.snapshot_digest, approvedAt: row.approved_at, createdIssueReferences: row.created_issue_references, createdAt: row.created_at, updatedAt: row.updated_at })),
-		projectSettings: settingsRows.map((row) => ({ projectId: row.project_id, prospectorSettings: row.prospector_settings }))
+		projectSettings: settingsRows.map((row) => ({ projectId: row.project_id, prospectorSettings: row.prospector_settings })),
+		instructions: exportLocalInstructions(executor)
+	};
+}
+
+// The local database has one owner, so its instruction tables carry no tenant or user.
+function exportLocalInstructions(executor: SqliteExecutor): MigrationInstructions {
+	const overrides = executor.drizzle.all(sql`SELECT item_key, kind, body, revision, content_hash, default_version FROM instruction_overrides ORDER BY item_key`) as Array<{ item_key: string; kind: string; body: string; revision: number; content_hash: string; default_version: string }>;
+	const fragments = executor.drizzle.all(sql`SELECT item_key, revision, body, content_hash, removed FROM instruction_personal_fragments ORDER BY item_key, revision`) as Array<{ item_key: string; revision: number; body: string; content_hash: string; removed: number }>;
+	const history = executor.drizzle.all(sql`SELECT item_key, revision, kind, body, content_hash, default_version, is_default FROM instruction_history ORDER BY item_key, revision`) as Array<{ item_key: string; revision: number; kind: string; body: string; content_hash: string; default_version: string; is_default: number }>;
+	return {
+		overrides: overrides.map((row) => ({ itemKey: row.item_key, kind: row.kind, body: row.body, revision: row.revision, contentHash: row.content_hash, defaultVersion: row.default_version })),
+		personalFragments: fragments.map((row) => ({ itemKey: row.item_key, revision: row.revision, body: row.body, contentHash: row.content_hash, removed: Boolean(row.removed) })),
+		history: history.map((row) => ({ itemKey: row.item_key, revision: row.revision, kind: row.kind, body: row.body, contentHash: row.content_hash, defaultVersion: row.default_version, isDefault: Boolean(row.is_default) }))
 	};
 }
 
@@ -317,11 +331,15 @@ export function countMigrationRecords(executor: SqliteExecutor): MigrationRecord
 		(SELECT count(*) FROM completion_observations WHERE tenant_id = ${tenantId}) AS completion_observations,
 		(SELECT count(*) FROM revision_entries WHERE tenant_id = ${tenantId}) AS revision_entries,
 		(SELECT count(*) FROM issue_breakdown_drafts WHERE tenant_id = ${tenantId}) AS issue_breakdown_drafts,
-		(SELECT count(*) FROM project_settings WHERE tenant_id = ${tenantId}) AS project_settings`)[0] as Record<string, number>;
+		(SELECT count(*) FROM project_settings WHERE tenant_id = ${tenantId}) AS project_settings,
+		(SELECT count(*) FROM instruction_overrides) AS instruction_overrides,
+		(SELECT count(*) FROM instruction_personal_fragments) AS instruction_personal_fragments,
+		(SELECT count(*) FROM instruction_history) AS instruction_history`)[0] as Record<string, number>;
 	return {
 		entities: Number(row.entities), relations: Number(row.relations), contexts: Number(row.contexts), contextTerms: Number(row.context_terms),
 		issueComments: Number(row.issue_comments), planEntries: Number(row.plan_entries), completionObservations: Number(row.completion_observations), revisionEntries: Number(row.revision_entries),
-		issueBreakdownDrafts: Number(row.issue_breakdown_drafts), projectSettings: Number(row.project_settings)
+		issueBreakdownDrafts: Number(row.issue_breakdown_drafts), projectSettings: Number(row.project_settings),
+		instructionOverrides: Number(row.instruction_overrides), instructionPersonalFragments: Number(row.instruction_personal_fragments), instructionHistory: Number(row.instruction_history)
 	};
 }
 
@@ -342,6 +360,16 @@ export function importMigrationBundle(executor: SqliteExecutor, bundle: Migratio
 		}
 		for (const settings of bundle.projectSettings) {
 			tx.run(sql`INSERT INTO project_settings (tenant_id, project_id, prospector_settings) VALUES (${executor.tenantId}, ${settings.projectId}, ${settings.prospectorSettings}) ON CONFLICT (tenant_id, project_id) DO UPDATE SET prospector_settings = excluded.prospector_settings`);
+		}
+		const { overrides, personalFragments, history } = bundle.instructions;
+		for (const row of overrides) {
+			tx.run(sql`INSERT INTO instruction_overrides (item_key, kind, body, revision, content_hash, default_version) VALUES (${row.itemKey}, ${row.kind}, ${row.body}, ${row.revision}, ${row.contentHash}, ${row.defaultVersion})`);
+		}
+		for (const row of personalFragments) {
+			tx.run(sql`INSERT INTO instruction_personal_fragments (item_key, revision, body, content_hash, removed) VALUES (${row.itemKey}, ${row.revision}, ${row.body}, ${row.contentHash}, ${row.removed ? 1 : 0})`);
+		}
+		for (const row of history) {
+			tx.run(sql`INSERT INTO instruction_history (item_key, revision, kind, body, content_hash, default_version, is_default) VALUES (${row.itemKey}, ${row.revision}, ${row.kind}, ${row.body}, ${row.contentHash}, ${row.defaultVersion}, ${row.isDefault ? 1 : 0})`);
 		}
 		return countMigrationRecords(executor);
 	});
