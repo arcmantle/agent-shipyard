@@ -5,6 +5,7 @@ import { computeEntityContentHash, DEFAULT_EPIC_ID, EntityConflictError, EntityR
 import { computeContextTermContentHash, ContextConflictError, ContextRevisionError, ContextTermConflictError } from "../context/context-types.js";
 import { IssueCommentConflictError } from "./issue-comment-store.js";
 import type { StorageDriver } from "./storage-driver.js";
+import { assignMigrationAuthorship } from "../migration/migration-bundle.js";
 import { projectProposedPlan } from "../plan/plan-snapshot.js";
 
 export type StorageDriverContractOptions = {
@@ -2629,6 +2630,7 @@ export function runStorageDriverContractSuite(options: StorageDriverContractOpti
 				await expect(target.countMigrationRecords()).resolves.toEqual(sourceCounts);
 				await expect(target.getIssueBreakdownDraft({ draftId: draft.id })).resolves.toEqual(await first.getIssueBreakdownDraft({ draftId: draft.id }));
 				expect((await target.exportMigrationBundle()).projectSettings).toEqual(bundle.projectSettings);
+				expect((await target.exportMigrationBundle()).relations).toEqual(assignMigrationAuthorship(bundle).relations);
 				await expect(target.getEntityDetails(blocked.id)).resolves.toMatchObject({
 					incoming: expect.arrayContaining([expect.objectContaining({ relationType: "blocks", entity: expect.objectContaining({ id: blocker.id }) })])
 				});

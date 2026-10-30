@@ -403,17 +403,26 @@ export async function countMigrationRecords(executor: TenantExecutor, instructio
 export async function importMigrationBundle(executor: TenantExecutor, bundle: MigrationBundle, instructionOwnerId?: string): Promise<MigrationRecordCounts> {
 	const seededProject = deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId;
 	const seededEpic = deriveMigratedEntityIdentity("epic", DEFAULT_EPIC_ID).stableId;
+	await executor.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`migration:${executor.tenantId}`}))`);
+	const owner = await selectInstructionOwner(executor, instructionOwnerId) ? instructionOwnerId! : "";
 	const existing = await executor.execute(sql`SELECT
 		(SELECT count(*) FROM entities WHERE tenant_id=${executor.tenantId} AND id NOT IN (${seededProject}::uuid, ${seededEpic}::uuid)) +
+		(SELECT count(*) FROM context_terms WHERE tenant_id=${executor.tenantId}) +
 		(SELECT count(*) FROM issue_comments WHERE tenant_id=${executor.tenantId}) +
-		(SELECT count(*) FROM plan_entries WHERE tenant_id=${executor.tenantId}) AS records`);
+		(SELECT count(*) FROM plan_entries WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM completion_observations WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM issue_breakdown_drafts WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM project_settings WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM instruction_overrides WHERE tenant_id=${executor.tenantId} AND user_id=${owner}) +
+		(SELECT count(*) FROM instruction_personal_fragments WHERE tenant_id=${executor.tenantId} AND user_id=${owner}) +
+		(SELECT count(*) FROM instruction_history WHERE tenant_id=${executor.tenantId} AND user_id=${owner}) AS records`);
 	if (Number((existing.rows[0] as { records: string | number }).records) > 0) {
 		throw new Error("The migration target already contains records. Migrate only into an empty tenant.");
 	}
 	await importCanonicalChains(executor, bundle.chains);
 	for (const relation of bundle.relations) {
 		const createdBy = UUID_PATTERN.test(relation.createdBy) ? relation.createdBy : null;
-		await executor.execute(sql`INSERT INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}::uuid, ${relation.toId}::uuid, ${relation.type}, ${createdBy}::uuid, ${relation.createdAt}) ON CONFLICT DO NOTHING`);
+		await executor.execute(sql`INSERT INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}::uuid, ${relation.toId}::uuid, ${relation.type}, ${createdBy}::uuid, ${relation.createdAt}) ON CONFLICT (tenant_id, from_id, to_id, type) DO UPDATE SET created_by = excluded.created_by, created_at = excluded.created_at`);
 	}
 	for (const draft of bundle.issueBreakdownDrafts) {
 		await executor.execute(sql`INSERT INTO issue_breakdown_drafts (tenant_id, id, target_id, status, snapshot_json, snapshot_digest, approved_at, created_issue_references, created_at, updated_at) VALUES (${executor.tenantId}, ${draft.id}::uuid, ${draft.targetId}::uuid, ${draft.status}, ${draft.snapshotJson}, ${draft.snapshotDigest}, ${draft.approvedAt}, ${draft.createdIssueReferences}, ${draft.createdAt}, ${draft.updatedAt})`);

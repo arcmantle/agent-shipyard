@@ -349,12 +349,19 @@ export function importMigrationBundle(executor: SqliteExecutor, bundle: Migratio
 		const seeded = [deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId, deriveMigratedEntityIdentity("epic", DEFAULT_EPIC_ID).stableId];
 		const existing = tx.all(sql`SELECT
 			(SELECT count(*) FROM entities WHERE tenant_id = ${executor.tenantId} AND id NOT IN (${seeded[0]}, ${seeded[1]})) +
+			(SELECT count(*) FROM context_terms WHERE tenant_id = ${executor.tenantId}) +
 			(SELECT count(*) FROM issue_comments WHERE tenant_id = ${executor.tenantId}) +
-			(SELECT count(*) FROM plan_entries WHERE tenant_id = ${executor.tenantId}) AS records`)[0] as { records: number };
+			(SELECT count(*) FROM plan_entries WHERE tenant_id = ${executor.tenantId}) +
+			(SELECT count(*) FROM completion_observations WHERE tenant_id = ${executor.tenantId}) +
+			(SELECT count(*) FROM issue_breakdown_drafts WHERE tenant_id = ${executor.tenantId}) +
+			(SELECT count(*) FROM project_settings WHERE tenant_id = ${executor.tenantId}) +
+			(SELECT count(*) FROM instruction_overrides) +
+			(SELECT count(*) FROM instruction_personal_fragments) +
+			(SELECT count(*) FROM instruction_history) AS records`)[0] as { records: number };
 		if (Number(existing.records) > 0) throw new Error("The migration target already contains records. Migrate only into an empty tenant.");
 		importCanonicalChains(executor, bundle.chains);
 		for (const relation of bundle.relations) {
-			tx.run(sql`INSERT OR IGNORE INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}, ${relation.toId}, ${relation.type}, ${relation.createdBy || null}, ${relation.createdAt})`);
+			tx.run(sql`INSERT INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}, ${relation.toId}, ${relation.type}, ${relation.createdBy || null}, ${relation.createdAt}) ON CONFLICT (tenant_id, from_id, to_id, type) DO UPDATE SET created_by = excluded.created_by, created_at = excluded.created_at`);
 		}
 		for (const draft of bundle.issueBreakdownDrafts) {
 			tx.run(sql`INSERT INTO issue_breakdown_drafts (tenant_id, id, target_id, status, snapshot_json, snapshot_digest, approved_at, created_issue_references, created_at, updated_at) VALUES (${executor.tenantId}, ${draft.id}, ${draft.targetId}, ${draft.status}, ${draft.snapshotJson}, ${draft.snapshotDigest}, ${draft.approvedAt}, ${draft.createdIssueReferences}, ${draft.createdAt}, ${draft.updatedAt})`);
