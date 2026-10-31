@@ -33,8 +33,9 @@ The rest of this document describes the deployment of the Arcmantle instance.
 
 ## Arcmantle Deployment
 
-This directory prepares Azure Blob storage for Terraform state. It does not yet
-deploy PostgreSQL or the Logbook service.
+The `bootstrap` root prepares Azure Blob storage for Terraform state. The private
+repository deploys the Arcmantle instance through
+[modules/logbook-backend](modules/logbook-backend).
 
 ## Deployment Ownership
 
@@ -43,22 +44,17 @@ Routine planning and application now belong to the private
 repository. Its README defines the one-time identity setup and activation steps.
 The bootstrap in this directory remains the one-time state-storage setup.
 
-Start deployments through the public `Request Logbook Deployment` workflow.
+Start deployments through the public `Terraform - Request Update` workflow.
 It requests a private plan. A private callback starts the public
-`Approve Logbook Deployment` workflow. The `azure-production` environment requires
+`Terraform - Approve Update` workflow. The `azure-production` environment requires
 RoenLie approval before it can send signed authorization to private Apply.
 No Azure credentials, raw plans, or state enter the public workflows.
 
-The private application root uses the separate `logbookstate` container, not the
-older application backend reservation below. Do not use this directory's
-`logbook` root for routine deployment. No application resources exist yet.
+The private application root keeps its state in the separate `logbookstate`
+container.
 
-Use two separate Terraform roots:
-
-- `bootstrap`: owns the state resource group, storage account, container, and
-  operator role assignment. Its state key is `bootstrap.tfstate`.
-- `logbook`: reserves the remote backend for the application. Its state key is
-  `logbook-prod.tfstate`. It does not yet contain deployment resources.
+The `bootstrap` root owns the state resource group, storage account, container,
+and operator role assignment. Its state key is `bootstrap.tfstate`.
 
 Keep Terraform configuration and provider lock files in Git. Do not commit state,
 saved plans, credentials, or local variable files. The repository ignores these
@@ -151,14 +147,6 @@ An Actions job for an existing installation must restore its remote backend
 configuration before any plan or apply. Do not repeat the first local-state
 bootstrap for an account that already exists. Migration and reconfiguration are
 different operations; reconfiguration does not copy state.
-
-## Logbook Backend
-
-This root is an earlier backend reservation, not the active deployment root.
-PostgreSQL, networking, service hosting, and data migration still need separate
-configuration in the private repository. The Actions workflows require a
-GitHub App and the approved identity and state setup before activation. Routine
-application state belongs in the private `logbookstate` container.
 
 ## Protection And Recovery
 
