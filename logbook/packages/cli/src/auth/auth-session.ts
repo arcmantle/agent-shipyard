@@ -8,6 +8,15 @@ export type LocalSavedLogin = {
 	kind: "local";
 };
 
+/** MSAL state that renews an expired access token without a new device-code login. */
+export type EntraRefreshState = {
+	clientId: string;
+	authorityTenantId: string;
+	homeAccountId: string;
+	/** Serialized MSAL token cache; contains the refresh token. */
+	tokenCache: string;
+};
+
 export type RemoteSavedLogin = {
 	name: string;
 	kind: "remote";
@@ -17,21 +26,24 @@ export type RemoteSavedLogin = {
 	displayName?: string;
 	accessToken: string;
 	expiresAt: string;
+	entraRefresh?: EntraRefreshState;
 };
 
 export type SavedLogin = LocalSavedLogin | RemoteSavedLogin;
 
-export type SavedLoginView = LocalSavedLogin | Omit<RemoteSavedLogin, "accessToken">;
+export type RemoteSavedLoginView = Omit<RemoteSavedLogin, "accessToken" | "entraRefresh">;
+
+export type SavedLoginView = LocalSavedLogin | RemoteSavedLoginView;
 
 const LOCAL_SAVED_LOGIN: LocalSavedLogin = { name: "local", kind: "local" };
 
 /** Strips remote credentials so callers can safely display or log a saved login. */
 export function toSavedLoginView(login: LocalSavedLogin): LocalSavedLogin;
-export function toSavedLoginView(login: RemoteSavedLogin): Omit<RemoteSavedLogin, "accessToken">;
+export function toSavedLoginView(login: RemoteSavedLogin): RemoteSavedLoginView;
 export function toSavedLoginView(login: SavedLogin): SavedLoginView;
 export function toSavedLoginView(login: SavedLogin): SavedLoginView {
 	if (login.kind === "local") return login;
-	const { accessToken: _accessToken, ...view } = login;
+	const { accessToken: _accessToken, entraRefresh: _entraRefresh, ...view } = login;
 	return view;
 }
 

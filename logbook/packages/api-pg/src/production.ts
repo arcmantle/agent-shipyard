@@ -1,19 +1,40 @@
+import { randomInt } from "node:crypto";
 import { once } from "node:events";
+import { existsSync, readFileSync } from "node:fs";
 import { isIP } from "node:net";
+import { fileURLToPath } from "node:url";
 
 import type { Pool } from "pg";
 
+import type { InstructionBundle } from "@agent-issues/core";
+
+import { runDatabaseSetup } from "./database-setup.js";
 import { createApiServer, createPgPool, EntraIdAuthProvider, type AuthProvider } from "./index.js";
 import { verifyPgRuntimeRole } from "./db/roles.js";
 
 type ProductionOptions = {
 	environment: NodeJS.ProcessEnv;
 	pool?: Pool;
+	instructionBundle?: InstructionBundle;
 	authProvider?: AuthProvider;
+	setupDatabase?: typeof runDatabaseSetup;
 };
+
+const BUNDLE_URL = new URL("../instruction-defaults.json", import.meta.url);
+
+function readInstructionBundle(): InstructionBundle | undefined {
+	return existsSync(BUNDLE_URL) ? JSON.parse(readFileSync(BUNDLE_URL, "utf8")) as InstructionBundle : undefined;
+}
 
 function invalidConfiguration(name: string): never {
 	throw new Error(`Invalid production configuration: ${name}`);
+}
+
+function readHostedSite(bundle: InstructionBundle | undefined) {
+	const publicDirectory = fileURLToPath(new URL("../public/", import.meta.url));
+	if (!existsSync(`${publicDirectory}index.html`) || !bundle) return undefined;
+	// Instruction reads are keyed by the bundle release installed from this image.
+	return { publicDirectory, instructionVersion: bundle.version };
 }
 
 function readConfiguration(environment: NodeJS.ProcessEnv) {
@@ -43,11 +64,31 @@ function readConfiguration(environment: NodeJS.ProcessEnv) {
 	if (!/^\d+$/.test(shutdownValue) || Number(shutdownValue) < 1 || Number(shutdownValue) > 30000) {
 		invalidConfiguration("SHUTDOWN_TIMEOUT_MS");
 	}
-	return { connectionString: connectionString!, managedIdentityClientId, tenantId, clientId, host, port: Number(portValue), shutdownTimeoutMs: Number(shutdownValue) };
+	const setup = readSetupConfiguration(environment);
+	return { connectionString: connectionString!, managedIdentityClientId, tenantId, clientId, host, port: Number(portValue), shutdownTimeoutMs: Number(shutdownValue), setup };
+}
+
+function readSetupConfiguration(environment: NodeJS.ProcessEnv): Record<string, unknown> | undefined {
+	if (environment.DATABASE_SETUP_CONFIG === undefined) return undefined;
+	try {
+		const value = JSON.parse(environment.DATABASE_SETUP_CONFIG) as unknown;
+		if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+	} catch {
+		// Reported below without the configuration text.
+	}
+	return invalidConfiguration("DATABASE_SETUP_CONFIG");
 }
 
 export async function startProductionApi(options: ProductionOptions) {
 	const configuration = readConfiguration(options.environment);
+	const bundle = options.instructionBundle ?? readInstructionBundle();
+	if (configuration.setup) {
+		// Each start creates and removes its own tenant-isolation probe table.
+		const verificationTable = `logbook_role_check_${Math.floor(Date.now() / 1000)}_${randomInt(1, 1_000_000_000)}`;
+		await (options.setupDatabase ?? runDatabaseSetup)({
+			DATABASE_SETUP_CONFIG: JSON.stringify({ ...configuration.setup, verification_table: verificationTable })
+		}, undefined, bundle);
+	}
 	const pool = options.pool ?? createPgPool({
 		connectionString: configuration.connectionString,
 		managedIdentityClientId: configuration.managedIdentityClientId,
@@ -63,6 +104,7 @@ export async function startProductionApi(options: ProductionOptions) {
 		pool,
 		authProvider: options.authProvider ?? new EntraIdAuthProvider(configuration),
 		authMetadata: { provider: "entra", tenantId: configuration.tenantId, clientId: configuration.clientId },
+		site: readHostedSite(bundle),
 		readinessCheck: async () => {
 			if (closing) throw new Error("API is stopping.");
 			await verifyPgRuntimeRole(pool);

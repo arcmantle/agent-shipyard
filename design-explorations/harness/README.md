@@ -12,7 +12,7 @@ Install the workspace dependencies with `pnpm install` first. From the repositor
 root, run:
 
 ```console
-pnpm --filter @agent-issues/site exec vite --config ../../design-explorations/harness/vite.config.ts
+pnpm --dir logbook --filter @agent-issues/site exec vite --config ../../../design-explorations/harness/vite.config.ts
 ```
 
 Open the URL printed by Vite. It starts on port 5328 or the next available port.
@@ -27,7 +27,7 @@ Check the components without starting the server:
 
 ```console
 pnpm exec tsc -p design-explorations/harness/tsconfig.json
-pnpm --filter @agent-issues/site exec vitest run --config ../../design-explorations/harness/vite.config.ts
+pnpm --dir logbook --filter @agent-issues/site exec vitest run --config ../../../design-explorations/harness/vite.config.ts
 ```
 
 `LightElement` returns `this` from `createRenderRoot()`. All application views use

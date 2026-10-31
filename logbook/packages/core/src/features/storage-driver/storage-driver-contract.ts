@@ -5,6 +5,7 @@ import { computeEntityContentHash, DEFAULT_EPIC_ID, EntityConflictError, EntityR
 import { computeContextTermContentHash, ContextConflictError, ContextRevisionError, ContextTermConflictError } from "../context/context-types.js";
 import { IssueCommentConflictError } from "./issue-comment-store.js";
 import type { StorageDriver } from "./storage-driver.js";
+import { assignMigrationAuthorship } from "../migration/migration-bundle.js";
 import { projectProposedPlan } from "../plan/plan-snapshot.js";
 
 export type StorageDriverContractOptions = {
@@ -1004,6 +1005,46 @@ export function runStorageDriverContractSuite(options: StorageDriverContractOpti
 	});
 
 	describe(`storage-driver seam: project identity (${label})`, () => {
+		it("moves an initiative and its descendants to another selected project", async () => {
+			const sourceWorkspace = await openStoreForProject("move-source");
+			const destination = await openStoreForProject("move-destination");
+			let source: StorageDriver | undefined;
+
+			try {
+				const initiative = await sourceWorkspace.createEntity({ kind: "initiative", title: "Wayfinder", body: "Retained initiative content." });
+				const foreignInitiative = await destination.createEntity({ kind: "initiative", title: "Foreign source" });
+				const discovery = await sourceWorkspace.getProjectDiscovery();
+				if (discovery.kind !== "available") {
+					throw new Error("Project discovery is unavailable.");
+				}
+				const project = discovery.projects.find((entry) => entry.project.title === "move-source")!.project;
+				const destinationProject = discovery.projects.find((entry) => entry.project.title === "move-destination")!.project;
+				source = await openStoreForProject(project.id);
+				const issue = await source.createEntity({ kind: "issue", parentId: initiative.id, title: "Index source", body: "Retained issue content." });
+				const retainedInitiative = await source.createEntity({ kind: "initiative", title: "Retained initiative" });
+				const retainedIssue = await source.createEntity({ kind: "issue", parentId: retainedInitiative.id, title: "Retained issue" });
+				await source.linkEntities({ fromId: issue.id, toId: retainedIssue.id, relationType: "blocks" });
+				const epic = await destination.createEntity({ kind: "epic", title: "Wayfinder", parentId: destinationProject.id });
+
+				await expect(source.moveEntity({ entityId: foreignInitiative.reference, newParentId: epic.reference })).rejects.toThrow(/not found/i);
+				await source.moveEntity({ entityId: initiative.reference, newParentId: epic.reference });
+
+				expect(await source.listEntities("initiative")).toEqual([expect.objectContaining({ id: retainedInitiative.id })]);
+				expect(await source.listEntities("issue")).toEqual([expect.objectContaining({ id: retainedIssue.id })]);
+				await expect(destination.getEntityDetails(initiative.reference)).resolves.toMatchObject({
+					entity: { id: initiative.id, title: initiative.title, body: "Retained initiative content." },
+					incoming: [expect.objectContaining({ relationType: "contains", entity: expect.objectContaining({ id: epic.id }) })]
+				});
+				await expect(destination.getEntityDetails(issue.reference)).resolves.toMatchObject({
+					entity: { id: issue.id, title: issue.title, body: "Retained issue content." }
+				});
+			} finally {
+				await source?.close();
+				await sourceWorkspace.close();
+				await destination.close();
+			}
+		});
+
 		it("registers an unseen identity as its own project and keeps each identity's work separate", async () => {
 			const repoA = await openStoreForProject("repo-a");
 			const repoB = await openStoreForProject("repo-b");
@@ -1945,6 +1986,21 @@ export function runStorageDriverContractSuite(options: StorageDriverContractOpti
 			}
 		});
 
+		it("links an initiative to another initiative with relatesTo", async () => {
+			const store = await openStore();
+
+			try {
+				const source = await store.createEntity({ kind: "initiative", title: "Source initiative" });
+				const target = await store.createEntity({ kind: "initiative", title: "Related initiative" });
+
+				await expect(store.linkEntities({ fromId: source.id, toId: target.id, relationType: "relatesTo" })).resolves.toEqual(
+					expect.objectContaining({ relation: expect.objectContaining({ fromId: source.id, toId: target.id, type: "relatesTo" }) })
+				);
+			} finally {
+				await store.close();
+			}
+		});
+
 		it("creates a handoff that targets debt", async () => {
 			const store = await openStore();
 
@@ -2592,6 +2648,51 @@ export function runStorageDriverContractSuite(options: StorageDriverContractOpti
 				expect(await target.getSnapshotSignature()).toBe(signatureBefore);
 			} finally {
 				await source.close();
+				await target.close();
+			}
+		});
+	});
+
+	describe(`storage-driver seam: migration bundle (${label})`, () => {
+		it("moves every project and relation into an empty tenant with equal counts, then refuses a second import", async () => {
+			const first = await openStoreForProject("migration-first");
+			const second = await openStoreForProject("migration-second");
+			const target = await openStore();
+			try {
+				const initiative = await first.createEntity({ kind: "initiative", title: "Migrated initiative" });
+				const plan = await first.createEntity({ kind: "plan", title: "Migrated plan", parentId: initiative.id });
+				const issue = await first.createEntity({ kind: "issue", title: "Migrated issue", parentId: initiative.id });
+				await first.createPlanEntry({ planId: plan.id, role: "decision", body: "Migrate every record." });
+				await first.createIssueComment({ issueId: issue.id, body: "Migrated comment." });
+				await first.upsertContext({ title: "Migration", summary: "Migration terms." });
+				await first.defineContextTerm({ term: "Bundle", definition: "Every record of a tenant." });
+				const blocker = await second.createEntity({ kind: "issue", title: "Other project blocker" });
+				const blocked = await second.createEntity({ kind: "issue", title: "Other project blocked" });
+				await second.linkEntities({ fromId: blocker.id, toId: blocked.id, relationType: "blocks" });
+				await first.setProspectorSettings({ tagPrefix: "migrated-" });
+				await second.setProspectorSettings({ tagPrefix: "other-" });
+				const draft = await first.createIssueBreakdownDraft({
+					targetId: initiative.id,
+					issues: [{ key: "only", title: "Only issue", outcome: "Moved.", scope: [], workMode: "AFK", acceptanceCriteria: [], relationReferences: [] }]
+				});
+
+				const bundle = await first.exportMigrationBundle();
+				const sourceCounts = await first.countMigrationRecords();
+				expect(bundle.relations).toEqual(expect.arrayContaining([expect.objectContaining({ fromId: blocker.id, toId: blocked.id, type: "blocks" })]));
+				expect(sourceCounts).toMatchObject({ issueBreakdownDrafts: 1, projectSettings: 2 });
+
+				await expect(target.importMigrationBundle(bundle)).resolves.toEqual(sourceCounts);
+				await expect(target.countMigrationRecords()).resolves.toEqual(sourceCounts);
+				await expect(target.getIssueBreakdownDraft({ draftId: draft.id })).resolves.toEqual(await first.getIssueBreakdownDraft({ draftId: draft.id }));
+				expect((await target.exportMigrationBundle()).projectSettings).toEqual(bundle.projectSettings);
+				expect((await target.exportMigrationBundle()).relations).toEqual(assignMigrationAuthorship(bundle).relations);
+				await expect(target.getEntityDetails(blocked.id)).resolves.toMatchObject({
+					incoming: expect.arrayContaining([expect.objectContaining({ relationType: "blocks", entity: expect.objectContaining({ id: blocker.id }) })])
+				});
+				await expect(target.importMigrationBundle(bundle)).rejects.toThrow(/already contains records/);
+			} finally {
+				await first.close();
+				await second.close();
 				await target.close();
 			}
 		});

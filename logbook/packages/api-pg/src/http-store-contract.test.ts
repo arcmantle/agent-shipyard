@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { HttpStore, LocalAuthProvider, type StorageDriver } from "@agent-issues/core";
+import { deriveUserIdentity, HttpStore, LocalAuthProvider, SYSTEM_AUTHENTICATION_SUBJECT, type StorageDriver } from "@agent-issues/core";
 import { runStorageDriverContractSuite } from "@agent-issues/core/storage-driver-contract";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Pool } from "pg";
@@ -895,12 +895,87 @@ describe("HttpStore over a real JSON-RPC gate", () => {
 		}
 	});
 
+	it("moves personal instruction overrides, history, and fragments to the signed-in importer", async () => {
+		const sourceTenant = createTestTenantId();
+		const targetTenant = createTestTenantId();
+		const version = `migration-${randomUUID()}`;
+		await installInstructionBundle(adminPool, { version, items: [{ key: "skill/prepare", kind: "skill", body: "Default <!-- include:fragment/rules -->" }, { key: "fragment/rules", kind: "fragment", body: "Default rules" }] });
+		const local = new PgStore(appPool, sourceTenant).withAuthenticatedIdentity({ tenantId: sourceTenant, userId: "local:alice" });
+		const first = await local.saveInstructionSource({ version, key: "skill/prepare", body: "First <!-- include:fragment/rules -->", expectedRevision: 1 });
+		await local.createInstructionFragment({ version, key: "fragment/private", body: "private notes" });
+		await local.saveInstructionSource({ version, key: "skill/prepare", body: "Personal <!-- include:fragment/rules --> <!-- include:fragment/private -->", expectedRevision: first.source.revision });
+		const expected = await local.retrieveInstruction({ version, key: "skill/prepare" });
+		const bundle = await local.exportMigrationBundle();
+		expect(bundle.instructions.overrides).toHaveLength(1);
+		expect(bundle.instructions.personalFragments).toHaveLength(1);
+
+		const target = new PgStore(appPool, targetTenant).withAuthenticatedIdentity({ tenantId: targetTenant, userId: "entra-oid-ada", roles: ["Logbook.Admin"] });
+		const counts = await target.importMigrationBundle(bundle);
+
+		expect(counts).toMatchObject({ instructionOverrides: 1, instructionPersonalFragments: 1, instructionHistory: bundle.instructions.history.length });
+		await expect(target.retrieveInstruction({ version, key: "skill/prepare" })).resolves.toMatchObject({ body: expected.body });
+		await expect(target.listInstructionHistory({ version, key: "skill/prepare" })).resolves.toMatchObject({ revisions: expect.arrayContaining([expect.objectContaining({ body: "First <!-- include:fragment/rules -->" })]) });
+	});
+
+	it("gives migrated local authorship to the signed-in importer and keeps every revision readable", async () => {
+		const sourceTenant = createTestTenantId();
+		const targetTenant = createTestTenantId();
+		const local = new PgStore(appPool, sourceTenant).withAuthenticatedIdentity({ tenantId: sourceTenant, userId: "local:alice", displayName: "alice" });
+		const created = await local.createEntity({ kind: "issue", title: "Local first", body: "First" });
+		await local.updateEntity({ entityId: created.id, title: "Local second", expectedRevision: created.revision, expectedContentHash: created.contentHash });
+		const legacy = await local.createEntity({ kind: "issue", title: "Legacy system record" });
+		const bundle = await local.exportMigrationBundle();
+		const legacyChain = bundle.chains.entities.find((chain) => chain.head.id === legacy.id)!;
+		legacyChain.head = { ...legacyChain.head, createdBy: "system", updatedBy: "system" };
+
+		const target = new PgStore(appPool, targetTenant).withAuthenticatedIdentity({ tenantId: targetTenant, userId: "entra-oid-ada", displayName: "Ada", roles: ["Logbook.Admin"] });
+		await target.importMigrationBundle(bundle);
+
+		const localUser = deriveUserIdentity("local:alice").id;
+		const owner = deriveUserIdentity("entra-oid-ada").id;
+		const migrated = await target.exportMigrationBundle();
+		expect(JSON.stringify(migrated)).not.toContain(localUser);
+		expect(migrated.chains.users.map((user) => user.authenticationSubject)).toContain("entra-oid-ada");
+		expect(migrated.chains.entities.find((chain) => chain.head.id === created.id)?.head).toMatchObject({ createdBy: owner, updatedBy: owner });
+		expect(migrated.chains.entities.find((chain) => chain.head.id === legacy.id)?.head.createdBy).toBe(deriveUserIdentity(SYSTEM_AUTHENTICATION_SUBJECT).id);
+		await expect(target.materializeEntityRevision({ entityId: created.id, revision: 1 })).resolves.toMatchObject({ title: "Local first", headRevision: 2 });
+	});
+
 	it("rejects instruction retrieval when storage is unavailable", async () => {
 		const pool = createPgPool({ connectionString: APP_CONNECTION_STRING });
 		const tenantId = createTestTenantId();
 		const store = new PgStore(pool, tenantId).withAuthenticatedIdentity({ tenantId, userId: "alice" });
 		await pool.end();
 		await expect(store.retrieveInstruction({ version: "1.0.0", key: "skill/prepare" })).rejects.toThrow("Cannot use a pool after calling end");
+	});
+
+	it("limits changes by Entra app role when the identity carries roles", async () => {
+		const tenantId = createTestTenantId();
+		const version = `admin-${randomUUID()}`;
+		await installInstructionBundle(adminPool, { version, items: [{ key: "skill/prepare", kind: "skill", body: "Default" }] });
+		const store = (roles: string[]) => new PgStore(appPool, tenantId).withAuthenticatedIdentity({ tenantId, userId: "alice", roles });
+		const input = { version, key: "skill/prepare", body: "Admin override", expectedRevision: 1 };
+		for (const roles of [[], ["Logbook.Reader"]]) {
+			await expect(store(roles).createEntity({ kind: "initiative", title: "Denied" })).rejects.toThrow("requires the Logbook.Writer role");
+			await expect(store(roles).deleteTenant(tenantId)).rejects.toThrow("requires the Logbook.Admin role");
+		}
+		const created = await store(["Logbook.Writer"]).createEntity({ kind: "initiative", title: "Written" });
+		expect(await store(["Logbook.Reader"]).getEntityDetails(created.id)).toMatchObject({ entity: { title: "Written" } });
+		const migration = await store(["Logbook.Reader"]).exportMigrationBundle();
+		await expect(store(["Logbook.Writer"]).importMigrationBundle(migration)).rejects.toThrow("requires the Logbook.Admin role");
+		for (const change of [
+			(reader: StorageDriver) => reader.saveInstructionSource(input),
+			(reader: StorageDriver) => reader.commitInstructionChanges({ version, changes: [{ operation: "save", key: "skill/prepare", body: "Batch", expectedRevision: 1 }] }),
+			(reader: StorageDriver) => reader.resetInstructionSource({ version, key: "skill/prepare", expectedRevision: 1 }),
+			(reader: StorageDriver) => reader.restoreInstructionRevision({ version, key: "skill/prepare", revision: 1, expectedRevision: 1 }),
+			(reader: StorageDriver) => reader.resetInstructionAll({ version, expectedRevisions: [] }),
+			(reader: StorageDriver) => reader.createInstructionFragment({ version, key: "fragment/private", body: "Private" }),
+			(reader: StorageDriver) => reader.removeInstructionFragment({ version, key: "fragment/private", expectedRevision: 1 })
+		]) {
+			await expect(change(store(["Logbook.Writer"]))).rejects.toThrow("requires the Logbook.Admin role");
+		}
+		expect(await store([]).retrieveInstruction({ version, key: "skill/prepare" })).toMatchObject({ body: "Default" });
+		await expect(store(["Logbook.Admin"]).saveInstructionSource(input)).resolves.toMatchObject({ body: "Admin override" });
 	});
 
 	it("assembles owner-scoped nested fragments through PostgreSQL and HTTP with revision metadata", async () => {

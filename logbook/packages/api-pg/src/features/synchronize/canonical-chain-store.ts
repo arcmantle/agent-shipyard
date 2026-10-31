@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import {
+	DEFAULT_EPIC_ID,
 	DEFAULT_PROJECT_ID,
 	CompletionObservationConflictError,
 	deriveMigratedEntityIdentity,
@@ -29,6 +30,11 @@ import {
 	type CanonicalIssueCommentChain,
 	type CanonicalPlanEntryChain,
 	type CompletionObservation,
+	type MigrationBundle,
+	type MigrationInstructions,
+	type MigrationRecordCounts,
+	type RelationRecord,
+	type RelationType,
 	type UserDirectoryRecord,
 	type SynchronizeStore
 } from "@agent-issues/core";
@@ -81,7 +87,7 @@ export async function exportCanonicalChains(executor: TenantExecutor): Promise<C
 	return {
 		entities: (entitiesResult.rows as EntityHeadRow[]).map((row): CanonicalEntityChain => {
 			if (!isEntityKind(row.kind) || !isBodySource(row.body_source)) throw new Error(`Cannot export invalid entity ${row.id}.`);
-			return { head: { id: row.id, reference: row.reference, shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, kind: row.kind, title: row.title, body: row.body, bodySource: row.body_source, category: row.category && isEntityCategory(row.category) ? row.category : null, priority: row.priority && isEntityPriority(row.priority) ? row.priority : null, type: row.type && isEntityType(row.kind, row.type) ? row.type : null, status: row.status, parentId: row.parent_id, tombstone: row.tombstone, revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at }, deltas: ledgerRows.filter((delta) => delta.project_id === row.project_id && delta.record_kind === "entity" && delta.record_key === encodeEntityRecordKey(row.id)).map(mapDelta) };
+			return { head: { id: row.id, reference: row.reference, shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, kind: row.kind, title: row.title, body: row.body, bodySource: row.body_source, category: row.category && isEntityCategory(row.category) ? row.category : null, priority: row.priority && isEntityPriority(row.priority) ? row.priority : null, type: row.type && isEntityType(row.kind, row.type) ? row.type : null, status: row.status, parentId: row.parent_id, tombstone: row.tombstone, revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at }, deltas: ledgerRows.filter((delta) => delta.record_kind === "entity" && delta.record_key === encodeEntityRecordKey(row.id)).sort((left, right) => left.revision - right.revision).map(mapDelta) };
 		}),
 		contexts: (contextsResult.rows as ContextHeadRow[]).map((row): CanonicalContextChain => ({ head: { id: row.id, reference: row.reference, shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, key: row.key, scopeEntityId: row.scope_entity_id, title: row.title, summary: row.summary, revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at }, deltas: ledgerRows.filter((delta) => delta.record_kind === "context" && delta.record_key === encodeContextRecordKey(row.id)).map(mapDelta) })),
 		contextTerms: (termsResult.rows as ContextTermHeadRow[]).map((row): CanonicalContextTermChain => ({ head: { id: row.id, reference: encodeCanonicalReference("contextTerm", row.id), shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, contextKey: row.context_key, term: row.term, definition: row.definition, avoid: parseStringArray(row.avoid_terms), tombstone: row.tombstone, revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at }, deltas: ledgerRows.filter((delta) => delta.record_kind === "context-term" && delta.record_key === encodeContextTermRecordKey(row.id)).map(mapDelta) })),
@@ -321,7 +327,8 @@ async function getContextProjectId(executor: TenantExecutor, contextKey: string,
 	if (contextKey === "default") return deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId;
 	if (contextKey.startsWith("default:")) {
 		const projectId = contextKey.slice("default:".length);
-		return projectId === DEFAULT_PROJECT_ID ? deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId : projectId;
+		// Legacy keys name the project by its pre-UUID reference, such as PROJ2.
+		return UUID_PATTERN.test(projectId) ? projectId : deriveMigratedEntityIdentity("project", projectId).stableId;
 	}
 	const result = await executor.execute(sql`SELECT scope_entity_id FROM contexts WHERE tenant_id=${executor.tenantId} AND key=${contextKey}`);
 	const storedScope = (result.rows[0] as { scope_entity_id: string | null } | undefined)?.scope_entity_id;
@@ -333,6 +340,112 @@ function parseStringArray(value: string): string[] {
 	try { const parsed = JSON.parse(value) as unknown; return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []; } catch { return []; }
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function exportMigrationBundle(executor: TenantExecutor, instructionOwnerId?: string): Promise<MigrationBundle> {
+	const relations = await executor.execute(sql`SELECT from_id, to_id, type, created_by, created_at FROM relations WHERE tenant_id=${executor.tenantId} ORDER BY from_id, to_id, type`);
+	const drafts = await executor.execute(sql`SELECT * FROM issue_breakdown_drafts WHERE tenant_id=${executor.tenantId} ORDER BY created_at, id`);
+	const settings = await executor.execute(sql`SELECT project_id, prospector_settings FROM project_settings WHERE tenant_id=${executor.tenantId} ORDER BY project_id`);
+	return {
+		chains: await exportCanonicalChains(executor),
+		relations: (relations.rows as Array<{ from_id: string; to_id: string; type: string; created_by: string | null; created_at: string }>).map((row): RelationRecord => ({ fromId: row.from_id, toId: row.to_id, type: row.type as RelationType, createdBy: row.created_by ?? "", createdAt: row.created_at })),
+		issueBreakdownDrafts: (drafts.rows as Array<{ id: string; target_id: string; status: string; snapshot_json: string; snapshot_digest: string; approved_at: string | null; created_issue_references: string; created_at: string; updated_at: string }>).map((row) => ({ id: row.id, targetId: row.target_id, status: row.status, snapshotJson: row.snapshot_json, snapshotDigest: row.snapshot_digest, approvedAt: row.approved_at, createdIssueReferences: row.created_issue_references, createdAt: row.created_at, updatedAt: row.updated_at })),
+		projectSettings: (settings.rows as Array<{ project_id: string; prospector_settings: string }>).map((row) => ({ projectId: row.project_id, prospectorSettings: row.prospector_settings })),
+		instructions: await exportOwnerInstructions(executor, instructionOwnerId)
+	};
+}
+
+// Row-level security shows instruction rows only for the owner set in app.instruction_user_id.
+async function selectInstructionOwner(executor: TenantExecutor, instructionOwnerId: string | undefined): Promise<boolean> {
+	if (!instructionOwnerId) return false;
+	await executor.execute(sql`SELECT set_config('app.instruction_user_id', ${instructionOwnerId}, true)`);
+	return true;
+}
+
+async function exportOwnerInstructions(executor: TenantExecutor, instructionOwnerId: string | undefined): Promise<MigrationInstructions> {
+	if (!await selectInstructionOwner(executor, instructionOwnerId)) return { overrides: [], personalFragments: [], history: [] };
+	const overrides = await executor.execute(sql`SELECT item_key, kind, body, revision, content_hash, default_version FROM instruction_overrides WHERE tenant_id=${executor.tenantId} AND user_id=${instructionOwnerId} ORDER BY item_key`);
+	const fragments = await executor.execute(sql`SELECT item_key, revision, body, content_hash, removed FROM instruction_personal_fragments WHERE tenant_id=${executor.tenantId} AND user_id=${instructionOwnerId} ORDER BY item_key, revision`);
+	const history = await executor.execute(sql`SELECT item_key, revision, kind, body, content_hash, default_version, is_default FROM instruction_history WHERE tenant_id=${executor.tenantId} AND user_id=${instructionOwnerId} ORDER BY item_key, revision`);
+	return {
+		overrides: (overrides.rows as Array<{ item_key: string; kind: string; body: string; revision: number; content_hash: string; default_version: string }>).map((row) => ({ itemKey: row.item_key, kind: row.kind, body: row.body, revision: row.revision, contentHash: row.content_hash, defaultVersion: row.default_version })),
+		personalFragments: (fragments.rows as Array<{ item_key: string; revision: number; body: string; content_hash: string; removed: boolean }>).map((row) => ({ itemKey: row.item_key, revision: row.revision, body: row.body, contentHash: row.content_hash, removed: row.removed })),
+		history: (history.rows as Array<{ item_key: string; revision: number; kind: string; body: string; content_hash: string; default_version: string; is_default: boolean }>).map((row) => ({ itemKey: row.item_key, revision: row.revision, kind: row.kind, body: row.body, contentHash: row.content_hash, defaultVersion: row.default_version, isDefault: row.is_default }))
+	};
+}
+
+export async function countMigrationRecords(executor: TenantExecutor, instructionOwnerId?: string): Promise<MigrationRecordCounts> {
+	const tenantId = executor.tenantId;
+	const owner = await selectInstructionOwner(executor, instructionOwnerId) ? instructionOwnerId! : "";
+	const result = await executor.execute(sql`SELECT
+		(SELECT count(*) FROM entities WHERE tenant_id=${tenantId}) AS entities,
+		(SELECT count(*) FROM relations WHERE tenant_id=${tenantId}) AS relations,
+		(SELECT count(*) FROM contexts WHERE tenant_id=${tenantId}) AS contexts,
+		(SELECT count(*) FROM context_terms WHERE tenant_id=${tenantId}) AS context_terms,
+		(SELECT count(*) FROM issue_comments WHERE tenant_id=${tenantId}) AS issue_comments,
+		(SELECT count(*) FROM plan_entries WHERE tenant_id=${tenantId}) AS plan_entries,
+		(SELECT count(*) FROM completion_observations WHERE tenant_id=${tenantId}) AS completion_observations,
+		(SELECT count(*) FROM revision_entries WHERE tenant_id=${tenantId}) AS revision_entries,
+		(SELECT count(*) FROM issue_breakdown_drafts WHERE tenant_id=${tenantId}) AS issue_breakdown_drafts,
+		(SELECT count(*) FROM project_settings WHERE tenant_id=${tenantId}) AS project_settings,
+		(SELECT count(*) FROM instruction_overrides WHERE tenant_id=${tenantId} AND user_id=${owner}) AS instruction_overrides,
+		(SELECT count(*) FROM instruction_personal_fragments WHERE tenant_id=${tenantId} AND user_id=${owner}) AS instruction_personal_fragments,
+		(SELECT count(*) FROM instruction_history WHERE tenant_id=${tenantId} AND user_id=${owner}) AS instruction_history`);
+	const row = result.rows[0] as Record<string, string | number>;
+	return {
+		entities: Number(row.entities), relations: Number(row.relations), contexts: Number(row.contexts), contextTerms: Number(row.context_terms),
+		issueComments: Number(row.issue_comments), planEntries: Number(row.plan_entries), completionObservations: Number(row.completion_observations), revisionEntries: Number(row.revision_entries),
+		issueBreakdownDrafts: Number(row.issue_breakdown_drafts), projectSettings: Number(row.project_settings),
+		instructionOverrides: Number(row.instruction_overrides), instructionPersonalFragments: Number(row.instruction_personal_fragments), instructionHistory: Number(row.instruction_history)
+	};
+}
+
+export async function importMigrationBundle(executor: TenantExecutor, bundle: MigrationBundle, instructionOwnerId?: string): Promise<MigrationRecordCounts> {
+	const seededProject = deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId;
+	const seededEpic = deriveMigratedEntityIdentity("epic", DEFAULT_EPIC_ID).stableId;
+	await executor.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`migration:${executor.tenantId}`}))`);
+	const owner = await selectInstructionOwner(executor, instructionOwnerId) ? instructionOwnerId! : "";
+	const existing = await executor.execute(sql`SELECT
+		(SELECT count(*) FROM entities WHERE tenant_id=${executor.tenantId} AND id NOT IN (${seededProject}::uuid, ${seededEpic}::uuid)) +
+		(SELECT count(*) FROM context_terms WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM issue_comments WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM plan_entries WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM completion_observations WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM issue_breakdown_drafts WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM project_settings WHERE tenant_id=${executor.tenantId}) +
+		(SELECT count(*) FROM instruction_overrides WHERE tenant_id=${executor.tenantId} AND user_id=${owner}) +
+		(SELECT count(*) FROM instruction_personal_fragments WHERE tenant_id=${executor.tenantId} AND user_id=${owner}) +
+		(SELECT count(*) FROM instruction_history WHERE tenant_id=${executor.tenantId} AND user_id=${owner}) AS records`);
+	if (Number((existing.rows[0] as { records: string | number }).records) > 0) {
+		throw new Error("The migration target already contains records. Migrate only into an empty tenant.");
+	}
+	await importCanonicalChains(executor, bundle.chains);
+	for (const relation of bundle.relations) {
+		const createdBy = UUID_PATTERN.test(relation.createdBy) ? relation.createdBy : null;
+		await executor.execute(sql`INSERT INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}::uuid, ${relation.toId}::uuid, ${relation.type}, ${createdBy}::uuid, ${relation.createdAt}) ON CONFLICT (tenant_id, from_id, to_id, type) DO UPDATE SET created_by = excluded.created_by, created_at = excluded.created_at`);
+	}
+	for (const draft of bundle.issueBreakdownDrafts) {
+		await executor.execute(sql`INSERT INTO issue_breakdown_drafts (tenant_id, id, target_id, status, snapshot_json, snapshot_digest, approved_at, created_issue_references, created_at, updated_at) VALUES (${executor.tenantId}, ${draft.id}::uuid, ${draft.targetId}::uuid, ${draft.status}, ${draft.snapshotJson}, ${draft.snapshotDigest}, ${draft.approvedAt}, ${draft.createdIssueReferences}, ${draft.createdAt}, ${draft.updatedAt})`);
+	}
+	for (const settings of bundle.projectSettings) {
+		await executor.execute(sql`INSERT INTO project_settings (tenant_id, project_id, prospector_settings) VALUES (${executor.tenantId}, ${settings.projectId}::uuid, ${settings.prospectorSettings}) ON CONFLICT (tenant_id, project_id) DO UPDATE SET prospector_settings = excluded.prospector_settings`);
+	}
+	const { overrides, personalFragments, history } = bundle.instructions;
+	if (overrides.length + personalFragments.length + history.length > 0) {
+		if (!await selectInstructionOwner(executor, instructionOwnerId)) throw new Error("Importing personal instructions requires an authenticated owner.");
+		for (const row of overrides) {
+			await executor.execute(sql`INSERT INTO instruction_overrides (tenant_id, user_id, item_key, kind, body, revision, content_hash, default_version) VALUES (${executor.tenantId}, ${instructionOwnerId}, ${row.itemKey}, ${row.kind}, ${row.body}, ${row.revision}, ${row.contentHash}, ${row.defaultVersion})`);
+		}
+		for (const row of personalFragments) {
+			await executor.execute(sql`INSERT INTO instruction_personal_fragments (tenant_id, user_id, item_key, revision, body, content_hash, removed) VALUES (${executor.tenantId}, ${instructionOwnerId}, ${row.itemKey}, ${row.revision}, ${row.body}, ${row.contentHash}, ${row.removed})`);
+		}
+		for (const row of history) {
+			await executor.execute(sql`INSERT INTO instruction_history (tenant_id, user_id, item_key, revision, kind, body, content_hash, default_version, is_default) VALUES (${executor.tenantId}, ${instructionOwnerId}, ${row.itemKey}, ${row.revision}, ${row.kind}, ${row.body}, ${row.contentHash}, ${row.defaultVersion}, ${row.isDefault})`);
+		}
+	}
+	return countMigrationRecords(executor, instructionOwnerId);
+}
+
 /**
  * The synchronize feature class (ADR "Backends mirror one another per
  * feature, behind all-async feature interfaces"): a thin wrapper over the
@@ -341,7 +454,7 @@ function parseStringArray(value: string): string[] {
  * classes.
  */
 export class PgSynchronizeStore implements SynchronizeStore {
-	public constructor(private readonly executor: TenantExecutor) {}
+	public constructor(private readonly executor: TenantExecutor, private readonly instructionOwnerId?: string) {}
 
 	public async exportCanonicalChains(): Promise<CanonicalChainBundle> {
 		return exportCanonicalChains(this.executor);
@@ -349,5 +462,17 @@ export class PgSynchronizeStore implements SynchronizeStore {
 
 	public async importCanonicalChains(bundle: CanonicalChainBundle): Promise<CanonicalChainImportResult> {
 		return importCanonicalChains(this.executor, bundle);
+	}
+
+	public async exportMigrationBundle(): Promise<MigrationBundle> {
+		return exportMigrationBundle(this.executor, this.instructionOwnerId);
+	}
+
+	public async importMigrationBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
+		return importMigrationBundle(this.executor, bundle, this.instructionOwnerId);
+	}
+
+	public async countMigrationRecords(): Promise<MigrationRecordCounts> {
+		return countMigrationRecords(this.executor, this.instructionOwnerId);
 	}
 }

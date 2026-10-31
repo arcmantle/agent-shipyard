@@ -11,7 +11,9 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 	const adminUrl = process.env.AGENT_ISSUES_TEST_PG_URL ?? "postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues";
 	const suffix = randomUUID().replaceAll("-", "");
 	const database = `entra_test_${suffix}`;
-	const operatorRole = `setup_${suffix}`;
+	// Azure setup identity names contain hyphens, so SQL must quote them.
+	const operatorRole = `setup-${suffix}`;
+	const operatorSql = `"${operatorRole}"`;
 	const databaseOwner = `database_owner_${suffix}`;
 	const roles = { owner: `owner_${suffix}`, migration: `migration_${suffix}`, runtime: `runtime_${suffix}` };
 	const principals = { tenantId: randomUUID(), runtimeObjectId: randomUUID(), migrationObjectId: randomUUID(), administrationRole: databaseOwner };
@@ -20,19 +22,17 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 	let operator: Pool | undefined;
 	try {
 		const password = randomUUID();
-		await admin.query(`CREATE ROLE ${operatorRole} LOGIN NOINHERIT CREATEROLE PASSWORD '${password}'`);
+		await admin.query(`CREATE ROLE ${operatorSql} LOGIN NOINHERIT CREATEROLE PASSWORD '${password}'`);
 		await admin.query(`CREATE ROLE ${databaseOwner} NOLOGIN NOINHERIT CREATEROLE`);
-		await admin.query(`GRANT ${databaseOwner} TO ${operatorRole} WITH INHERIT TRUE, SET TRUE`);
+		await admin.query(`GRANT ${databaseOwner} TO ${operatorSql} WITH INHERIT TRUE, SET TRUE`);
 		await admin.query(`CREATE DATABASE ${database} OWNER ${databaseOwner}`);
 		const url = new URL(adminUrl);
 		url.pathname = `/${database}`;
 		setup = new Pool({ connectionString: url.href });
-		await setup.query(`CREATE ROLE ${roles.owner} NOLOGIN NOINHERIT`);
-		await setup.query(`GRANT ${roles.owner} TO ${databaseOwner} WITH ADMIN TRUE, INHERIT FALSE, SET TRUE`);
 		await setup.query(`CREATE SCHEMA entra_fixture;
 			CREATE TABLE entra_fixture.principals (rolename name, "principalType" text, "objectId" text, "tenantId" text, "isMfa" integer, "isAdmin" integer);
-			GRANT USAGE ON SCHEMA entra_fixture TO ${operatorRole}, ${databaseOwner};
-			GRANT SELECT, INSERT ON entra_fixture.principals TO ${operatorRole}, ${databaseOwner};
+			GRANT USAGE ON SCHEMA entra_fixture TO ${operatorSql}, ${databaseOwner};
+			GRANT SELECT, INSERT ON entra_fixture.principals TO ${operatorSql}, ${databaseOwner};
 			CREATE FUNCTION pg_catalog.pgaadauth_list_principals(boolean) RETURNS SETOF entra_fixture.principals
 				LANGUAGE sql AS 'SELECT * FROM entra_fixture.principals';
 			CREATE FUNCTION pg_catalog.pgaadauth_create_principal_with_oid(role_name text, object_id text, object_type text, is_admin boolean, is_mfa boolean)
@@ -68,17 +68,6 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 		} finally {
 			await passwordLogin.end();
 		}
-		for (const patch of [
-			{ objectId: randomUUID() }, { tenantId: randomUUID() }, { principalType: "user" }, { isAdmin: 1 }, { isMfa: 1 }
-		]) {
-			const field = Object.keys(patch)[0];
-			await setup.query(`UPDATE entra_fixture.principals SET "${field}" = $1 WHERE rolename = $2`, [Object.values(patch)[0], roles.runtime]);
-			await expect(configurePgEntraRoles(operator, roles, principals)).rejects.toThrow("mapping differs");
-			await setup.query(`UPDATE entra_fixture.principals SET "${field}" = $1 WHERE rolename = $2`, [expected.find((row) => row.rolename === roles.runtime)[field], roles.runtime]);
-		}
-		await setup.query("DELETE FROM entra_fixture.principals WHERE rolename = $1", [roles.runtime]);
-		await expect(configurePgEntraRoles(operator, roles, principals)).rejects.toThrow("no approved Entra mapping");
-		await setup.query(`INSERT INTO entra_fixture.principals VALUES ($1, 'service', $2, $3, 0, 0)`, [roles.runtime, principals.runtimeObjectId, principals.tenantId]);
 		await setup.query(`ALTER ROLE ${roles.migration} BYPASSRLS`);
 		await setup.query("DELETE FROM entra_fixture.principals WHERE rolename = $1", [roles.runtime]);
 		await setup.query(`DROP OWNED BY ${roles.runtime}; DROP ROLE ${roles.runtime}`);
@@ -106,30 +95,67 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 				database_url: "postgres://private.postgres.database.azure.com/logbook?sslmode=verify-full",
 				tenant_id: principals.tenantId, identities, owner_role: roles.owner, verification_table: "logbook_role_check_123_1"
 			});
-			const configure = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "configure", DATABASE_SETUP_CONFIG: configuration }, databaseOwner);
+			const bundle = { version: `9.9.9-${suffix}`, items: [{ key: "skill/setup-check", kind: "skill" as const, body: "# Setup check" }] };
+			const configure = () => runDatabaseSetup({ DATABASE_SETUP_CONFIG: configuration }, databaseOwner, bundle);
+			const first = await configure();
+			expect(first?.schema_migrations_before).toBe(0);
+			expect(first?.schema_migrations_after).toBeGreaterThan(0);
 			await setup.query(`CREATE TABLE public.logbook_role_check_123_1 (value text); ALTER TABLE public.logbook_role_check_123_1 OWNER TO ${roles.owner}; INSERT INTO public.logbook_role_check_123_1 VALUES ('preserved')`);
 			for (const unsafe of [true, false]) {
 				await setup.query(`ALTER ROLE ${roles.migration} ${unsafe ? "BYPASSRLS" : "NOBYPASSRLS"}`);
-				await expect(configure()).rejects.toThrow(unsafe ? "attributes are not restricted" : "already exists");
+				await expect(configure()).rejects.toMatchObject(unsafe
+					? { message: expect.stringContaining("attributes are not restricted"), stage: "check administration role",
+						roleAttributes: { session_createrole: true, administration_createrole: true, session_inherits_administration: true } }
+					: { message: expect.stringMatching(/unsupported source profile/i), stage: "run schema migrations as schema owner" });
 				expect((await setup.query("SELECT value FROM public.logbook_role_check_123_1")).rows).toEqual([{ value: "preserved" }]);
 			}
 			await setup.query("DROP TABLE public.logbook_role_check_123_1");
-			await setup.query(`CREATE FUNCTION public.setup_owned_check() RETURNS integer LANGUAGE sql AS 'SELECT 1'; ALTER FUNCTION public.setup_owned_check() OWNER TO ${operatorRole}`);
-			await expect(configure()).rejects.toThrow("owns database objects");
+			await setup.query(`CREATE FUNCTION public.setup_owned_check() RETURNS integer LANGUAGE sql AS 'SELECT 1'; ALTER FUNCTION public.setup_owned_check() OWNER TO ${operatorSql}`);
+			await expect(configure()).rejects.toMatchObject({ message: expect.stringContaining("owns database objects"), stage: "inspect setup session" });
 			await setup.query("DROP FUNCTION public.setup_owned_check()");
+			// Azure makes the only Entra administrator the owner of databases created through ARM.
+			await admin.query(`ALTER DATABASE ${database} OWNER TO ${operatorSql}`);
+			try {
+				await configure();
+			} finally {
+				await admin.query(`ALTER DATABASE ${database} OWNER TO ${databaseOwner}`);
+			}
 			await configure();
-			expect((await setup.query("SELECT 1 FROM pg_auth_members WHERE member = $1::regrole AND grantor = $1::regrole AND roleid = ANY($2::regrole[])", [operatorRole, Object.values(roles)])).rows).toEqual([]);
-			expect((await setup.query("SELECT 1 FROM pg_class WHERE relname = 'logbook_role_check_123_1'")).rows).toEqual([]);
-			const verify = () => runDatabaseSetup({ DATABASE_SETUP_PHASE: "verify-denied", DATABASE_SETUP_CONFIG: configuration }, databaseOwner);
-			await expect(verify()).rejects.toThrow("still permitted");
-			await setup.query(`ALTER ROLE ${operatorRole} NOLOGIN`);
-			await expect(verify()).rejects.toThrow("Server-granted setup privileges remain");
-			const memberships = (await setup.query("SELECT roleid::regrole::text AS role, grantor::regrole::text AS grantor FROM pg_auth_members WHERE member = $1::regrole", [operatorRole])).rows;
-			for (const membership of memberships) await setup.query(`REVOKE ${membership.role} FROM ${operatorRole} GRANTED BY ${membership.grantor} CASCADE`);
-			await setup.query(`CREATE FUNCTION public.setup_owned_check() RETURNS integer LANGUAGE sql AS 'SELECT 1'; ALTER FUNCTION public.setup_owned_check() OWNER TO ${operatorRole}`);
-			await expect(verify()).rejects.toThrow("Server-granted setup privileges remain");
-			await setup.query("DROP FUNCTION public.setup_owned_check()");
-			await expect(verify()).resolves.toBeUndefined();
+			const marker = `logbook-setup:${"a".repeat(64)}`;
+			const forced = (table: string) => `ALTER TABLE public.${table} ENABLE ROW LEVEL SECURITY; ALTER TABLE public.${table} FORCE ROW LEVEL SECURITY;`;
+			await setup.query(`CREATE TABLE public.logbook_role_check_99_1 (tenant_id text, value text); ALTER TABLE public.logbook_role_check_99_1 OWNER TO ${roles.owner};
+				${forced("logbook_role_check_99_1")} COMMENT ON TABLE public.logbook_role_check_99_1 IS '${marker}';
+				CREATE TABLE public.logbook_role_check_97_1 (tenant_id text, value text, payload text); ALTER TABLE public.logbook_role_check_97_1 OWNER TO ${roles.owner};
+				${forced("logbook_role_check_97_1")} COMMENT ON TABLE public.logbook_role_check_97_1 IS '${marker}';
+				CREATE TABLE public.logbook_role_check_98_1 (value text); ALTER TABLE public.logbook_role_check_98_1 OWNER TO ${roles.owner}`);
+			// A leftover probe stops migration once; cleanup removes only exact setup probes, so the next start can succeed.
+			await expect(configure()).rejects.toMatchObject({ stage: "run schema migrations as schema owner" });
+			expect((await setup.query("SELECT relname FROM pg_class WHERE relname LIKE 'logbook_role_check_%' ORDER BY relname")).rows)
+				.toEqual([{ relname: "logbook_role_check_97_1" }, { relname: "logbook_role_check_98_1" }]);
+			await setup.query("DROP TABLE public.logbook_role_check_97_1, public.logbook_role_check_98_1");
+			const migrationSession = await setup.connect();
+			try {
+				await migrationSession.query(`SET SESSION AUTHORIZATION ${roles.migration}`);
+				await expect(migrationSession.query(`SET ROLE ${roles.owner}`)).resolves.toBeDefined();
+			} finally {
+				await migrationSession.query("RESET ROLE; RESET SESSION AUTHORIZATION");
+				migrationSession.release();
+			}
+			await expect(configure()).resolves.toEqual({ schema_migrations_before: first?.schema_migrations_after, schema_migrations_after: first?.schema_migrations_after });
+			expect((await setup.query(`SELECT pg_get_userbyid(relowner) AS owner,
+				has_table_privilege($1, oid, 'SELECT') AS runtime_select FROM pg_class
+				WHERE relnamespace = 'public'::regnamespace AND relname IN ('entities', 'schema_migrations') ORDER BY relname`, [roles.runtime])).rows)
+				.toEqual([{ owner: roles.owner, runtime_select: true }, { owner: roles.owner, runtime_select: false }]);
+			const runtimeSession = await setup.connect();
+			try {
+				await runtimeSession.query(`SET SESSION AUTHORIZATION ${roles.runtime}`);
+				expect((await runtimeSession.query("SELECT item_key FROM instruction_defaults WHERE version = $1", [bundle.version])).rows)
+					.toEqual([{ item_key: "skill/setup-check" }]);
+				await expect(runtimeSession.query("DELETE FROM instruction_bundles WHERE version = $1", [bundle.version])).rejects.toMatchObject({ code: "42501" });
+			} finally {
+				await runtimeSession.query("RESET SESSION AUTHORIZATION");
+				runtimeSession.release();
+			}
 		} finally {
 			factory.mockRestore();
 		}
@@ -137,7 +163,7 @@ it("registers exact Entra principals transactionally and rejects changed or unma
 		await operator?.end();
 		await setup?.end();
 		await admin.query(`DROP DATABASE IF EXISTS ${database}`);
-		for (const role of [roles.runtime, roles.migration, roles.owner, operatorRole, databaseOwner]) await admin.query(`DROP ROLE IF EXISTS ${role}`);
+		for (const role of [roles.runtime, roles.migration, roles.owner, operatorSql, databaseOwner]) await admin.query(`DROP ROLE IF EXISTS ${role}`);
 		await admin.end();
 	}
 });

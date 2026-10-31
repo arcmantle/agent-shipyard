@@ -2,6 +2,9 @@ import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 
 import type { AuthIdentity, AuthProvider } from "@agent-issues/core";
 
+/** Delegated scope that the Logbook API app registration exposes; clients request `api://<clientId>/access_as_user`. */
+export const LOGBOOK_API_SCOPE = "access_as_user";
+
 export type EntraIdAuthProviderOptions = {
 	/** The Entra ID (Azure AD) tenant GUID this provider trusts tokens from. */
 	tenantId: string;
@@ -60,6 +63,12 @@ export class EntraIdAuthProvider implements AuthProvider {
 			throw new Error(`Entra ID token tenant mismatch: expected ${this.tenantId}, got ${tenantId}.`);
 		}
 
-		return { userId, tenantId, ...(displayName !== undefined && { displayName }) };
+		const scopes = typeof payload.scp === "string" ? payload.scp.split(" ") : [];
+		if (!scopes.includes(LOGBOOK_API_SCOPE)) {
+			throw new Error(`Entra ID token lacks the delegated ${LOGBOOK_API_SCOPE} scope.`);
+		}
+
+		const roles = Array.isArray(payload.roles) ? payload.roles.filter((role): role is string => typeof role === "string") : [];
+		return { userId, tenantId, ...(displayName !== undefined && { displayName }), roles };
 	}
 }

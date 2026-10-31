@@ -785,6 +785,7 @@ export function moveEntity(
 			FROM relations
 			JOIN subtree ON relations.from_id = subtree.id
 			WHERE relations.tenant_id = ${executor.tenantId}
+				AND relations.type IN (${sql.join(STRUCTURAL_RELATION_TYPES.map((relationType) => sql`${relationType}`), sql`, `)})
 		)
 		UPDATE entities
 		SET project_id = ${projectId}

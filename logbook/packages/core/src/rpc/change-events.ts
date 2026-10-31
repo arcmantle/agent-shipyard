@@ -85,7 +85,7 @@ export async function projectChangeEventForWrite(
 	} else if (CONTEXT_METHODS.has(method)) {
 		category = "context";
 		affectedEntityIds = stringValues(input.scopeRef);
-	} else if (method === "applyRelations" || method === "importCanonicalChains") {
+	} else if (method === "applyRelations" || method === "importCanonicalChains" || method === "importMigrationBundle") {
 		category = "bulk";
 	}
 

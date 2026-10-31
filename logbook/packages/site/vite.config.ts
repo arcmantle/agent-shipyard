@@ -1,9 +1,9 @@
 import { createServer as createNetServer } from "node:net";
-import { fileURLToPath } from "node:url";
 
 import { defineConfig, type Plugin } from "vite";
 
 import { startLiveSite, type LiveSiteHandle } from "../cli/src/site/index.js";
+import productionConfig from "./vite.production.config.js";
 
 const devBackendHost = process.env.AGENT_ISSUES_DEV_BACKEND_HOST ?? "127.0.0.1";
 const devBackendPort = Number(process.env.AGENT_ISSUES_DEV_BACKEND_PORT ?? "4313");
@@ -64,18 +64,8 @@ function isPortAvailable(host: string, port: number): Promise<boolean> {
 }
 
 export default defineConfig({
+	...productionConfig,
 	plugins: [agentIssuesLiveBackendPlugin()],
-	build: {
-		rollupOptions: {
-			output: { inlineDynamicImports: true }
-		}
-	},
-	resolve: {
-		alias: {
-			"@agent-issues/core/instruction-store": fileURLToPath(new URL("../core/src/features/storage-driver/instruction-store.ts", import.meta.url)),
-			"@agent-issues/core": fileURLToPath(new URL("../core/src/index.ts", import.meta.url))
-		}
-	},
 	server: {
 		host: "127.0.0.1",
 		port: 5173,

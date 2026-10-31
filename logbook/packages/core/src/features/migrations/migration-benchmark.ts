@@ -7,7 +7,7 @@ export const MIGRATION_BENCHMARK = {
 	postgres: {
 		legacyV7: {
 			fixtureCopies: [1, 2],
-			statementCounts: [292, 292]
+			statementCounts: [291, 291]
 		}
 	}
 } as const;

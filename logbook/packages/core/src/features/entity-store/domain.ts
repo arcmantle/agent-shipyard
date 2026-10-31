@@ -49,6 +49,7 @@ export const ALLOWED_RELATIONS = [
 	{ fromKind: "initiative", toKind: "version", type: "taggedWith" },
 	{ fromKind: "issue", toKind: "version", type: "taggedWith" },
 	{ fromKind: "initiative", toKind: "initiative", type: "supersedes" },
+	{ fromKind: "initiative", toKind: "initiative", type: "relatesTo" },
 	{ fromKind: "initiative", toKind: "prd", type: "owns" },
 	{ fromKind: "initiative", toKind: "plan", type: "owns" },
 	{ fromKind: "prd", toKind: "prd", type: "supersedes" },

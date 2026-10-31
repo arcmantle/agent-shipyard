@@ -69,18 +69,10 @@ Repeat until the user approves the breakdown.
 
 After the user approves the proposed breakdown, write each proposed issue body from the [Issue recipe](../recipes/issue.md). Validate every parent and relation reference. For every issue, add its active Plan-entry IDs as `planEntryIds`. For every dependency, verify that the `blocks` source is the prerequisite and the target is the dependent issue. Run the **Issue Breakdown** recipe to create the complete server-side issue-breakdown draft from the validated graph. Do not create issue records at this point.
 
-For an MCP host that can render apps:
-
 1. Call `issue_breakdown_create` with the target ID and the complete proposed issue array.
-2. Call `issue_breakdown_preview` with the returned draft ID immediately before issue creation.
-3. Wait for the user to select Approve in Issue Preview.
-4. The app calls `issue_breakdown_approve` with the displayed draft ID and snapshot digest. This authoritative operation creates the approved issue graph.
-
-For an MCP host that cannot render apps:
-
-1. Return the same complete proposed issue graph and snapshot digest as text and structured tool data.
-2. Ask for explicit chat confirmation of that snapshot.
-3. After confirmation, call the authoritative approval operation with the draft ID and snapshot digest.
+2. Call `issue_breakdown_preview` with the returned draft ID immediately before issue creation. An MCP host that can render apps shows Issue Preview as a read-only view. Issue Preview has no approval control. For an MCP host that cannot render apps, return the same complete proposed issue graph and snapshot digest as text.
+3. Ask the user to confirm the snapshot digest in chat. Do not tell the user to select an approval control.
+4. After the user confirms, call `issue_breakdown_approve` with the draft ID and snapshot digest. This authoritative operation creates the approved issue graph.
 
 When approval reports a changed snapshot, return the current draft for a new review. Do not create issue records outside the authoritative approval operation.
 

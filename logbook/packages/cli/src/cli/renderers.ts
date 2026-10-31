@@ -1,5 +1,5 @@
 import type { BackfillBodiesResult, BackfillableBodyKind } from "../backfill/body-backfill.js";
-import type { SynchronizeSummary } from "@agent-issues/core";
+import type { MigrationRecordCounts } from "@agent-issues/core";
 import type { listTenants } from "@agent-issues/api-local";
 import type { SavedLoginView } from "../auth/auth-session.js";
 import type { startLiveSite } from "../site/index.js";
@@ -337,47 +337,20 @@ export function renderAgentInit(result: { host: "claude" | "copilot" }): string 
 	return `Installed the Agent Issues plugin for ${result.host}.`;
 }
 
-export function renderSynchronize(result: {
-	command: "synchronize";
+export function renderCloudMigrate(result: {
+	command: "cloud migrate";
+	dryRun: boolean;
 	cloudApiUrl: string;
 	tenantId: string;
-	summary: SynchronizeSummary;
+	bytes: number;
+	local: MigrationRecordCounts;
+	cloud?: MigrationRecordCounts;
+	mismatched: string[];
 }): string {
-	const { summary } = result;
-	const appliedTotal = summary.entriesAppliedToLocal + summary.entriesAppliedToCloud;
-	const createdTotal = summary.entitiesCreatedLocal.length + summary.entitiesCreatedCloud.length;
-	const updatedTotal = summary.entitiesUpdatedLocal.length + summary.entitiesUpdatedCloud.length;
-	const relationsTotal = summary.relationsAppliedToLocal + summary.relationsAppliedToCloud;
-	const contextsTotal =
-		summary.contextsAppliedToLocal +
-		summary.contextsAppliedToCloud +
-		summary.contextTermsAppliedToLocal +
-		summary.contextTermsAppliedToCloud;
-
-	if (
-		appliedTotal === 0 &&
-		createdTotal === 0 &&
-		updatedTotal === 0 &&
-		relationsTotal === 0 &&
-		contextsTotal === 0 &&
-		summary.concurrentEditConflicts === 0
-	) {
-		return `Already in sync with ${result.cloudApiUrl} (tenant ${result.tenantId}).`;
-	}
-
-	const lines = [
-		`Synchronized with ${result.cloudApiUrl} (tenant ${result.tenantId}).`,
-		`History entries applied: ${summary.entriesAppliedToLocal} to local, ${summary.entriesAppliedToCloud} to cloud`,
-		`Entities created: ${summary.entitiesCreatedLocal.length} local, ${summary.entitiesCreatedCloud.length} cloud`,
-		`Entities updated: ${summary.entitiesUpdatedLocal.length} local, ${summary.entitiesUpdatedCloud.length} cloud`,
-		`Relations applied: ${summary.relationsAppliedToLocal} to local, ${summary.relationsAppliedToCloud} to cloud`,
-		`Contexts applied: ${summary.contextsAppliedToLocal} to local, ${summary.contextsAppliedToCloud} to cloud`,
-		`Context terms applied: ${summary.contextTermsAppliedToLocal} to local, ${summary.contextTermsAppliedToCloud} to cloud`
-	];
-
-	if (summary.concurrentEditConflicts > 0) {
-		lines.push(`Concurrent-edit conflicts resolved by last-writer-wins: ${summary.concurrentEditConflicts}`);
-	}
-
-	return lines.join("\n");
+	const features = Object.keys(result.local) as Array<keyof MigrationRecordCounts>;
+	const rows = features.map((feature) => `  ${feature}: ${result.local[feature]} local${result.cloud ? `, ${result.cloud[feature]} cloud` : ""}`);
+	const size = `${(result.bytes / 1024 / 1024).toFixed(1)} MB`;
+	if (result.dryRun) return [`Dry run: would migrate ${size} to ${result.cloudApiUrl} (tenant ${result.tenantId}).`, ...rows].join("\n");
+	const verdict = result.mismatched.length === 0 ? "All counts agree." : `Counts differ for: ${result.mismatched.join(", ")}.`;
+	return [`Migrated ${size} to ${result.cloudApiUrl} (tenant ${result.tenantId}).`, ...rows, verdict].join("\n");
 }

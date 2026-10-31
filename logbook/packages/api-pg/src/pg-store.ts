@@ -5,6 +5,7 @@ import type {
 	CanonicalIssueCommentChain,
 	AuthIdentity,
 	CanonicalChainBundle,
+	MigrationBundle,
 	ContextDetails,
 	ContextDirectory,
 	ContextListResult,
@@ -47,7 +48,7 @@ import type {
 	TenantSummary,
 	UnlinkResult
 } from "@agent-issues/core";
-import { computeIssueCommentContentHash, createReverseFieldPatch, encodeCanonicalReference, isDirectEntitySelector, ISSUE_COMMENT_REVERSE_PATCH_REGISTRY, IssueCommentConflictError, materializeIssueCommentFromPatches, measureHistory, projectProposedIssueBreakdown, projectProposedPlan, shortEntityReference, SYSTEM_AUTHENTICATION_SUBJECT, toEntitySummary, type SearchCapability, type SearchDiagnostic, type SearchRequest, type SearchResponse } from "@agent-issues/core";
+import { computeIssueCommentContentHash, createReverseFieldPatch, encodeCanonicalReference, isDirectEntitySelector, ISSUE_COMMENT_REVERSE_PATCH_REGISTRY, IssueCommentConflictError, assignMigrationAuthorship, guardStorageAccess, materializeIssueCommentFromPatches, measureHistory, projectProposedIssueBreakdown, projectProposedPlan, shortEntityReference, SYSTEM_AUTHENTICATION_SUBJECT, toEntitySummary, type SearchCapability, type SearchDiagnostic, type SearchRequest, type SearchResponse } from "@agent-issues/core";
 import type { Pool } from "pg";
 
 import { withTenantTransaction, type TenantExecutor } from "./db/connection.js";
@@ -243,7 +244,7 @@ export class PgStore implements StorageDriver {
 	}
 
 	public withAuthenticatedIdentity(identity: AuthIdentity): StorageDriver {
-		return new PgStore(this.pool, this.tenantId, this.projectIdentity, identity);
+		return guardStorageAccess(new PgStore(this.pool, this.tenantId, this.projectIdentity, identity), identity.roles);
 	}
 
 	protected mutation<T>(fn: (executor: TenantExecutor, actorId: string) => Promise<T>): Promise<T> {
@@ -297,6 +298,19 @@ export class PgStore implements StorageDriver {
 
 	public async importCanonicalChains(bundle: CanonicalChainBundle) {
 		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor).importCanonicalChains(bundle));
+	}
+
+	public async exportMigrationBundle() {
+		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor, this.actorIdentity?.userId).exportMigrationBundle());
+	}
+
+	public async importMigrationBundle(bundle: MigrationBundle) {
+		const owned = assignMigrationAuthorship(bundle, this.actorIdentity);
+		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor, this.actorIdentity?.userId).importMigrationBundle(owned));
+	}
+
+	public async countMigrationRecords() {
+		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor, this.actorIdentity?.userId).countMigrationRecords());
 	}
 
 	public async upsertUser(input: Parameters<StorageDriver["upsertUser"]>[0]) {
@@ -658,7 +672,6 @@ export class PgStore implements StorageDriver {
 	public async moveEntity(input: { entityId: string; newParentId: string; author?: string }): Promise<MoveResult> {
 		return this.mutation(async (executor, actorId) => {
 			await this.assertSelectedProjectEntity(executor, input.entityId);
-			await this.assertSelectedProjectEntity(executor, input.newParentId);
 			return new PgEntityStore(executor, this.projectIdentity).moveEntity(input, actorId);
 		});
 	}

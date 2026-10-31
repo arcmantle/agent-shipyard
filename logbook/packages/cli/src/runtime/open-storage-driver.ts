@@ -1,6 +1,7 @@
 import { HttpStore, type StorageDriver } from "@agent-issues/core";
 import { openLocalDaemonStore, openSqliteStore, resolveDatabasePath, type LocalDaemonStoreOptions, type DatabaseLocationOptions } from "@agent-issues/api-local";
 import { getActiveSavedLogin, type SavedLoginStoreOptions } from "../auth/auth-session.js";
+import { ensureFreshSavedLogin, type RefreshEntraSessionFn } from "../auth/saved-login-refresh.js";
 import { BUILD_MODE } from "./build-mode.js";
 import { spawnLocalDaemon } from "../daemon/local-daemon-store.js";
 import { resolveProjectIdentity } from "./project-identity.js";
@@ -10,6 +11,8 @@ export type OpenStorageDriverOptions = {
 	dbPath?: string;
 	databaseOptions?: DatabaseLocationOptions;
 	authSessionOptions?: SavedLoginStoreOptions;
+	/** Injectable for tests; defaults to the real MSAL silent refresh. */
+	refreshEntraSession?: RefreshEntraSessionFn;
 	/** Injectable for tests; defaults to `process.env`. */
 	env?: Record<string, string | undefined>;
 	/** Correlates a write with the initiating browser cache update. */
@@ -50,11 +53,6 @@ export function assertNoDaemonAllowed(
 	}
 }
 
-/** Exported for `openSynchronizeStores`, which enforces the same saved-login expiry precondition. */
-export function isSessionExpired(expiresAt: string): boolean {
-	return Date.parse(expiresAt) <= Date.now();
-}
-
 /**
  * Opens a `StorageDriver` for the globally active saved login: a daemon-routed
  * `LocalDaemonStore` for local, or an
@@ -88,24 +86,23 @@ export async function openStorageDriver(options: OpenStorageDriverOptions = {}):
 		return { store, backend: "local", dbPath, owner: { type: "local" } };
 	}
 
-	if (isSessionExpired(activeLogin.expiresAt)) {
-		throw new Error(
-			`Saved login "${activeLogin.name}" has expired. Run "agent-issues auth login --name ${activeLogin.name} --url ${activeLogin.serviceUrl}" to refresh it.`
-		);
-	}
+	const remoteLogin = await ensureFreshSavedLogin(activeLogin, {
+		storeOptions: options.authSessionOptions,
+		refreshEntraSession: options.refreshEntraSession
+	});
 
 	const store = new HttpStore({
-		baseUrl: activeLogin.serviceUrl,
-		bearerToken: activeLogin.accessToken,
+		baseUrl: remoteLogin.serviceUrl,
+		bearerToken: remoteLogin.accessToken,
 		correlationId: options.correlationId,
-		tenantId: activeLogin.tenantId,
+		tenantId: remoteLogin.tenantId,
 		projectIdentity
 	});
 	return {
 		store,
 		backend: "cloud",
-		owner: { type: "cloud", tenantId: activeLogin.tenantId, userId: activeLogin.userId },
-		dbPath: activeLogin.serviceUrl,
-		cloudConnection: { baseUrl: activeLogin.serviceUrl, bearerToken: activeLogin.accessToken, tenantId: activeLogin.tenantId }
+		owner: { type: "cloud", tenantId: remoteLogin.tenantId, userId: remoteLogin.userId },
+		dbPath: remoteLogin.serviceUrl,
+		cloudConnection: { baseUrl: remoteLogin.serviceUrl, bearerToken: remoteLogin.accessToken, tenantId: remoteLogin.tenantId }
 	};
 }

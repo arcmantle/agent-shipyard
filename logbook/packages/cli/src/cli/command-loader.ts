@@ -140,6 +140,11 @@ export async function registerCommandFamily(cli: Cli<AgentIssuesContext>, argv: 
 				cli.register(SynchronizeCommand);
 				return;
 			}
+			case "cloud": {
+				const { CloudMigrateCommand } = await import("./commands/cloud-migrate.js");
+				cli.register(CloudMigrateCommand);
+				return;
+			}
 			case "tenants": {
 				const { CurrentTenantCommand, DeleteTenantCommand, InitCommand, ListTenantsCommand, ProjectIdentityCommand, RenameTenantCommand } = await import("./commands/tenants.js");
 				cli.register(InitCommand);

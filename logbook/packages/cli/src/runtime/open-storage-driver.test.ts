@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HttpStore, type RunCredentialCommand } from "@agent-issues/core";
 import { LocalDaemonStore, saveDaemonState, saveDaemonToken, SqliteStore } from "@agent-issues/api-local";
-import { saveSavedLogin, setActiveSavedLogin } from "../auth/auth-session.js";
+import { getActiveSavedLogin, saveSavedLogin, setActiveSavedLogin } from "../auth/auth-session.js";
 import { assertNoDaemonAllowed, openStorageDriver } from "./open-storage-driver.js";
 import { resolveProjectIdentity } from "./project-identity.js";
 
@@ -249,6 +249,63 @@ describe("openStorageDriver (ADR13, ADR18)", () => {
 		} finally {
 			await result.store.close();
 		}
+	});
+
+	describe("silent refresh of an expired remote saved login", () => {
+		const entraRefresh = { clientId: "client-a", authorityTenantId: "tenant-a", homeAccountId: "home-1", tokenCache: "cache-1" };
+
+		async function saveExpiredLogin(credentialStoreOptions: ReturnType<typeof fakeCredentialStore>): Promise<void> {
+			await saveSavedLogin(
+				{
+					name: "work",
+					kind: "remote",
+					serviceUrl: "https://api.example.com",
+					tenantId: "tenant-a",
+					userId: "user-1",
+					accessToken: "token-old",
+					expiresAt: "2000-01-01T00:00:00.000Z",
+					entraRefresh
+				},
+				{ homeDirectory, ...credentialStoreOptions }
+			);
+		}
+
+		it("renews the token with the saved refresh state and saves the result", async () => {
+			const credentialStoreOptions = fakeCredentialStore();
+			const authSessionOptions = { homeDirectory, ...credentialStoreOptions };
+			await saveExpiredLogin(credentialStoreOptions);
+			const refreshed = { accessToken: "token-new", expiresAt: "2099-01-01T00:00:00.000Z", entraRefresh: { ...entraRefresh, tokenCache: "cache-2" } };
+			const refreshEntraSession = vi.fn(async () => refreshed);
+
+			const result = await openStorageDriver({
+				databaseOptions: { currentWorkingDirectory: projectDirectory },
+				authSessionOptions,
+				refreshEntraSession,
+				env: { AGENT_ISSUES_NO_DAEMON: "1" }
+			});
+
+			try {
+				expect(refreshEntraSession).toHaveBeenCalledWith(entraRefresh);
+				expect(result.cloudConnection?.bearerToken).toBe("token-new");
+				await expect(getActiveSavedLogin(authSessionOptions)).resolves.toMatchObject(refreshed);
+			} finally {
+				await result.store.close();
+			}
+		});
+
+		it("asks for a new login when the refresh fails", async () => {
+			const credentialStoreOptions = fakeCredentialStore();
+			await saveExpiredLogin(credentialStoreOptions);
+
+			await expect(openStorageDriver({
+				databaseOptions: { currentWorkingDirectory: projectDirectory },
+				authSessionOptions: { homeDirectory, ...credentialStoreOptions },
+				refreshEntraSession: async () => {
+					throw new Error("invalid_grant");
+				},
+				env: { AGENT_ISSUES_NO_DAEMON: "1" }
+			})).rejects.toThrow('Saved login "work" has expired.');
+		});
 	});
 
 	it("sends an explicit selected project identity to the remote API", async () => {

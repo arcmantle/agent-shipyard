@@ -225,7 +225,7 @@ describe("cli", () => {
 	});
 
 	it.each(["bind", "unbind", "status"])("rejects the removed cloud %s command", async (subcommand) => {
-		await expect(runCli(["cloud", subcommand])).rejects.toThrow(/Extraneous positional argument/);
+		await expect(runCli(["cloud", subcommand])).rejects.toThrow(/Command not found/);
 	});
 
 	it.each(["--local", "--cloud"])("rejects the removed %s backend option", async (option) => {

@@ -1,8 +1,8 @@
 import { HttpStore, type StorageDriver } from "@agent-issues/core";
 import { openLocalDaemonStore, readBuildContentHash, resolveDatabasePath, type DatabaseLocationOptions, type LocalDaemonStoreOptions } from "@agent-issues/api-local";
 import { getActiveSavedLogin, type SavedLoginStoreOptions } from "../auth/auth-session.js";
+import { ensureFreshSavedLogin, type RefreshEntraSessionFn } from "../auth/saved-login-refresh.js";
 import { spawnLocalDaemon } from "../daemon/local-daemon-store.js";
-import { isSessionExpired } from "./open-storage-driver.js";
 import { resolveProjectIdentity } from "./project-identity.js";
 
 export type OpenSynchronizeStoresOptions = {
@@ -10,6 +10,8 @@ export type OpenSynchronizeStoresOptions = {
 	dbPath?: string;
 	databaseOptions?: DatabaseLocationOptions;
 	authSessionOptions?: SavedLoginStoreOptions;
+	/** Injectable for tests; defaults to the real MSAL silent refresh. */
+	refreshEntraSession?: RefreshEntraSessionFn;
 	localDaemon?: LocalDaemonStoreOptions;
 };
 
@@ -27,17 +29,16 @@ export type OpenSynchronizeStoresResult = {
 export async function openSynchronizeStores(options: OpenSynchronizeStoresOptions = {}): Promise<OpenSynchronizeStoresResult> {
 	const currentWorkingDirectory = options.databaseOptions?.currentWorkingDirectory ?? process.cwd();
 	const { identity: projectIdentity } = resolveProjectIdentity(currentWorkingDirectory);
-	const activeLogin = await getActiveSavedLogin(options.authSessionOptions);
+	const savedLogin = await getActiveSavedLogin(options.authSessionOptions);
 
-	if (activeLogin.kind === "local") {
+	if (savedLogin.kind === "local") {
 		throw new Error('Synchronization requires an active remote saved login. Run "agent-issues auth switch <name>" or "agent-issues auth login" first.');
 	}
 
-	if (isSessionExpired(activeLogin.expiresAt)) {
-		throw new Error(
-			`Saved login "${activeLogin.name}" has expired. Run "agent-issues auth login --name ${activeLogin.name} --url ${activeLogin.serviceUrl}" to refresh it.`
-		);
-	}
+	const activeLogin = await ensureFreshSavedLogin(savedLogin, {
+		storeOptions: options.authSessionOptions,
+		refreshEntraSession: options.refreshEntraSession
+	});
 
 	const dbPath = resolveDatabasePath(options.dbPath, options.databaseOptions);
 	const local = await openLocalDaemonStore({

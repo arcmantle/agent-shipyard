@@ -39,6 +39,23 @@ afterEach(() => {
 runStorageDriverContractSuite({ label: "SqliteStore", openStore: openTestStore, openStoreForProject: openTestStoreForProject });
 
 describe("storage-driver seam: selected-project relations (SqliteStore)", () => {
+	it("rejects a move destination in another tenant", async () => {
+		const source = await openTestStoreForProject("move-source-tenant");
+		const destination = (await openSqliteStore(path.join(contractDir!, "test.db"), { tenant: "other", projectIdentity: "move-destination-tenant" })).store;
+
+		try {
+			const initiative = await source.createEntity({ kind: "initiative", title: "Retained initiative" });
+			const epic = await destination.createEntity({ kind: "epic", title: "Unavailable destination" });
+			const before = await source.getEntityDetails(initiative.reference);
+
+			await expect(source.moveEntity({ entityId: initiative.reference, newParentId: epic.reference })).rejects.toThrow(/not found/i);
+			expect(await source.getEntityDetails(initiative.reference)).toEqual(before);
+		} finally {
+			await source.close();
+			await destination.close();
+		}
+	});
+
 	it("shows the selected project as a version's structural parent", async () => {
 		const store = await openTestStoreForProject("selected-project-parent");
 
@@ -908,6 +925,52 @@ describe("storage-driver seam: tenant administration (SqliteStore)", () => {
 		} finally {
 			await alphaStore.close();
 			await betaStore.close();
+		}
+	});
+});
+
+describe("migration bundle instructions (SqliteStore)", () => {
+	it("exports the earlier revisions of an entity that moved to another project", async () => {
+		const store = await openTestStore();
+		try {
+			const previousProject = await store.createEntity({ kind: "project", title: "Previous project" });
+			const issue = await store.createEntity({ kind: "issue", title: "Moved issue" });
+			await store.updateEntity({ entityId: issue.id, title: "Moved issue, edited", expectedRevision: issue.revision, expectedContentHash: issue.contentHash });
+			const db = new Database(path.join(tempDir!, "test.db"));
+			try {
+				db.prepare("UPDATE revision_entries SET project_id = ? WHERE record_kind = 'entity' AND record_key LIKE ? AND revision = 1").run(previousProject.id, `%${issue.id}`);
+			} finally {
+				db.close();
+			}
+
+			const bundle = await store.exportMigrationBundle();
+			expect(bundle.chains.entities.find((chain) => chain.head.id === issue.id)?.deltas.map((delta) => delta.revision)).toEqual([1, 2]);
+		} finally {
+			await store.close();
+		}
+	});
+	it("exports and counts the local owner instruction tables", async () => {
+		const store = await openTestStore();
+		try {
+			const db = new Database(path.join(tempDir!, "test.db"));
+			try {
+				db.prepare("INSERT INTO instruction_overrides (item_key, kind, body, revision, content_hash, default_version) VALUES (?, ?, ?, ?, ?, ?)").run("skill/prepare", "skill", "Local", 2, "hash-2", "1.0.0");
+				db.prepare("INSERT INTO instruction_history (item_key, revision, kind, body, content_hash, default_version, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)").run("skill/prepare", 1, "skill", "Default", "hash-1", "1.0.0", 1);
+				db.prepare("INSERT INTO instruction_personal_fragments (item_key, revision, body, content_hash, removed) VALUES (?, ?, ?, ?, ?)").run("fragment/mine", 1, "Mine", "hash-3", 0);
+			} finally {
+				db.close();
+			}
+
+			await expect(store.exportMigrationBundle()).resolves.toMatchObject({
+				instructions: {
+					overrides: [{ itemKey: "skill/prepare", kind: "skill", body: "Local", revision: 2, contentHash: "hash-2", defaultVersion: "1.0.0" }],
+					history: [{ itemKey: "skill/prepare", revision: 1, kind: "skill", body: "Default", contentHash: "hash-1", defaultVersion: "1.0.0", isDefault: true }],
+					personalFragments: [{ itemKey: "fragment/mine", revision: 1, body: "Mine", contentHash: "hash-3", removed: false }]
+				}
+			});
+			await expect(store.countMigrationRecords()).resolves.toMatchObject({ instructionOverrides: 1, instructionHistory: 1, instructionPersonalFragments: 1 });
+		} finally {
+			await store.close();
 		}
 	});
 });

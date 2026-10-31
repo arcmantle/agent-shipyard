@@ -1,6 +1,7 @@
-import { PublicClientApplication } from "@azure/msal-node";
+import { PublicClientApplication, type AuthenticationResult } from "@azure/msal-node";
 
 import type { DeviceCodeLoginFn } from "../cli/commands/auth.js";
+import type { RefreshEntraSessionFn } from "./saved-login-refresh.js";
 
 /**
  * Real Entra ID device-code login (ADR12's client-side leg). This is the
@@ -13,15 +14,10 @@ import type { DeviceCodeLoginFn } from "../cli/commands/auth.js";
  * of `DeviceCodeLoginFn`.
  */
 export const acquireEntraDeviceCodeSession: DeviceCodeLoginFn = async ({ tenantId, clientId, onDeviceCode }) => {
-	const app = new PublicClientApplication({
-		auth: {
-			clientId,
-			authority: `https://login.microsoftonline.com/${tenantId}`
-		}
-	});
+	const app = createApplication(clientId, tenantId);
 
 	const result = await app.acquireTokenByDeviceCode({
-		scopes: ["User.Read"],
+		scopes: apiScopes(clientId),
 		deviceCodeCallback: (response) => {
 			onDeviceCode(response.message);
 		}
@@ -34,13 +30,57 @@ export const acquireEntraDeviceCodeSession: DeviceCodeLoginFn = async ({ tenantI
 	const claims = result.idTokenClaims as { oid?: string; tid?: string; name?: string };
 	const userId = claims.oid ?? result.uniqueId;
 	const resolvedTenantId = claims.tid ?? result.tenantId ?? tenantId;
-	const expiresAt = (result.expiresOn ?? new Date(Date.now() + 60 * 60 * 1000)).toISOString();
 
 	return {
 		tenantId: resolvedTenantId,
 		userId,
 		displayName: result.account?.name ?? claims.name,
 		accessToken: result.accessToken,
-		expiresAt
+		expiresAt: toExpiresAt(result),
+		...(result.account && {
+			entraRefresh: {
+				clientId,
+				authorityTenantId: tenantId,
+				homeAccountId: result.account.homeAccountId,
+				tokenCache: app.getTokenCache().serialize()
+			}
+		})
 	};
 };
+
+/** Renews the access token silently with the refresh token in the saved MSAL cache. */
+export const refreshEntraSession: RefreshEntraSessionFn = async (state) => {
+	const app = createApplication(state.clientId, state.authorityTenantId);
+	const cache = app.getTokenCache();
+	cache.deserialize(state.tokenCache);
+
+	const account = await cache.getAccountByHomeId(state.homeAccountId);
+	if (!account) {
+		throw new Error("The saved Entra ID token cache does not contain the login account.");
+	}
+
+	const result = await app.acquireTokenSilent({ account, scopes: apiScopes(state.clientId) });
+	return {
+		accessToken: result.accessToken,
+		expiresAt: toExpiresAt(result),
+		entraRefresh: { ...state, tokenCache: cache.serialize() }
+	};
+};
+
+function createApplication(clientId: string, tenantId: string): PublicClientApplication {
+	return new PublicClientApplication({
+		auth: {
+			clientId,
+			authority: `https://login.microsoftonline.com/${tenantId}`
+		}
+	});
+}
+
+// The API accepts only its own delegated scope, never Microsoft Graph tokens.
+function apiScopes(clientId: string): string[] {
+	return [`api://${clientId}/access_as_user`];
+}
+
+function toExpiresAt(result: AuthenticationResult): string {
+	return (result.expiresOn ?? new Date(Date.now() + 60 * 60 * 1000)).toISOString();
+}

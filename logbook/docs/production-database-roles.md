@@ -1,11 +1,30 @@
 # Production Database Roles
 
-This operation is prepared for protected GitHub Actions execution. It has been
-tested only against a disposable local PostgreSQL database. It has not run on
-Azure. A separate protected database setup workflow is prepared in the private
-infrastructure repository. Do not use a public runner to connect to PostgreSQL or
-reopen retired setup access. Local preparation is not publication or execution
-approval.
+The production API sets up the database itself on every start, before it listens.
+There is no separate database workflow or job. PostgreSQL is public with Entra-only
+sign-in; the firewall admits only Azure services.
+
+## Terraform Deployment Access
+
+The general Terraform executor uses the existing private Apply identity, not a
+new feature-specific identity. Its completed protected access installation granted
+subscription Owner to Apply and subscription Reader to Plan. Existing state locks,
+firewall permissions, and automation-state access remain. The retired setup identity
+is not restored. Terraform updates use OIDC without device-code sign-in or new
+resource-type permission bootstraps.
+
+Public **Terraform - Request Update** selects the private Terraform root. The
+default is `logbook`; `automation` maintains deployment identities and grants.
+Approval binds the root, source revision, plan hash, cost review, and single-use
+claim. Apply uses only the saved binary plan and can register AzureRM providers.
+The reviewed monthly estimate limit remains USD 60 across configured roots.
+New installations use the separate **Terraform - Initial Setup** entry point and
+its shared public approval. Do not repeat bootstrap on the existing installation.
+
+Owner is standing ARM authority and can change roles and identity trust, including
+its own. Azure does not enforce GitHub approval; the protected workflow controls
+execution. This does not grant Microsoft Graph tenant administration. Runtime,
+migration, and schema-owner database permissions remain separate.
 
 ## Role Contract
 
@@ -16,16 +35,16 @@ The operation requires PostgreSQL 16 or newer.
 
 The helper supports a non-superuser setup login with explicit permissions. The
 approved setup operation must provide database ownership, administration of the
-three application roles, permission to select the schema owner, and database
-CREATE permission for the schema owner during ownership setup. Do not use
+three application roles, and permission to select the schema owner. Do not use
 inherited owner permissions. The helper selects the owner only for schema grants
 and default privileges, then restores the setup role before credential changes.
-It does not grant or remove the setup identity's temporary capabilities.
+In production the setup identity is a permanent Entra administrator, so its grants
+remain valid after setup.
 
 | Role | Access |
 | --- | --- |
 | `owner` | No login. Owns the application schema and migration-created objects. No superuser, role administration, database creation, replication, or RLS bypass. |
-| `migration` | Separate login with no inherited permissions. Can explicitly select the owner role, but cannot grant that membership to other roles. Available only to the approved migration operation. |
+| `migration` | Separate login with no inherited permissions. Can explicitly select the owner role, but cannot grant that membership to other roles. Used only by the API's startup setup. |
 | `runtime` | Separate login without memberships or ownership. Can connect and use the schema. Can read and change tables with enabled and forced RLS. Can only read shared instruction bundles and defaults. |
 
 Runtime access excludes schema changes, temporary objects, truncation, role
@@ -39,72 +58,43 @@ attributes, memberships, object ownership, or unprotected tenant tables stop set
 and roll back its transaction. Excess direct runtime table, schema, and database
 grants are removed during successful setup.
 
-Production uses `configurePgEntraRoles`. Its separate setup login must be able to
-select the existing `azure_pg_admin` server administration role. This permanent
-NOLOGIN role, not the temporary setup login, grants the migration-to-owner
-membership. Memberships from this server administration role are allowed only in
-the Entra setup path. Other incoming members still stop setup. The local
-password-based helper does not add this exception.
+Production uses `configurePgEntraRoles`. The setup identity is a permanent
+Microsoft Entra administrator. Azure restricts `azure_pg_admin` (it has no
+CREATEROLE and cannot be a durable grantor), so setup creates roles and grants the
+migration-to-owner membership as the setup identity. Database-level grants run as
+the database owner, because PostgreSQL applies database ACL changes from the owner.
 
-Entra registration and grants share one transaction. Existing principal mappings
-must match the approved object ID, tenant, service type, and non-administrator
-attributes. An unmapped existing login or changed mapping stops setup. Setup does
-not silently relabel roles. Entra workload passwords are cleared and their
-password validity is expired. A workload cannot restore its password validity.
-The live managed-identity login must still pass; local tests do not prove that the
-Azure Entra authentication path accepts this restriction.
+Azure installs the `pgaadauth` functions only in the `postgres` database. Setup
+registers runtime and migration principals through a separate setup connection to
+`postgres`, then grants permissions through the `logbook` connection. Registration
+creates a missing principal and accepts an existing role with the approved name.
+Entra workload passwords are cleared and their password validity is expired. A
+workload cannot restore its password validity. Live managed-identity login for
+runtime and migration passed on Azure.
 
 Use this only for a dedicated Logbook database. Setup removes PUBLIC database
 access, PUBLIC schema creation, and PUBLIC table grants. It does not transfer
 existing table ownership or silently repair an unsafe role. Review existing state
 privately before use.
 
-## Approved Execution Procedure
+## Startup Setup
 
-1. Obtain permission to publish the reviewed source and image. Build the setup
-   image through the manual image workflow. The private callback verifies its
-   GitHub provenance, exact source revision, digest, and anonymous pull access.
-   A newly created GHCR package can require a separate public-visibility change.
-2. Use the normal protected infrastructure Plan and Apply to enable Entra
-   authentication while retaining password recovery. Do not restore retired setup
-   access or add privileges to routine deployment identities.
-3. Request protected approval for identity provisioning, then for database setup.
-   The private review binds the target, three distinct managed identities, source,
-   image, operation, total monthly estimate, and expiry. Provisioning and setup
-   have separate single-use claims. The privileged job and identities use an
-   isolated resource group outside the routine Apply Contributor scope. The job
-   uses the existing private Consumption environment, one replica, no automatic
-   retry, no ingress, and a finite timeout. An administrator signs in only after
-   the private callback verifies approval. No setup identity receives ARM roles or
-   a GitHub federation.
-4. The setup command verifies exact Entra mappings and effective grants. A
-   disposable forced-RLS table verifies both tenant read and write isolation and
-   denied runtime administrative operations. It is not an application migration.
-   The command removes this table, temporary schema-owner CREATE permission, and
-   setup grants that it can revoke. It rejects retained setup object ownership.
-5. The controller stops and removes the job, removes the temporary Entra
-   administrator assignment, and starts a fresh verification job. Authentication
-   denial alone is insufficient: the runtime connection must also verify that no
-   setup membership or ownership remains. The migration identity must still be
-   able to select the owner. Network, TLS, token, or timeout errors do not count as
-   verified login denial. Remove the verification job before reporting success.
-6. In the separate approved migration operation, connect as `migration` and select
-   `owner` on every connection, for example with PostgreSQL connection option
-   `-c role=<approved-owner-role>`. Run `migratePgDatabase`, then run the approved
-   role setup operation again. The transaction-local tenant setting remains the
-   API's tenant-isolation boundary. Runtime credentials are trusted only by the
-   API, never by browser users or direct untrusted database clients.
-7. Supply only the runtime connection to the application. Do not supply setup or
-   migration credentials to the application container or browser. Retain a
-   sanitized effective-grant and two-tenant verification result privately. A
-   successful connection alone does not prove isolation.
+When `DATABASE_SETUP_CONFIG` is set, the API runs `runDatabaseSetup` before it
+listens. The setup identity is the server's only Entra administrator; Azure makes
+it the owner of the `logbook` database, which setup accepts. Setup then:
 
-All Azure and Terraform execution stays in Actions. Cancellation cleanup is a
-separate always-run step. Runner loss or failed cleanup is not a success: stop
-release and request a new reconciliation approval tied to the original
-verification table. Do not replay a consumed approval. Keep request and result
-artifacts private. Do not log tokens, passwords, raw database errors, or private
-target values.
+1. Registers the runtime and migration principals and applies role grants.
+2. Connects as `migration`, selects `owner`, and runs `migratePgDatabase`.
+3. Installs the image's instruction bundle as `owner`, then applies role grants
+   again so new tables receive only the reviewed runtime grants.
+4. Creates a disposable forced-RLS probe table and verifies tenant read and write
+   isolation and denied runtime administrative operations.
+5. Removes this probe and any marked probe left by an earlier failed start.
+
+A failed setup stops the start; the container restarts and the previous revision
+keeps serving. The log reports the failed stage, error code, and a short message,
+never tokens or configuration values. The API serves requests only with the
+runtime identity.
 
 ## Credential Rotation
 
@@ -136,16 +126,11 @@ the database commit, stop release and use a fresh approved rotation; do not expo
 the new value in recovery output. Remove owned temporary files and execution
 resources on success and failure.
 
-## Validation And Remaining Gate
+## Validation
 
 The local contract runs setup through a non-superuser login with explicit
 temporary permissions. It uses separate database logins and the actual migrations
 and HTTP API. It checks tenant isolation, effective denied operations, repeat
 setup, unsafe-state rejection, and password rotation. It does not prove Azure
-administrator permissions, private Azure network access, production grants,
-secret delivery, or approval enforcement.
-
-Live completion requires an approved private-network setup operation, an approved
-setup identity, verified Entra mappings and cleanup, and
-sanitized production verification. Do not mark the issue complete before these
-checks pass. No local Azure or Terraform execution is permitted.
+administrator permissions or Entra token authentication; the deployed API's
+`/health/ready` check after startup setup verifies those.

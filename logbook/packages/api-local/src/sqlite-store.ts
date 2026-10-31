@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 
 import { isDirectEntitySelector, isStructuralRelationType, measureHistory, projectProposedIssueBreakdown, projectProposedPlan, resolveLocalUsername, toContextWriteResult, toDefineContextTermAcknowledgement, toEntitySummary, type AuthIdentity, type BodySource, type DatabaseSnapshot, type IssueBreakdownApprovalResult, type IssueBreakdownDraft, type ProjectSummary, type ProjectSnapshot, type ProspectorProjectSettings, type RelationRecord, type SearchCapability, type SearchDiagnostic, type SearchRequest, type SearchResponse, type StorageDriver } from "@agent-issues/core";
-import type { CanonicalChainBundle } from "@agent-issues/core";
+import { assignMigrationAuthorship, type CanonicalChainBundle, type MigrationBundle } from "@agent-issues/core";
 import { LocalSynchronizeStore } from "./features/synchronize/canonical-chain-store.js";
 import * as localSynchronizeStore from "./features/synchronize/canonical-chain-store.js";
 import { LocalUserDirectoryStore, upsertUser } from "./features/user-directory/store.js";
@@ -159,6 +159,23 @@ export class SqliteStore implements StorageDriver {
 			this.searchStore.synchronizeSearchDocuments();
 			return result;
 		});
+	}
+
+	public async exportMigrationBundle() {
+		return this.synchronizeStore.exportMigrationBundle();
+	}
+
+	public async importMigrationBundle(bundle: MigrationBundle) {
+		const owned = assignMigrationAuthorship(bundle, this.actorIdentity);
+		return this.executor.drizzle.transaction(() => {
+			const counts = localSynchronizeStore.importMigrationBundle(this.executor, owned);
+			this.searchStore.synchronizeSearchDocuments();
+			return counts;
+		});
+	}
+
+	public async countMigrationRecords() {
+		return this.synchronizeStore.countMigrationRecords();
 	}
 
 	public async upsertUser(input: Parameters<StorageDriver["upsertUser"]>[0]) {
@@ -518,7 +535,6 @@ export class SqliteStore implements StorageDriver {
 
 	public async moveEntity(input: { entityId: string; newParentId: string; author?: string }) {
 		this.assertSelectedProjectEntity(input.entityId);
-		this.assertSelectedProjectEntity(input.newParentId);
 		return this.mutate(
 			(actorId) => localEntityStore.moveEntity(this.executor, input, actorId),
 			{ synchronizeSearch: (result) => this.searchStore.synchronizeEntitySearchDocumentsForChange(result.entity.id) }

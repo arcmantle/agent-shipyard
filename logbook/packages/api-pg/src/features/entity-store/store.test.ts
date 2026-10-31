@@ -97,6 +97,17 @@ describe("PgStore entity lifecycle", () => {
 		await expect(selectedStore.getEntityDetails(otherEpic.id)).rejects.toThrow(/not found/i);
 	});
 
+	it("rejects a move destination in another tenant", async () => {
+		const source = new PgStore(appPool, createTestTenantId());
+		const destination = new PgStore(appPool, createTestTenantId());
+		const initiative = await source.createEntity({ kind: "initiative", title: "Retained initiative" });
+		const epic = await destination.createEntity({ kind: "epic", title: "Unavailable destination" });
+		const before = await source.getEntityDetails(initiative.reference);
+
+		await expect(source.moveEntity({ entityId: initiative.reference, newParentId: epic.reference })).rejects.toThrow(/not found/i);
+		expect(await source.getEntityDetails(initiative.reference)).toEqual(before);
+	});
+
 	it("includes an issue's newest comment page in the database snapshot", async () => {
 		const store = new PgStore(appPool, createTestTenantId());
 		const issue = await store.createEntity({ kind: "issue", title: "Discuss snapshot data" });

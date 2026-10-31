@@ -16,6 +16,7 @@ import "./components/relationship-graph-filters.js";
 import type { GlobalSearchOpenTargetDetail } from "./components/global-search-overlay.js";
 import type { AdrRailEntry, ConsoleSection, ContextDetails, ContextPageTab, DebtFilter, Entity, EpicInitiativeGroup, InitiativeBundle, InitiativeRollup, InitiativeSortCriterion, ProjectContextTermEntry, ProjectContextTermSource, ProjectGraphKind, ProjectRollup, ProjectSummaryEpicGroup } from "./models.js";
 import { AgentIssuesStore } from "./services/agent-issues-store.js";
+import { getHostedSession } from "./services/hosted-session.js";
 import { issueBrowserControlStyles, issueBrowserTypographyStyles } from "./styles/issue-browser-shared-styles.js";
 
 const SWITCHER_MENU_ID = "tenant-switcher-menu";
@@ -81,7 +82,13 @@ class AgentIssuesApp extends SignalWatcher(LitElement) {
 		void this.store.openInstructions();
 	};
 
+	protected onSignOut = () => {
+		void getHostedSession()?.signOut();
+	};
+
 	protected renderPersonalNavigation() {
+		const session = getHostedSession();
+
 		return html`
 		<div class="nav-group-label">Personal</div>
 		<button
@@ -94,6 +101,18 @@ class AgentIssuesApp extends SignalWatcher(LitElement) {
 			<span class="nav-icon">${this.instructionsIcon}</span>
 			<span class="nav-label">Instructions</span>
 		</button>
+		${when(session, () => html`
+		<button
+			class="nav-item"
+			data-sign-out
+			title=${`Sign out ${session!.account.username}`}
+			type="button"
+			@click=${this.onSignOut}
+		>
+			<span class="nav-icon">⇥</span>
+			<span class="nav-label">Sign out</span>
+		</button>
+		`)}
 		`;
 	}
 

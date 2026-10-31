@@ -55,6 +55,20 @@ describe("production command", () => {
 		expect(output).toBe("Production API startup failed.\n");
 	});
 
+	it("reports the failed database setup stage without the setup configuration", async () => {
+		const child = spawn(process.execPath, [entry], {
+			cwd: packageRoot,
+			env: { ...environment, DATABASE_SETUP_CONFIG: JSON.stringify({ tenant_id: "private-setup-value" }) },
+			stdio: ["ignore", "pipe", "pipe"]
+		});
+		let output = "";
+		child.stdout.on("data", (chunk) => { output += chunk; });
+		child.stderr.on("data", (chunk) => { output += chunk; });
+		const [exitCode] = await once(child, "close");
+		expect(exitCode).toBe(1);
+		expect(output).toBe(`${JSON.stringify({ event: "database-setup-failed", stage: "validate configuration", message: "Invalid database setup configuration." })}\nProduction API startup failed.\n`);
+	});
+
 	it.for(["SIGTERM", "SIGINT"] as const)("serves probes and stops on %s without local CLI state", { timeout: 15000 }, async (signal, context) => {
 		const child = spawn(process.execPath, [entry], {
 			cwd: packageRoot,

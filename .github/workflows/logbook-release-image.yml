@@ -1,0 +1,114 @@
+name: Build Logbook Release Image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.repository == 'arcmantle/agent-shipyard' && github.ref == 'refs/heads/main' && github.actor == 'roenlie' && github.triggering_actor == 'roenlie'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agent_issues
+          POSTGRES_PASSWORD: agent_issues_dev_only
+          POSTGRES_DB: agent_issues
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U agent_issues -d agent_issues"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.10.0'
+      - run: pnpm --dir logbook --filter @agent-issues/api-pg... --filter @agent-issues/site... install --frozen-lockfile --ignore-scripts
+      - name: Create the test application role
+        run: >-
+          docker run --rm --network host
+          --volume "$PWD/logbook/docker/postgres-init:/init:ro"
+          postgres:16-alpine
+          psql postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues
+          --set ON_ERROR_STOP=1 --file /init/01-app-role.sql
+      - run: pnpm --dir logbook --filter @agent-issues/core build
+      - run: pnpm --dir logbook --filter @agent-issues/api-pg typecheck
+      - run: pnpm --dir logbook --filter @agent-issues/api-pg exec vitest run
+      - run: pnpm --dir logbook --filter @agent-issues/site typecheck
+      - run: pnpm --dir logbook --filter @agent-issues/site exec vitest run
+      - run: pnpm --dir logbook --filter @agent-issues/site exec vite build --config vite.production.config.ts
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    env:
+      IMAGE: ghcr.io/arcmantle/logbook-api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the release image
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: logbook
+          file: logbook/docker/api.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:source-${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/arcmantle/agent-shipyard
+          provenance: mode=max
+          sbom: true
+      # The manifest is written only after the published digest passes this check.
+      - name: Smoke check the published digest
+        env:
+          REFERENCE: ${{ env.IMAGE }}@${{ steps.image.outputs.digest }}
+        run: |
+          docker pull --quiet "$REFERENCE"
+          set +e
+          output=$(docker run --rm "$REFERENCE" 2>&1)
+          code=$?
+          set -e
+          test "$code" -eq 1
+          test "$output" = "Production API startup failed."
+          test "$(docker run --rm --entrypoint id "$REFERENCE" -un)" = "node"
+          docker run --rm --entrypoint test "$REFERENCE" -f public/index.html
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+      - name: Write the release manifest
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          jq -n --arg image "$IMAGE@$DIGEST" --arg source_sha "$GITHUB_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            '{image: $image, source_sha: $source_sha, run_id: $run_id, run_attempt: $run_attempt}' > release-manifest.json
+          cat release-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logbook-release-manifest
+          path: release-manifest.json
+          retention-days: 90

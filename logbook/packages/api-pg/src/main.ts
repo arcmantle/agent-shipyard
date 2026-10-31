@@ -16,7 +16,13 @@ try {
 	};
 	process.once("SIGTERM", shutdown);
 	process.once("SIGINT", shutdown);
-} catch {
+} catch (error) {
+	const failure = error as { stage?: unknown; code?: unknown; message?: unknown };
+	if (typeof failure?.stage === "string") {
+		const message = typeof failure.message === "string" ? failure.message.slice(0, 300) : undefined;
+		const code = typeof failure.code === "string" ? failure.code : undefined;
+		process.stderr.write(`${JSON.stringify({ event: "database-setup-failed", stage: failure.stage, code, message })}\n`);
+	}
 	process.stderr.write("Production API startup failed.\n");
 	process.exitCode = 1;
 }

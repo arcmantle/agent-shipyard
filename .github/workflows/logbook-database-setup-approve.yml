@@ -42,7 +42,7 @@ jobs:
             const review = JSON.parse(bytes);
             const age = Date.now() - Date.parse(review.created_at);
             if (Object.keys(review).sort().join(',') !== 'created_at,image,infra_sha,monthly_usd,operation,request_run_attempt,request_run_id,source_sha,target_sha256,verification_run_attempt,verification_run_id'
-              || !['provision', 'configure', 'reconcile'].includes(review.operation)
+              || !['bootstrap-oidc', 'provision', 'configure', 'reconcile', 'migrate'].includes(review.operation)
               || !['request_run_id', 'request_run_attempt', 'verification_run_id', 'verification_run_attempt'].every(key => typeof review[key] === 'string' && /^[1-9][0-9]*$/.test(review[key]))
               || (review.operation !== 'reconcile' && (review.verification_run_id !== review.request_run_id || review.verification_run_attempt !== review.request_run_attempt))
               || !/^[a-f0-9]{40}$/.test(review.infra_sha) || !/^[a-f0-9]{40}$/.test(review.source_sha)
@@ -64,7 +64,9 @@ jobs:
             await core.summary.addHeading('Private Database Access')
               .addLink('Review the exact private target and principal mappings', `https://github.com/arcmantle/agent-shipyard-infra/actions/runs/${review.request_run_id}`)
               .addRaw(`\n\nOperation: ${review.operation}. Image: ${review.image}. Source: ${review.source_sha}. Total monthly estimate: USD ${review.monthly_usd}; this is not a billing cap. The request is single-use and expires after 24 hours.`)
-              .addRaw('\n\nProvision creates three separate database identities in an isolated setup resource group. Configure uses a temporary Entra PostgreSQL administrator assignment and a private, finite job in the existing environment. It verifies runtime restrictions and a disposable two-tenant RLS table, then removes temporary access. Reconcile is a separate approval for failed cleanup. No operation grants routine deployment access to the setup identity or runs application schema migrations. Failed cleanup blocks completion. An administrator must sign in through the private execution run.')
+              .addRaw(review.operation === 'bootstrap-oidc'
+                ? '\n\nThis one-time operation creates a separate database executor identity, exact private-workflow OIDC trust, and custom role assignments scoped to the target PostgreSQL server, existing Container Apps environment, and isolated setup resource group. It grants no subscription Owner role, role administration, password changes, or routine deployment permissions. One initial administrator sign-in is required in private Actions to install this trust. Later database operations need only public approval and use automatic OIDC sign-in.'
+                : '\n\nProvision creates three separate database identities in an isolated setup resource group. Configure uses the permanent Entra PostgreSQL administrator assignment of the setup identity and a private, finite job in the existing environment. It verifies runtime restrictions and a disposable two-tenant RLS table, then removes temporary access. Migrate runs the reviewed schema migrations as the schema owner in the same private job, then reapplies the reviewed runtime grants and the same verification. Reconcile is a separate approval for failed cleanup. No operation grants routine deployment access to the setup identity. Failed cleanup blocks completion. After this approval, private Actions signs in automatically through the dedicated OIDC executor. No device code or second approval is required.')
               .write();
 
   approve:
@@ -100,4 +102,6 @@ jobs:
               owner: 'arcmantle', repo: 'agent-shipyard-infra', workflow_id: 'database-setup.yml', ref: 'main',
               inputs: { operation: review.operation, review: process.env.REVIEW, approval_token: token },
             });
-            await core.summary.addRaw('The approved operation was sent to private Actions. Check that run for sign-in and the final cleanup result.').write();
+            await core.summary.addRaw(review.operation === 'bootstrap-oidc'
+              ? 'The one-time OIDC bootstrap was sent to private Actions. Complete its initial administrator sign-in there. Later database operations use automatic sign-in.'
+              : 'The approved operation was sent to private Actions for automatic OIDC sign-in and execution. Check that run for the final cleanup result.').write();

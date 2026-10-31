@@ -1,11 +1,10 @@
-import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 import { handlePrototypeApi } from './prototype-api.js';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
-const site = new URL('../../packages/site/', import.meta.url);
+const site = new URL('../../logbook/packages/site/', import.meta.url);
 
-export default defineConfig(({ command }) => {
+export default ({ command }: { command: 'build' | 'serve' }) => {
 	if (command === 'serve' && process.env.NODE_ENV === 'production')
 		throw new Error('The harness prototype is disabled in production.');
 	return {
@@ -27,7 +26,7 @@ export default defineConfig(({ command }) => {
 			fs: {
 				allow: [
 					root,
-					fileURLToPath(new URL('../../node_modules/', import.meta.url)),
+					fileURLToPath(new URL('../../logbook/node_modules/', import.meta.url)),
 					fileURLToPath(new URL('node_modules/', site)),
 				],
 			},
@@ -44,4 +43,4 @@ export default defineConfig(({ command }) => {
 		],
 		test: { environment: 'happy-dom', include: ['**/*.test.ts'] },
 	};
-});
+};

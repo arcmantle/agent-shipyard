@@ -1,5 +1,6 @@
 import type { StorageDriver } from "../features/storage-driver/storage-driver.js";
 import { decodeCanonicalChainBundle, encodeCanonicalChainBundle, type CanonicalChainWireBundle } from "../features/synchronize/canonical-chain.js";
+import { decodeMigrationBundle, encodeMigrationBundle, type MigrationWireBundle } from "../features/migration/migration-bundle.js";
 
 /**
  * One entry per `StorageDriver` method exposed over JSON-RPC (ADR13, ADR14).
@@ -16,6 +17,9 @@ export type RpcMethodHandler = (store: StorageDriver, params: unknown) => Promis
 export const rpcMethods: Record<string, RpcMethodHandler> = {
 	exportCanonicalChains: async (store) => encodeCanonicalChainBundle(await store.exportCanonicalChains()),
 	importCanonicalChains: async (store, params) => store.importCanonicalChains(decodeCanonicalChainBundle((params as { bundle: CanonicalChainWireBundle }).bundle)),
+	exportMigrationBundle: async (store) => encodeMigrationBundle(await store.exportMigrationBundle()),
+	importMigrationBundle: async (store, params) => store.importMigrationBundle(decodeMigrationBundle((params as { bundle: MigrationWireBundle }).bundle)),
+	countMigrationRecords: async (store) => store.countMigrationRecords(),
 	upsertUser: async (store, params) => store.upsertUser(params as Parameters<StorageDriver["upsertUser"]>[0]),
 	listUsers: async (store) => store.listUsers(),
 	getHistoryDiagnostics: async (store) => store.getHistoryDiagnostics(),
@@ -124,6 +128,7 @@ export const rpcMethods: Record<string, RpcMethodHandler> = {
  */
 export const writeMethods = new Set<string>([
 	"importCanonicalChains",
+	"importMigrationBundle",
 	"upsertUser",
 	"setProspectorSettings",
 	"createEntity",
