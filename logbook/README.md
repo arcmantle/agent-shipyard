@@ -56,6 +56,71 @@ Open the URL printed by `site`. The command starts the local browser server in t
 
 The default database is `~/.agent-issues/agent-issues.db`. The workspace determines the project scope, including when you run commands from a subdirectory. Use `--db <path>` for a separate database or `--project-identity <id>` to select a project explicitly.
 
+## Project Export And Import
+
+Export the current project to a directory. Import that directory to a separate,
+empty database:
+
+```bash
+agent-logbook export project --output ./project-export
+agent-logbook import ./project-export --db ./restored.db
+```
+
+In another workspace, use the project reference returned by import with
+`--project-identity` to select the restored project:
+
+```bash
+agent-logbook list initiative --db ./restored.db --project-identity <project-reference>
+```
+
+Import keeps the original project title. It does not register a project for the
+destination workspace.
+
+The archive contains `manifest.json`, `structure.json`, and Markdown files.
+The manifest identifies the format as `agent-logbook-project` and its version
+as `1`. The archive version is separate from the CLI release version.
+Import selects a reader by manifest version before it reads version-specific
+files. Only version 1 is supported. Other versions cause an explicit error.
+
+For a new archive version, add a reader and its schemas beside
+`project-archive-v1.ts`, then register the reader in `project-archive.ts`.
+Each reader uses the shared file reader and returns an `ArchiveReadResult`
+with data converted to the current `MigrationBundle` format. Keep version 1
+schemas and handling separate. Export continues to write version 1.
+
+JSON stores metadata, relations, revision patches, settings, completion
+observations, and issue-breakdown drafts. Markdown stores entity bodies,
+context summaries, term definitions, comments, and Plan entries. Entity files
+are grouped by kind. Their filenames contain the full reference and a readable
+title, for example `ISS_<full-reference>--render-detail-view.md`.
+
+Import preserves IDs, references, timestamps, and complete available history.
+Deleted records are included. Only the current project is exported. A link to
+another project causes an error; export does not silently remove it. Legacy
+bootstrap records without history receive an initial revision. The legacy
+`system` author is represented by its canonical system-user ID.
+
+You can edit the current Markdown files before import. Import adds a revision
+for each changed body and identifies its author as `Archive Markdown edit`.
+Do not edit `history/` or `structure.json`. The files in `history/` retain the
+original current text so an edit cannot remove the previous history. Revision
+patches in JSON retain the earlier text.
+
+Personal instructions are excluded by default. To include them, use
+`--include-instructions` on both export and import. Instruction files are
+read-only archive data. Credentials, saved logins, and access tokens are not
+exported. The archive can contain private project text and user attribution;
+protect it as you protect the source database.
+
+The destination tenant must contain no data except its initial default project
+and epic. Import validates the archive before it opens the destination. It
+restores data in one transaction and verifies record counts before commit.
+It does not merge or overwrite projects. Remote import requires the Admin role.
+Use `--force` on export only to replace a recognized archive directory.
+
+Single-file Markdown reports and initiative reports remain available. They
+are not import formats.
+
 ## Demo
 
 This sequence shows how a requirement becomes linked implementation work. Use the IDs returned by each command in place of `<initiative-id>`, `<prd-id>`, `<story-id>`, and `<issue-id>`.

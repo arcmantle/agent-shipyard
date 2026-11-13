@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { shortEntityReference } from "@agent-issues/core";
 import { isEntrypointInvocation, runCli, shouldRunLocalDaemon, shouldRunMcpServer } from "../cli.js";
 import { main } from "./index.js";
-import { createEntity, ensureDatabase, getDatabaseSnapshot, getEntityDetails, getProjectDiscovery, listEntities, listTenants, materializeEntityRevision, openSqliteStore } from "@agent-issues/api-local";
+import { createEntity, ensureDatabase, getDatabaseSnapshot, getEntityDetails, getProjectDiscovery, listEntities, listTenants, materializeEntityRevision, openSqliteStore, SqliteStore } from "@agent-issues/api-local";
 import { LOCAL_DAEMON_SPAWN_FLAG } from "../daemon/local-daemon-store.js";
 import { MCP_SERVER_FLAG, parseMcpProjectIdentity, PROJECT_IDENTITY_FLAG } from "../mcp-server/runner.js";
 import { startLiveSite } from "../site/index.js";
@@ -2668,17 +2668,22 @@ describe("cli", () => {
 		}
 	});
 
-	it("exports the whole project to a grouped directory by default", async () => {
+	it.each([false, true])("exports and restores a project with personal instruction selection %s", async (includeInstructions) => {
 		const root = createTempDir();
 		const dbPath = path.join(root, "agent-issues.db");
 		const { db, executor } = await ensureDatabase(dbPath);
 		const initiative = createEntity(executor, { kind: "initiative", title: "Console Viewer" });
 		createEntity(executor, { kind: "adr", title: "Use SVG graphs" });
+		const source = new SqliteStore(executor);
+		await source.importInstructionBundle({ version: "archive-test", items: [{ key: "fragment/archive-default", kind: "fragment", body: "Default text." }] });
+		await source.createInstructionFragment({ version: "archive-test", key: "fragment/archive-example", body: "Use readable project files.\n" });
+		const instructions = (await source.exportMigrationBundle()).instructions;
 		db.close();
 
 		const stdout = createCapture();
 		const stderr = createCapture();
-		const exitCode = await runCli(["export", "project", "--db", dbPath], {
+		const instructionFlags = includeInstructions ? ["--include-instructions"] : [];
+		const exitCode = await runCli(["export", "project", "--db", dbPath, ...instructionFlags], {
 			cwd: root,
 			stderr: stderr.stream,
 			stdout: stdout.stream
@@ -2687,8 +2692,31 @@ describe("cli", () => {
 		expect(exitCode).toBe(0);
 		expect(stderr.read()).toBe("");
 		expect(stdout.read()).toContain(`Exported project to ${path.join(root, "agent-issues-export", "project")}`);
-		expect(existsSync(path.join(root, "agent-issues-export", "project", "project.md"))).toBe(true);
-		expect(existsSync(path.join(root, "agent-issues-export", "project", "initiatives", initiative.id, "initiative.md"))).toBe(true);
+		const outputPath = path.join(root, "agent-issues-export", "project");
+		expect(existsSync(path.join(outputPath, "manifest.json"))).toBe(true);
+		expect(existsSync(path.join(outputPath, "entities", "initiative", `${initiative.reference}--console-viewer.md`))).toBe(true);
+		const targetPath = path.join(root, "restored.db");
+		const destinationWorkspace = path.join(root, "destination");
+		mkdirSync(destinationWorkspace);
+		const importStdout = createCapture();
+		if (includeInstructions) {
+			await expect(runCli(["import", outputPath, "--db", targetPath], { cwd: destinationWorkspace, stdout: importStdout.stream, stderr: stderr.stream })).rejects.toThrow("--include-instructions");
+			expect(existsSync(targetPath)).toBe(false);
+		}
+		expect(await runCli(["import", outputPath, "--db", targetPath, "--json", ...instructionFlags], { cwd: destinationWorkspace, stdout: importStdout.stream, stderr: stderr.stream })).toBe(0);
+		expect(stderr.read()).toBe("");
+		expect(JSON.parse(importStdout.read())).toMatchObject({ mode: "import", counts: { entities: 4 }, editedReferences: [] });
+		const projectReference = JSON.parse(importStdout.read()).projectReference;
+		const queryStdout = createCapture();
+		expect(await runCli(["list", "initiative", "--db", targetPath, "--project-identity", projectReference, "--json"], { cwd: destinationWorkspace, stdout: queryStdout.stream, stderr: stderr.stream })).toBe(0);
+		expect(JSON.parse(queryStdout.read())).toMatchObject({ items: [{ reference: initiative.reference, title: initiative.title }], total: 1 });
+		const restored = await ensureDatabase(targetPath);
+		try {
+			expect(getEntityDetails(restored.executor, initiative.id).entity).toMatchObject({ reference: initiative.reference, title: initiative.title });
+			expect((await new SqliteStore(restored.executor).exportMigrationBundle()).instructions).toEqual(includeInstructions ? instructions : { overrides: [], personalFragments: [], history: [] });
+		} finally {
+			restored.db.close();
+		}
 	});
 
 	it("emits single-file markdown when requested", async () => {

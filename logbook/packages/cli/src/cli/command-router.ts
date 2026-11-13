@@ -54,6 +54,7 @@ function resolveCommandFamily(argv: readonly string[]): CommandFamily {
 		case "list":
 			return "entities";
 		case "export":
+		case "import":
 			return "export";
 		case "issue-breakdown":
 			return "issue-breakdowns";

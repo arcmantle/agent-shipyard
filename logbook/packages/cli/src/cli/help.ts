@@ -823,16 +823,16 @@ const COMMAND_SPECS: CommandSpec[] = [
 	},
 	{
 		name: "export",
-		summary: "Export one initiative or the whole project as markdown with graph metadata in frontmatter.",
+		summary: "Export a project archive, or an initiative Markdown report.",
 		usage: [
 			"agent-issues export <initiativeId> [--output <path>] [--force]",
-			"agent-issues export project [--output <path>] [--force]",
+			"agent-issues export project [--output <path>] [--include-instructions] [--force]",
 			"agent-issues export <initiativeId|project> --single-file [--output <file>]"
 		],
 		positionals: [
 			{
 				name: "initiativeId|project",
-				description: "One initiative ID, or `project` for a tenant-wide export.",
+				description: "One initiative ID, or `project` for the current project.",
 				required: true
 			}
 		],
@@ -847,7 +847,11 @@ const COMMAND_SPECS: CommandSpec[] = [
 			},
 			{
 				name: "--force",
-				description: "Replace an existing export directory when writing grouped output."
+				description: "Replace an existing archive. Project export refuses unrelated directories."
+			},
+			{
+				name: "--include-instructions",
+				description: "Include personal instruction bodies and history in a project archive."
 			}
 		],
 		examples: [
@@ -860,8 +864,8 @@ const COMMAND_SPECS: CommandSpec[] = [
 		notes: [
 			"Grouped export is the default: it creates a folder tree that mirrors entity-kind and relation groupings in the database.",
 			"Single-file export remains available with `--single-file` for piping or ad hoc capture.",
-			"The YAML frontmatter summarizes counts, context, and relation edges so connections remain machine-readable.",
-			"Project export includes normal entity and relation output, plus one nested initiative export per initiative."
+			"Project archives contain editable Markdown, JSON metadata and relations, and complete history. Filenames contain full references and readable titles.",
+			"Import accepts project archives only. Single-file and initiative reports are not import formats."
 		],
 		output: {
 			human: [
@@ -870,6 +874,21 @@ const COMMAND_SPECS: CommandSpec[] = [
 			],
 			json: ["mode", "scope", "initiativeId", "generatedAt", "markdown", "outputPath", "files"]
 		}
+	},
+	{
+		name: "import",
+		summary: "Restore a project archive to an empty destination.",
+		usage: ["agent-issues import <archive-directory> [--db <path>] [--include-instructions]"],
+		positionals: [{ name: "archive-directory", description: "A directory created by export project.", required: true }],
+		options: [{ name: "--include-instructions", description: "Accept personal instructions from the archive." }],
+		examples: ["agent-issues import ./project-export --db ./restored.db"],
+		notes: [
+			"Import preserves IDs, references, and history. Edited Markdown creates new revisions.",
+			"The destination tenant must be empty apart from its initial default project and epic.",
+			"Use the returned project reference with --project-identity to select the restored project in another workspace.",
+			"Import rejects invalid data and conflicts without partial restoration. Remote import requires the Admin role."
+		],
+		output: { human: ["Imported project <project-reference> from <archive-directory>.", "Use --project-identity <project-reference> to select the restored project."], json: ["mode", "projectId", "projectReference", "inputPath", "counts", "editedReferences"] }
 	},
 	{
 		name: "move",

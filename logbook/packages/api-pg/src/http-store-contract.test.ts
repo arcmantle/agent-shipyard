@@ -963,6 +963,7 @@ describe("HttpStore over a real JSON-RPC gate", () => {
 		expect(await store(["Logbook.Reader"]).getEntityDetails(created.id)).toMatchObject({ entity: { title: "Written" } });
 		const migration = await store(["Logbook.Reader"]).exportMigrationBundle();
 		await expect(store(["Logbook.Writer"]).importMigrationBundle(migration)).rejects.toThrow("requires the Logbook.Admin role");
+		await expect(store(["Logbook.Writer"]).restoreProjectBundle(migration)).rejects.toThrow("requires the Logbook.Admin role");
 		for (const change of [
 			(reader: StorageDriver) => reader.saveInstructionSource(input),
 			(reader: StorageDriver) => reader.commitInstructionChanges({ version, changes: [{ operation: "save", key: "skill/prepare", body: "Batch", expectedRevision: 1 }] }),

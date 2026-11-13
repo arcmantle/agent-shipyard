@@ -5,7 +5,8 @@ import { computeEntityContentHash, DEFAULT_EPIC_ID, EntityConflictError, EntityR
 import { computeContextTermContentHash, ContextConflictError, ContextRevisionError, ContextTermConflictError } from "../context/context-types.js";
 import { IssueCommentConflictError } from "./issue-comment-store.js";
 import type { StorageDriver } from "./storage-driver.js";
-import { assignMigrationAuthorship } from "../migration/migration-bundle.js";
+import { assignMigrationAuthorship, encodeMigrationBundle } from "../migration/migration-bundle.js";
+import { selectProjectBundle } from "../migration/project-bundle.js";
 import { projectProposedPlan } from "../plan/plan-snapshot.js";
 
 export type StorageDriverContractOptions = {
@@ -2693,6 +2694,46 @@ export function runStorageDriverContractSuite(options: StorageDriverContractOpti
 			} finally {
 				await first.close();
 				await second.close();
+				await target.close();
+			}
+		});
+	});
+
+	describe(`storage-driver seam: project archive (${label})`, () => {
+		it("restores one complete project without other projects and rejects a second restore", async () => {
+			const source = await openStoreForProject("archive-source");
+			const other = await openStoreForProject("archive-other");
+			const target = await openStore();
+			try {
+				const initiative = await source.createEntity({ kind: "initiative", title: "Portable project", body: "Readable body." });
+				const issue = await source.createEntity({ kind: "issue", parentId: initiative.id, title: "Issue" });
+				const plan = await source.createEntity({ kind: "plan", parentId: initiative.id, title: "Plan" });
+				const question = await source.createPlanEntry({ planId: plan.id, role: "question", body: "What must move?" });
+				await source.createPlanEntry({ planId: plan.id, role: "decision", body: "Move all project data.", supersededEntryIds: [question.id], referencedEntityIds: [issue.id] });
+				await source.createIssueComment({ issueId: issue.id, body: "Keep the conversation.", referencedIssueIds: [issue.id] });
+				await source.upsertContext({ title: "Project terms", summary: "Shared language." });
+				await source.defineContextTerm({ term: "Archive", definition: "The portable project files.", avoid: ["dump"] });
+				await source.setProspectorSettings({ tagPrefix: "archive-" });
+				await source.createIssueBreakdownDraft({ targetId: initiative.id, issues: [{ key: "one", title: "One issue", outcome: "Restore the draft.", workMode: "AFK", scope: [], acceptanceCriteria: [], relationReferences: [] }] });
+				await other.createEntity({ kind: "issue", title: "Excluded project data" });
+				await other.upsertContext({ title: "Other project context", summary: "Excluded context." });
+				await other.defineContextTerm({ term: "Other term", definition: "Excluded term." });
+				const project = (await source.getDatabaseSnapshot()).entities.find((entity) => entity.kind === "project")!;
+				const exported = await source.exportMigrationBundle();
+				for (const context of exported.chains.contexts) context.head.scopeEntityId = null;
+				const bundle = selectProjectBundle(exported, project.id);
+				expect(bundle.chains.entities.some((chain) => chain.head.title === "Excluded project data")).toBe(false);
+				expect(bundle.chains.contexts.map((chain) => chain.head.summary)).toEqual(["Shared language."]);
+				expect(bundle.chains.contextTerms.map((chain) => chain.head.definition)).toEqual(["The portable project files."]);
+				await target.restoreProjectBundle(bundle);
+				const restored = selectProjectBundle(await target.exportMigrationBundle(), project.id);
+				expect(encodeMigrationBundle(restored)).toEqual(encodeMigrationBundle(assignMigrationAuthorship(bundle)));
+				const before = await target.getSnapshotSignature();
+				await expect(target.restoreProjectBundle(bundle)).rejects.toThrow(/already contains records/);
+				expect(await target.getSnapshotSignature()).toBe(before);
+			} finally {
+				await source.close();
+				await other.close();
 				await target.close();
 			}
 		});

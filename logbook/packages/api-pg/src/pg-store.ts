@@ -313,6 +313,10 @@ export class PgStore implements StorageDriver {
 		return this.tenantWideTransaction((executor) => new PgSynchronizeStore(executor, this.actorIdentity?.userId).countMigrationRecords());
 	}
 
+	public async restoreProjectBundle(bundle: MigrationBundle) {
+		return this.tenantWideMutation((executor) => new PgSynchronizeStore(executor, this.actorIdentity?.userId).restoreProjectBundle(assignMigrationAuthorship(bundle)));
+	}
+
 	public async upsertUser(input: Parameters<StorageDriver["upsertUser"]>[0]) {
 		return this.tenantWideTransaction((executor) => new PgUserDirectoryStore(executor).upsertUser(input));
 	}

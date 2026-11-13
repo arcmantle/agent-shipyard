@@ -178,6 +178,16 @@ export class SqliteStore implements StorageDriver {
 		return this.synchronizeStore.countMigrationRecords();
 	}
 
+	public async restoreProjectBundle(bundle: MigrationBundle) {
+		const counts = this.executor.drizzle.transaction(() => {
+			const result = localSynchronizeStore.restoreProjectBundle(this.executor, bundle);
+			this.searchStore.synchronizeSearchDocuments();
+			return result;
+		});
+		this.executor.currentProjectId = bundle.chains.entities.find((chain) => chain.head.kind === "project")!.head.id;
+		return counts;
+	}
+
 	public async upsertUser(input: Parameters<StorageDriver["upsertUser"]>[0]) {
 		return this.userDirectoryStore.upsertUser(input);
 	}

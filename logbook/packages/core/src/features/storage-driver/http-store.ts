@@ -325,6 +325,10 @@ export class HttpStore implements StorageDriver {
 		return this.call("importMigrationBundle", { bundle: encodeMigrationBundle(bundle) });
 	}
 
+	public restoreProjectBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
+		return this.call("restoreProjectBundle", { bundle: encodeMigrationBundle(bundle) });
+	}
+
 	public countMigrationRecords(): Promise<MigrationRecordCounts> {
 		return this.call("countMigrationRecords");
 	}

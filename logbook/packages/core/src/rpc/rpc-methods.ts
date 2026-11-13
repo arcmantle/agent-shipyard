@@ -19,6 +19,7 @@ export const rpcMethods: Record<string, RpcMethodHandler> = {
 	importCanonicalChains: async (store, params) => store.importCanonicalChains(decodeCanonicalChainBundle((params as { bundle: CanonicalChainWireBundle }).bundle)),
 	exportMigrationBundle: async (store) => encodeMigrationBundle(await store.exportMigrationBundle()),
 	importMigrationBundle: async (store, params) => store.importMigrationBundle(decodeMigrationBundle((params as { bundle: MigrationWireBundle }).bundle)),
+	restoreProjectBundle: async (store, params) => store.restoreProjectBundle(decodeMigrationBundle((params as { bundle: MigrationWireBundle }).bundle)),
 	countMigrationRecords: async (store) => store.countMigrationRecords(),
 	upsertUser: async (store, params) => store.upsertUser(params as Parameters<StorageDriver["upsertUser"]>[0]),
 	listUsers: async (store) => store.listUsers(),
@@ -129,6 +130,7 @@ export const rpcMethods: Record<string, RpcMethodHandler> = {
 export const writeMethods = new Set<string>([
 	"importCanonicalChains",
 	"importMigrationBundle",
+	"restoreProjectBundle",
 	"upsertUser",
 	"setProspectorSettings",
 	"createEntity",

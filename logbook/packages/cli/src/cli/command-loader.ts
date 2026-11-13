@@ -60,8 +60,9 @@ export async function registerCommandFamily(cli: Cli<AgentIssuesContext>, argv: 
 				return;
 			}
 			case "export": {
-				const { ExportCommand } = await import("./commands/export.js");
+				const { ExportCommand, ImportCommand } = await import("./commands/export.js");
 				cli.register(ExportCommand);
+				cli.register(ImportCommand);
 				return;
 			}
 			case "fallback": {

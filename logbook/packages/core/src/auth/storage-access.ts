@@ -79,6 +79,7 @@ export const storageMethodAccess = {
 	exportCanonicalChains: "read",
 	// Migration import writes personal instructions too, so it needs Admin.
 	importMigrationBundle: "admin",
+	restoreProjectBundle: "admin",
 	exportMigrationBundle: "read",
 	countMigrationRecords: "read",
 	getHistoryDiagnostics: "read",

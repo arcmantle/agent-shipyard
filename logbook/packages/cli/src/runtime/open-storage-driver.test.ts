@@ -169,7 +169,7 @@ describe("openStorageDriver (ADR13, ADR18)", () => {
 			}
 		});
 
-		it("uses an explicit selected project identity for daemon requests", async () => {
+		it.each(["PROJ2", ""])("uses an explicit project selector %j for daemon requests", async (projectIdentity) => {
 			await saveDaemonToken("real-token", credentialStoreOptions);
 			let seenProjectIdentity: string | string[] | undefined;
 			const server = createServer((request, response) => {
@@ -187,7 +187,7 @@ describe("openStorageDriver (ADR13, ADR18)", () => {
 			saveDaemonState({ pid: process.pid, port }, { homeDirectory });
 
 			const result = await openStorageDriver({
-				databaseOptions: { currentWorkingDirectory: projectDirectory, projectIdentity: "PROJ2" },
+				databaseOptions: { currentWorkingDirectory: projectDirectory, projectIdentity },
 				authSessionOptions: { homeDirectory, ...credentialStoreOptions },
 				env: {},
 				localDaemon: { homeDirectory, credentialStoreOptions, spawn: vi.fn() }
@@ -195,7 +195,7 @@ describe("openStorageDriver (ADR13, ADR18)", () => {
 
 			try {
 				await result.store.listEntities("initiative");
-				expect(seenProjectIdentity).toBe("PROJ2");
+				expect(seenProjectIdentity).toBe(projectIdentity);
 			} finally {
 				await result.store.close();
 			}

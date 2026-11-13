@@ -37,6 +37,7 @@ export * from "./utilities/os-credential-store.js";
 export * from "./utilities/tenant-identity.js";
 export * from "./features/synchronize/canonical-chain.js";
 export * from "./features/migration/migration-bundle.js";
+export * from "./features/migration/project-bundle.js";
 export * from "./features/synchronize/synchronize.js";
 export * from "./features/user-directory/user-directory.js";
 export * from "./features/migrations/migration-engine.js";

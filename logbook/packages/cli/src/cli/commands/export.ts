@@ -2,9 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { Option } from "clipanion";
-import type { IssueCommentRecord } from "@agent-issues/core";
+import { selectProjectBundle, type IssueCommentRecord } from "@agent-issues/core";
 
-import { writeInitiativeDirectoryExport, writeProjectDirectoryExport } from "../../export/export-files.js";
+import { writeInitiativeDirectoryExport } from "../../export/export-files.js";
+import { readProjectArchive, writeProjectArchive } from "../../export/project-archive.js";
 import { renderInitiativeMarkdownExport, renderProjectMarkdownExport } from "../../export/export-markdown.js";
 
 import { requirePositional, withStore } from "../shared.js";
@@ -16,17 +17,18 @@ export class ExportCommand extends MutableTenantCommand {
 	public output = Option.String("--output");
 	public positionals = Option.Rest();
 	public singleFile = Option.Boolean("--single-file", false);
+	public includeInstructions = Option.Boolean("--include-instructions", false);
 
 	public async execute(): Promise<number> {
 		return withStore(this.dbPath, this.withStoreOptions(), async (store) => {
 			const target = requirePositional(this.positionals, 0, "export <initiativeId|project>");
+			if (this.includeInstructions && (target !== "project" || this.singleFile)) throw new Error("--include-instructions requires a project directory export.");
 			const snapshot = await store.getDatabaseSnapshot();
 
 			if (target === "project") {
-				const commentsByIssueId = await collectIssueComments(store, snapshot.entities);
-				const markdown = renderProjectMarkdownExport({ snapshot, commentsByIssueId });
-
 				if (this.singleFile) {
+					const commentsByIssueId = await collectIssueComments(store, snapshot.entities);
+					const markdown = renderProjectMarkdownExport({ snapshot, commentsByIssueId });
 					return this.emitSingleFileExport({
 						markdown,
 						payload: {
@@ -39,9 +41,12 @@ export class ExportCommand extends MutableTenantCommand {
 					});
 				}
 
-				const result = writeProjectDirectoryExport({
-					commentsByIssueId,
-					snapshot,
+				const project = snapshot.entities.find((entity) => entity.kind === "project");
+				if (!project) throw new Error("The current project is not available.");
+				const result = writeProjectArchive({
+					bundle: selectProjectBundle(await store.exportMigrationBundle(), project.id, this.includeInstructions),
+					projectId: project.id,
+					includeInstructions: this.includeInstructions,
 					outputPath: this.resolveOutputPath(target),
 					force: this.force
 				});
@@ -114,6 +119,31 @@ export class ExportCommand extends MutableTenantCommand {
 
 	protected resolveOutputPath(target: string): string {
 		return path.resolve(this.context.cwd, this.output ?? path.join("agent-issues-export", target));
+	}
+}
+
+export class ImportCommand extends MutableTenantCommand {
+	public static paths = [["import"]];
+
+	public positionals = Option.Rest();
+	public includeInstructions = Option.Boolean("--include-instructions", false);
+
+	public async execute(): Promise<number> {
+		if (this.force) throw new Error("Import cannot overwrite existing records. Use an empty destination.");
+		const inputPath = path.resolve(this.context.cwd, requirePositional(this.positionals, 0, "import <archive-directory>"));
+		if (this.positionals.length !== 1) throw new Error("Usage: import <archive-directory>.");
+		const archive = readProjectArchive(inputPath);
+		if (archive.manifest.instructionsIncluded && !this.includeInstructions) throw new Error("This archive includes personal instructions. Use --include-instructions to import them.");
+		// An empty selector prevents workspace registration before the empty-tenant check.
+		return withStore(this.dbPath, this.withStoreOptions({ projectIdentity: "" }), async (store) => {
+			const counts = await store.restoreProjectBundle(archive.bundle);
+			const projectReference = archive.bundle.chains.entities.find((chain) => chain.head.id === archive.manifest.projectId)!.head.reference;
+			this.print(
+				{ mode: "import", projectId: archive.manifest.projectId, projectReference, inputPath, counts, editedReferences: archive.editedReferences },
+				`Imported project ${projectReference} from ${inputPath}.\nUse --project-identity ${projectReference} to select the restored project.`
+			);
+			return 0;
+		});
 	}
 }
 

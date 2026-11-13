@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { ContextDetails, DatabaseSnapshot, InitiativeBundle } from "@agent-issues/api-local";
+import type { ContextDetails, InitiativeBundle } from "@agent-issues/api-local";
 import type { EntityRecord, IssueCommentRecord, PlanEntryRecord, RelationRecord, UserDirectoryRecord } from "@agent-issues/core";
-import { renderFrontmatter, renderInitiativeMarkdownExport, renderIssueConversationMarkdown, renderPlanProjectionMarkdown, renderProjectMarkdownExport } from "./export-markdown.js";
+import { renderFrontmatter, renderInitiativeMarkdownExport, renderIssueConversationMarkdown, renderPlanProjectionMarkdown } from "./export-markdown.js";
 
 export type DirectoryExportResult = {
 	mode: "directory";
@@ -59,48 +59,6 @@ export function writeInitiativeDirectoryExport(input: {
 		scope: "initiative",
 		outputPath: path.resolve(input.outputPath),
 		files: files.sort((left, right) => left.localeCompare(right))
-	};
-}
-
-export function writeProjectDirectoryExport(input: {
-	commentsByIssueId?: Record<string, IssueCommentRecord[]>;
-	snapshot: DatabaseSnapshot;
-	outputPath: string;
-	force?: boolean;
-}): DirectoryExportResult {
-	prepareOutputDirectory(input.outputPath, input.force ?? false);
-
-	const files: string[] = [];
-
-	writeMarkdownFile(input.outputPath, "project.md", renderProjectMarkdownExport(input), files);
-	writeMarkdownFile(input.outputPath, "shared-context.md", renderContextMarkdown(input.snapshot.contexts.shared), files);
-	writeJsonFile(input.outputPath, "users.json", collectReferencedUsers(input.snapshot), files);
-	writeEntityGroup(input.outputPath, "entities", input.snapshot.entities, input.snapshot.relations, files, input.commentsByIssueId, input.snapshot.users, input.snapshot.planEntries);
-	writeRelationGroups(input.outputPath, input.snapshot.relations, files);
-
-	const initiativesRoot = path.join(input.outputPath, "initiatives");
-	mkdirSync(initiativesRoot, { recursive: true });
-	for (const bundle of input.snapshot.initiatives) {
-		const context = input.snapshot.contexts.initiatives.find((details) => details.context.scopeEntityId === bundle.initiative.id) ?? emptyInitiativeContext(bundle.initiative);
-		const initiativeDir = path.join(initiativesRoot, bundle.initiative.id);
-		const initiativeResult = writeInitiativeDirectoryExport({
-			bundle,
-			commentsByIssueId: input.commentsByIssueId,
-			context,
-			outputPath: initiativeDir,
-			planEntries: input.snapshot.planEntries,
-			relations: input.snapshot.relations,
-			users: input.snapshot.users,
-			force: true
-		});
-		files.push(...initiativeResult.files);
-	}
-
-	return {
-		mode: "directory",
-		scope: "project",
-		outputPath: path.resolve(input.outputPath),
-		files: [...new Set(files)].sort((left, right) => left.localeCompare(right))
 	};
 }
 
@@ -223,13 +181,6 @@ function writeMarkdownFile(rootPath: string, relativePath: string, content: stri
 	files.push(path.resolve(absolutePath));
 }
 
-function writeJsonFile(rootPath: string, relativePath: string, value: unknown, files: string[]) {
-	const absolutePath = path.join(rootPath, relativePath);
-	mkdirSync(path.dirname(absolutePath), { recursive: true });
-	writeFileSync(absolutePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-	files.push(path.resolve(absolutePath));
-}
-
 function prepareOutputDirectory(outputPath: string, force: boolean) {
 	const resolvedPath = path.resolve(outputPath);
 	if (existsSync(resolvedPath)) {
@@ -253,59 +204,6 @@ function summarizeRelation(relation: RelationRecord) {
 	};
 }
 
-type UserDirectoryExportRecord = {
-	id: string;
-	authenticationSubject: string;
-	displayName?: string;
-};
-
-function collectReferencedUsers(snapshot: DatabaseSnapshot): UserDirectoryExportRecord[] {
-	const userIds = new Set<string>();
-	for (const entity of snapshot.entities) {
-		userIds.add(entity.createdBy);
-		userIds.add(entity.updatedBy);
-	}
-	for (const relation of snapshot.relations) {
-		userIds.add(relation.createdBy);
-	}
-	for (const context of [snapshot.contexts.shared, ...snapshot.contexts.initiatives]) {
-		if (context.context.createdBy) userIds.add(context.context.createdBy);
-		if (context.context.updatedBy) userIds.add(context.context.updatedBy);
-		for (const term of context.terms) {
-			userIds.add(term.createdBy);
-			userIds.add(term.updatedBy);
-		}
-	}
-
-	return snapshot.users
-		.filter((user) => userIds.has(user.id))
-		.map((user) => ({ id: user.id, authenticationSubject: user.authenticationSubject, ...(user.displayName !== null && { displayName: user.displayName }) }));
-}
-
 function collectBundleEntityIds(bundle: InitiativeBundle): Set<string> {
 	return new Set(bundle.entities.map((entity) => entity.id));
-}
-
-function emptyInitiativeContext(initiative: EntityRecord): ContextDetails {
-	return {
-		context: {
-			id: null,
-			reference: null,
-			shortReference: null,
-			createdBy: null,
-			updatedBy: null,
-			key: initiative.id,
-			scopeKind: "initiative",
-			scopeEntityId: initiative.id,
-			scopeLabel: initiative.title,
-			title: `${initiative.title} Context`,
-			summary: "",
-			revision: 0,
-			contentHash: "",
-			createdAt: null,
-			updatedAt: null,
-			exists: false
-		},
-		terms: []
-	};
 }

@@ -14,5 +14,7 @@ export interface SynchronizeStore {
 	exportMigrationBundle(): Promise<MigrationBundle>;
 	/** Imports a migration bundle into a tenant that has no records except the seeded default project and epic. */
 	importMigrationBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts>;
+	/** Restores one project with its original IDs and history to an empty tenant. */
+	restoreProjectBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts>;
 	countMigrationRecords(): Promise<MigrationRecordCounts>;
 }

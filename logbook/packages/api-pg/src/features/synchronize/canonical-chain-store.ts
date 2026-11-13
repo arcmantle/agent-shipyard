@@ -21,6 +21,8 @@ import {
 	isPlanEntryScopeDirection,
 	isStructuralRelationType,
 	mergeCanonicalChainBundles,
+	validateProjectBundle,
+	verifyProjectRestoreCounts,
 	shortEntityReference,
 	type CanonicalChainBundle,
 	type CanonicalChainImportResult,
@@ -87,7 +89,7 @@ export async function exportCanonicalChains(executor: TenantExecutor): Promise<C
 	return {
 		entities: (entitiesResult.rows as EntityHeadRow[]).map((row): CanonicalEntityChain => {
 			if (!isEntityKind(row.kind) || !isBodySource(row.body_source)) throw new Error(`Cannot export invalid entity ${row.id}.`);
-			return { head: { id: row.id, reference: row.reference, shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, kind: row.kind, title: row.title, body: row.body, bodySource: row.body_source, category: row.category && isEntityCategory(row.category) ? row.category : null, priority: row.priority && isEntityPriority(row.priority) ? row.priority : null, type: row.type && isEntityType(row.kind, row.type) ? row.type : null, status: row.status, parentId: row.parent_id, tombstone: row.tombstone, revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at }, deltas: ledgerRows.filter((delta) => delta.record_kind === "entity" && delta.record_key === encodeEntityRecordKey(row.id)).sort((left, right) => left.revision - right.revision).map(mapDelta) };
+			return { head: { id: row.id, reference: row.reference, shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, kind: row.kind, title: row.title, body: row.body, bodySource: row.body_source, category: row.category && isEntityCategory(row.category) ? row.category : null, priority: row.priority && isEntityPriority(row.priority) ? row.priority : null, type: row.type && isEntityType(row.kind, row.type) ? row.type : null, status: row.status, parentId: row.parent_id, projectId: row.project_id, tombstone: row.tombstone, revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at }, deltas: ledgerRows.filter((delta) => delta.record_kind === "entity" && delta.record_key === encodeEntityRecordKey(row.id)).sort((left, right) => left.revision - right.revision).map(mapDelta) };
 		}),
 		contexts: (contextsResult.rows as ContextHeadRow[]).map((row): CanonicalContextChain => ({ head: { id: row.id, reference: row.reference, shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, key: row.key, scopeEntityId: row.scope_entity_id, title: row.title, summary: row.summary, revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at }, deltas: ledgerRows.filter((delta) => delta.record_kind === "context" && delta.record_key === encodeContextRecordKey(row.id)).map(mapDelta) })),
 		contextTerms: (termsResult.rows as ContextTermHeadRow[]).map((row): CanonicalContextTermChain => ({ head: { id: row.id, reference: encodeCanonicalReference("contextTerm", row.id), shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, contextKey: row.context_key, term: row.term, definition: row.definition, avoid: parseStringArray(row.avoid_terms), tombstone: row.tombstone, revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at }, deltas: ledgerRows.filter((delta) => delta.record_kind === "context-term" && delta.record_key === encodeContextTermRecordKey(row.id)).map(mapDelta) })),
@@ -106,7 +108,7 @@ export async function exportCanonicalChains(executor: TenantExecutor): Promise<C
 	};
 }
 
-export async function importCanonicalChains(executor: TenantExecutor, incoming: CanonicalChainBundle): Promise<CanonicalChainImportResult> {
+export async function importCanonicalChains(executor: TenantExecutor, incoming: CanonicalChainBundle, restoreProjectId?: string): Promise<CanonicalChainImportResult> {
 	const current = await exportCanonicalChains(executor);
 	const merged = mergeCanonicalChainBundles(current, incoming);
 	const result: CanonicalChainImportResult = { entitiesCreated: [], entitiesAdvanced: [], contextsCreated: [], contextsAdvanced: [], contextTermsCreated: [], contextTermsAdvanced: [], issueCommentsCreated: [], issueCommentsAdvanced: [], planEntriesCreated: [], planEntriesAdvanced: [], completionObservationsCreated: [], usersCreated: [], usersUpdated: [] };
@@ -114,7 +116,7 @@ export async function importCanonicalChains(executor: TenantExecutor, incoming: 
 	for (const chain of merged.entities) {
 		const existing = currentEntities.get(chain.head.id);
 		if (existing?.head.revision === chain.head.revision) continue;
-		await writeEntity(executor, chain, existing === undefined, resolveCanonicalProjectId(chain, merged.entities));
+		await writeEntity(executor, chain, existing === undefined, restoreProjectId ?? resolveCanonicalProjectId(chain, merged.entities));
 		(existing ? result.entitiesAdvanced : result.entitiesCreated).push(chain.head.id);
 	}
 	await rebuildStructuralParents(executor, merged.entities);
@@ -400,7 +402,7 @@ export async function countMigrationRecords(executor: TenantExecutor, instructio
 	};
 }
 
-export async function importMigrationBundle(executor: TenantExecutor, bundle: MigrationBundle, instructionOwnerId?: string): Promise<MigrationRecordCounts> {
+export async function importMigrationBundle(executor: TenantExecutor, bundle: MigrationBundle, instructionOwnerId?: string, restoreProject = false): Promise<MigrationRecordCounts> {
 	const seededProject = deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId;
 	const seededEpic = deriveMigratedEntityIdentity("epic", DEFAULT_EPIC_ID).stableId;
 	await executor.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`migration:${executor.tenantId}`}))`);
@@ -419,7 +421,18 @@ export async function importMigrationBundle(executor: TenantExecutor, bundle: Mi
 	if (Number((existing.rows[0] as { records: string | number }).records) > 0) {
 		throw new Error("The migration target already contains records. Migrate only into an empty tenant.");
 	}
-	await importCanonicalChains(executor, bundle.chains);
+	if (restoreProject) {
+		const extra = await executor.execute(sql`SELECT
+			(SELECT count(*) FROM contexts WHERE tenant_id=${executor.tenantId}) +
+			(SELECT count(*) FROM entities WHERE tenant_id=${executor.tenantId} AND (revision != 1 OR tombstone)) +
+			(SELECT count(*) FROM relations WHERE tenant_id=${executor.tenantId} AND NOT (from_id=${seededProject}::uuid AND to_id=${seededEpic}::uuid AND type='contains')) +
+			(SELECT count(*) FROM revision_entries WHERE tenant_id=${executor.tenantId} AND (record_kind != 'entity' OR revision != 1 OR record_key NOT IN (${encodeEntityRecordKey(seededProject)}, ${encodeEntityRecordKey(seededEpic)}))) AS records`);
+		if (Number((extra.rows[0] as { records: string | number }).records) > 0) throw new Error("The restore target already contains records. Restore only into an empty tenant.");
+		await executor.execute(sql`DELETE FROM relations WHERE tenant_id=${executor.tenantId}`);
+		await executor.execute(sql`DELETE FROM revision_entries WHERE tenant_id=${executor.tenantId}`);
+		await executor.execute(sql`DELETE FROM entities WHERE tenant_id=${executor.tenantId}`);
+	}
+	await importCanonicalChains(executor, bundle.chains, restoreProject ? bundle.chains.entities.find((chain) => chain.head.kind === "project")!.head.id : undefined);
 	for (const relation of bundle.relations) {
 		const createdBy = UUID_PATTERN.test(relation.createdBy) ? relation.createdBy : null;
 		await executor.execute(sql`INSERT INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}::uuid, ${relation.toId}::uuid, ${relation.type}, ${createdBy}::uuid, ${relation.createdAt}) ON CONFLICT (tenant_id, from_id, to_id, type) DO UPDATE SET created_by = excluded.created_by, created_at = excluded.created_at`);
@@ -470,6 +483,14 @@ export class PgSynchronizeStore implements SynchronizeStore {
 
 	public async importMigrationBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
 		return importMigrationBundle(this.executor, bundle, this.instructionOwnerId);
+	}
+
+	public async restoreProjectBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
+		const projectId = bundle.chains.entities.find((chain) => chain.head.kind === "project")?.head.id ?? "";
+		validateProjectBundle(bundle, projectId);
+		const counts = await importMigrationBundle(this.executor, bundle, this.instructionOwnerId, true);
+		verifyProjectRestoreCounts(bundle, counts);
+		return counts;
 	}
 
 	public async countMigrationRecords(): Promise<MigrationRecordCounts> {

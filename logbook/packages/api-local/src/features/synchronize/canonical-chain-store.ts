@@ -20,6 +20,8 @@ import {
 	isPlanEntryScopeDirection,
 	isStructuralRelationType,
 	mergeCanonicalChainBundles,
+	validateProjectBundle,
+	verifyProjectRestoreCounts,
 	shortEntityReference,
 	type CanonicalChainBundle,
 	type CanonicalChainImportResult,
@@ -92,7 +94,7 @@ export function exportCanonicalChains(executor: SqliteExecutor): CanonicalChainB
 				throw new Error(`Cannot export invalid entity ${row.id}.`);
 			}
 			return {
-				head: { id: row.id, reference: row.reference, shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, kind: row.kind, title: row.title, body: row.body, bodySource: row.body_source, category: row.category && isEntityCategory(row.category) ? row.category : null, priority: row.priority && isEntityPriority(row.priority) ? row.priority : null, type: row.type && isEntityType(row.kind, row.type) ? row.type : null, status: row.status, parentId: row.parent_id, tombstone: Boolean(row.tombstone), revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at },
+				head: { id: row.id, reference: row.reference, shortReference: row.short_reference, createdBy: row.created_by, updatedBy: row.updated_by, kind: row.kind, title: row.title, body: row.body, bodySource: row.body_source, category: row.category && isEntityCategory(row.category) ? row.category : null, priority: row.priority && isEntityPriority(row.priority) ? row.priority : null, type: row.type && isEntityType(row.kind, row.type) ? row.type : null, status: row.status, parentId: row.parent_id, projectId: row.project_id, tombstone: Boolean(row.tombstone), revision: row.revision, contentHash: row.content_hash, createdAt: row.created_at, updatedAt: row.updated_at },
 				// A moved entity keeps its earlier revisions under the previous project.
 				deltas: ledgerRows.filter((delta) => delta.record_kind === "entity" && delta.record_key === encodeEntityRecordKey(row.id)).sort((left, right) => left.revision - right.revision).map(mapDelta)
 			};
@@ -114,7 +116,7 @@ export function exportCanonicalChains(executor: SqliteExecutor): CanonicalChainB
 	};
 }
 
-export function importCanonicalChains(executor: SqliteExecutor, incoming: CanonicalChainBundle): CanonicalChainImportResult {
+export function importCanonicalChains(executor: SqliteExecutor, incoming: CanonicalChainBundle, restoreProjectId?: string): CanonicalChainImportResult {
 	return executor.drizzle.transaction((tx) => {
 		const current = exportCanonicalChains(executor);
 		const merged = mergeCanonicalChainBundles(current, incoming);
@@ -123,7 +125,7 @@ export function importCanonicalChains(executor: SqliteExecutor, incoming: Canoni
 		for (const chain of merged.entities) {
 			const existing = currentEntities.get(chain.head.id);
 			if (existing?.head.revision === chain.head.revision) continue;
-			writeEntity(tx, executor, chain, existing === undefined);
+			writeEntity(tx, executor, chain, existing === undefined, restoreProjectId);
 			(existing ? result.entitiesAdvanced : result.entitiesCreated).push(chain.head.id);
 		}
 		rebuildStructuralParents(tx, executor, merged.entities);
@@ -175,9 +177,9 @@ export function importCanonicalChains(executor: SqliteExecutor, incoming: Canoni
 	});
 }
 
-function writeEntity(query: SqliteQuerySurface, executor: SqliteExecutor, chain: CanonicalEntityChain, created: boolean): void {
+function writeEntity(query: SqliteQuerySurface, executor: SqliteExecutor, chain: CanonicalEntityChain, created: boolean, restoreProjectId?: string): void {
 	const head = chain.head;
-	if (created) query.run(sql`INSERT INTO entities (tenant_id, id, reference, short_reference, created_by, updated_by, kind, title, status, body, body_source, category, priority, type, revision, content_hash, tombstone, project_id, created_at, updated_at) VALUES (${executor.tenantId}, ${head.id}, ${head.reference}, ${shortEntityReference(head)}, ${head.createdBy}, ${head.updatedBy}, ${head.kind}, ${head.title}, ${head.status}, ${head.body}, ${head.bodySource}, ${head.category}, ${head.priority}, ${head.type}, ${head.revision}, ${head.contentHash}, ${head.tombstone ? 1 : 0}, ${head.kind === "project" ? head.id : executor.currentProjectId}, ${head.createdAt}, ${head.updatedAt})`);
+	if (created) query.run(sql`INSERT INTO entities (tenant_id, id, reference, short_reference, created_by, updated_by, kind, title, status, body, body_source, category, priority, type, revision, content_hash, tombstone, project_id, created_at, updated_at) VALUES (${executor.tenantId}, ${head.id}, ${head.reference}, ${shortEntityReference(head)}, ${head.createdBy}, ${head.updatedBy}, ${head.kind}, ${head.title}, ${head.status}, ${head.body}, ${head.bodySource}, ${head.category}, ${head.priority}, ${head.type}, ${head.revision}, ${head.contentHash}, ${head.tombstone ? 1 : 0}, ${head.kind === "project" ? head.id : restoreProjectId ?? executor.currentProjectId}, ${head.createdAt}, ${head.updatedAt})`);
 	else query.run(sql`UPDATE entities SET updated_by=${head.updatedBy}, title=${head.title}, status=${head.status}, body=${head.body}, body_source=${head.bodySource}, category=${head.category}, priority=${head.priority}, type=${head.type}, revision=${head.revision}, content_hash=${head.contentHash}, tombstone=${head.tombstone ? 1 : 0}, updated_at=${head.updatedAt} WHERE tenant_id=${executor.tenantId} AND id=${head.id}`);
 	const projectId = getEntityProjectId(query, executor, head.id);
 	for (const delta of chain.deltas) query.run(sql`INSERT OR IGNORE INTO revision_entries (id, tenant_id, project_id, record_kind, record_key, revision, author, patch_format, reverse_patch, source_hash, target_hash, restored_from_revision, created_at) VALUES (${delta.id}, ${executor.tenantId}, ${projectId}, 'entity', ${encodeEntityRecordKey(head.id)}, ${delta.revision}, ${delta.author}, ${delta.patchFormat}, ${Buffer.from(delta.reversePatch)}, ${encodeRevisionPatchHash(delta.sourceHash)}, ${encodeRevisionPatchHash(delta.targetHash)}, ${delta.restoredFromRevision ?? null}, ${delta.createdAt})`);
@@ -344,7 +346,7 @@ export function countMigrationRecords(executor: SqliteExecutor): MigrationRecord
 	};
 }
 
-export function importMigrationBundle(executor: SqliteExecutor, bundle: MigrationBundle): MigrationRecordCounts {
+export function importMigrationBundle(executor: SqliteExecutor, bundle: MigrationBundle, restoreProject = false): MigrationRecordCounts {
 	return executor.drizzle.transaction((tx) => {
 		const seeded = [deriveMigratedEntityIdentity("project", DEFAULT_PROJECT_ID).stableId, deriveMigratedEntityIdentity("epic", DEFAULT_EPIC_ID).stableId];
 		const existing = tx.all(sql`SELECT
@@ -359,7 +361,18 @@ export function importMigrationBundle(executor: SqliteExecutor, bundle: Migratio
 			(SELECT count(*) FROM instruction_personal_fragments) +
 			(SELECT count(*) FROM instruction_history) AS records`)[0] as { records: number };
 		if (Number(existing.records) > 0) throw new Error("The migration target already contains records. Migrate only into an empty tenant.");
-		importCanonicalChains(executor, bundle.chains);
+		if (restoreProject) {
+			const extra = tx.all(sql`SELECT
+				(SELECT count(*) FROM contexts WHERE tenant_id=${executor.tenantId}) +
+				(SELECT count(*) FROM entities WHERE tenant_id=${executor.tenantId} AND (revision != 1 OR tombstone != 0)) +
+				(SELECT count(*) FROM relations WHERE tenant_id=${executor.tenantId} AND NOT (from_id=${seeded[0]} AND to_id=${seeded[1]} AND type='contains')) +
+				(SELECT count(*) FROM revision_entries WHERE tenant_id=${executor.tenantId} AND (record_kind != 'entity' OR revision != 1 OR record_key NOT IN (${encodeEntityRecordKey(seeded[0]!)}, ${encodeEntityRecordKey(seeded[1]!)}))) AS records`)[0] as { records: number };
+			if (Number(extra.records) > 0) throw new Error("The restore target already contains records. Restore only into an empty tenant.");
+			tx.run(sql`DELETE FROM relations WHERE tenant_id=${executor.tenantId}`);
+			tx.run(sql`DELETE FROM revision_entries WHERE tenant_id=${executor.tenantId}`);
+			tx.run(sql`DELETE FROM entities WHERE tenant_id=${executor.tenantId}`);
+		}
+		importCanonicalChains(executor, bundle.chains, restoreProject ? bundle.chains.entities.find((chain) => chain.head.kind === "project")!.head.id : undefined);
 		for (const relation of bundle.relations) {
 			tx.run(sql`INSERT INTO relations (tenant_id, from_id, to_id, type, created_by, created_at) VALUES (${executor.tenantId}, ${relation.fromId}, ${relation.toId}, ${relation.type}, ${relation.createdBy || null}, ${relation.createdAt}) ON CONFLICT (tenant_id, from_id, to_id, type) DO UPDATE SET created_by = excluded.created_by, created_at = excluded.created_at`);
 		}
@@ -380,6 +393,16 @@ export function importMigrationBundle(executor: SqliteExecutor, bundle: Migratio
 			tx.run(sql`INSERT INTO instruction_history (item_key, revision, kind, body, content_hash, default_version, is_default) VALUES (${row.itemKey}, ${row.revision}, ${row.kind}, ${row.body}, ${row.contentHash}, ${row.defaultVersion}, ${row.isDefault ? 1 : 0})`);
 		}
 		return countMigrationRecords(executor);
+	});
+}
+
+export function restoreProjectBundle(executor: SqliteExecutor, bundle: MigrationBundle): MigrationRecordCounts {
+	const projectId = bundle.chains.entities.find((chain) => chain.head.kind === "project")?.head.id ?? "";
+	validateProjectBundle(bundle, projectId);
+	return executor.drizzle.transaction(() => {
+		const counts = importMigrationBundle(executor, bundle, true);
+		verifyProjectRestoreCounts(bundle, counts);
+		return counts;
 	});
 }
 
@@ -406,6 +429,10 @@ export class LocalSynchronizeStore implements SynchronizeStore {
 
 	public async importMigrationBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
 		return importMigrationBundle(this.executor, bundle);
+	}
+
+	public async restoreProjectBundle(bundle: MigrationBundle): Promise<MigrationRecordCounts> {
+		return restoreProjectBundle(this.executor, bundle);
 	}
 
 	public async countMigrationRecords(): Promise<MigrationRecordCounts> {

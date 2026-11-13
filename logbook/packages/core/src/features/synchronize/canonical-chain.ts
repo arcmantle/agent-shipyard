@@ -32,6 +32,7 @@ export type CanonicalEntityChain = {
 		type: EntityType | null;
 		status: string;
 		parentId: string | null;
+		projectId?: string | null;
 		tombstone: boolean;
 		revision: number;
 		contentHash: string;
