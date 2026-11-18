@@ -15,5 +15,23 @@
 		"action": "remove-line",
 		"match": "SQLite",
 		"reason": "The SQLite backend and the --db option are removed (Local backend without SQLite)."
+	},
+	{
+		"id": "project-identity-new-project-files",
+		"cases": "cli/project-identity-help",
+		"path": "/stdout",
+		"action": "rewrite",
+		"match": "override, ",
+		"replace": "override, .agent-shipyard.json file, .agent-shipyard file, ",
+		"reason": "The .NET tool reads the shared Agent Shipyard project files before the retained old ones (Project identity read order)."
+	},
+	{
+		"id": "project-identity-old-extensionless-file-note",
+		"cases": "cli/project-identity-help",
+		"path": "/stdout",
+		"action": "rewrite",
+		"match": "file, Git remote",
+		"replace": "file, old extensionless project file, Git remote",
+		"reason": "The help names the old extensionless project file without repeating its retained name. The .NET tool reads that file after the old JSON file (Project identity read order)."
 	}
 ]

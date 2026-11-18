@@ -1,0 +1,9 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"command": "project-identity",
+		"identity": "acme-widget",
+		"source": "package-json"
+	}
+}

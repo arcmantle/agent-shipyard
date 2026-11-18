@@ -1,0 +1,7 @@
+{
+	"id": "cli/project-identity-legacy-project-file",
+	"surface": "cli",
+	"workspace": { "folder": "default-project", "files": { ".agent-issues.json": "{\"projectIdentity\":\"Legacy File\"}" } },
+	"argv": ["project-identity", "--json"],
+	"stdout": "json"
+}

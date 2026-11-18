@@ -1,0 +1,9 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"command": "project-identity",
+		"identity": "repo-name",
+		"source": "git-repository"
+	}
+}

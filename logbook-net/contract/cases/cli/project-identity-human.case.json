@@ -1,0 +1,7 @@
+{
+	"id": "cli/project-identity-human",
+	"surface": "cli",
+	"workspace": { "folder": "default-project", "files": { "package.json": "{\"name\":\"pkg-name\"}" } },
+	"argv": ["project-identity"],
+	"stdout": "text"
+}

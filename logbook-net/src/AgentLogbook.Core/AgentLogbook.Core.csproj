@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>AgentLogbook.Core</AssemblyName>
+    <RootNamespace>AgentLogbook.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentLogbook.Core.Tests" />
+  </ItemGroup>
+</Project>
