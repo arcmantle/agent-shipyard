@@ -1,0 +1,533 @@
+{
+	"format": 1,
+	"group": "content-hashes",
+	"vectors": [
+		{
+			"name": "empty",
+			"behavior": "entity-content-hash",
+			"input": {
+				"title": "",
+				"body": ""
+			},
+			"expected": {
+				"value": "75a11da44c802486bc6f65640aa48a730f0f684c5c07a42ba3cd1735eb3fb070"
+			}
+		},
+		{
+			"name": "title only",
+			"behavior": "entity-content-hash",
+			"input": {
+				"title": "Title",
+				"body": ""
+			},
+			"expected": {
+				"value": "fd003aa7a785259ecb97387395f895ccc83342676b48904f23b716439c613412"
+			}
+		},
+		{
+			"name": "body only",
+			"behavior": "entity-content-hash",
+			"input": {
+				"title": "",
+				"body": "Body"
+			},
+			"expected": {
+				"value": "956d61ad64c572b09146c2eb491e6cc1d65283bfa5012428cef099799dbdefc5"
+			}
+		},
+		{
+			"name": "separator ambiguity A",
+			"behavior": "entity-content-hash",
+			"input": {
+				"title": "a\n",
+				"body": "b"
+			},
+			"expected": {
+				"value": "2282b3efda183ac2a3e762d8cf310bda78e79126b43846b41e1875fd043463cb"
+			}
+		},
+		{
+			"name": "separator ambiguity B",
+			"behavior": "entity-content-hash",
+			"input": {
+				"title": "a",
+				"body": "\nb"
+			},
+			"expected": {
+				"value": "2282b3efda183ac2a3e762d8cf310bda78e79126b43846b41e1875fd043463cb"
+			}
+		},
+		{
+			"name": "unicode",
+			"behavior": "entity-content-hash",
+			"input": {
+				"title": "Ünïcödé 日本語",
+				"body": "😀 body\nwith lines"
+			},
+			"expected": {
+				"value": "3dd1d84c0013d051b09f145638aa7d8e8d7ba9dad8e46a27499c461da2064d20"
+			}
+		},
+		{
+			"name": "combining mark",
+			"behavior": "entity-content-hash",
+			"input": {
+				"title": "é",
+				"body": "é"
+			},
+			"expected": {
+				"value": "d76f346dbc1b2f652c40eb4984058ebd80c1f4fbd1942bb83b07447ce59ea68b"
+			}
+		},
+		{
+			"name": "crlf",
+			"behavior": "entity-content-hash",
+			"input": {
+				"title": "t",
+				"body": "l1\r\nl2"
+			},
+			"expected": {
+				"value": "5060256ae5ecb987aeb16ffbd60468e9367a39655eebb4c6b215130896b6d32e"
+			}
+		},
+		{
+			"name": "empty",
+			"behavior": "context-content-hash",
+			"input": {
+				"title": "",
+				"summary": ""
+			},
+			"expected": {
+				"value": "75a11da44c802486bc6f65640aa48a730f0f684c5c07a42ba3cd1735eb3fb070"
+			}
+		},
+		{
+			"name": "title only",
+			"behavior": "context-content-hash",
+			"input": {
+				"title": "Title",
+				"summary": ""
+			},
+			"expected": {
+				"value": "fd003aa7a785259ecb97387395f895ccc83342676b48904f23b716439c613412"
+			}
+		},
+		{
+			"name": "body only",
+			"behavior": "context-content-hash",
+			"input": {
+				"title": "",
+				"summary": "Body"
+			},
+			"expected": {
+				"value": "956d61ad64c572b09146c2eb491e6cc1d65283bfa5012428cef099799dbdefc5"
+			}
+		},
+		{
+			"name": "separator ambiguity A",
+			"behavior": "context-content-hash",
+			"input": {
+				"title": "a\n",
+				"summary": "b"
+			},
+			"expected": {
+				"value": "2282b3efda183ac2a3e762d8cf310bda78e79126b43846b41e1875fd043463cb"
+			}
+		},
+		{
+			"name": "separator ambiguity B",
+			"behavior": "context-content-hash",
+			"input": {
+				"title": "a",
+				"summary": "\nb"
+			},
+			"expected": {
+				"value": "2282b3efda183ac2a3e762d8cf310bda78e79126b43846b41e1875fd043463cb"
+			}
+		},
+		{
+			"name": "unicode",
+			"behavior": "context-content-hash",
+			"input": {
+				"title": "Ünïcödé 日本語",
+				"summary": "😀 body\nwith lines"
+			},
+			"expected": {
+				"value": "3dd1d84c0013d051b09f145638aa7d8e8d7ba9dad8e46a27499c461da2064d20"
+			}
+		},
+		{
+			"name": "combining mark",
+			"behavior": "context-content-hash",
+			"input": {
+				"title": "é",
+				"summary": "é"
+			},
+			"expected": {
+				"value": "d76f346dbc1b2f652c40eb4984058ebd80c1f4fbd1942bb83b07447ce59ea68b"
+			}
+		},
+		{
+			"name": "crlf",
+			"behavior": "context-content-hash",
+			"input": {
+				"title": "t",
+				"summary": "l1\r\nl2"
+			},
+			"expected": {
+				"value": "5060256ae5ecb987aeb16ffbd60468e9367a39655eebb4c6b215130896b6d32e"
+			}
+		},
+		{
+			"name": "empty live",
+			"behavior": "context-term-content-hash",
+			"input": {
+				"term": "",
+				"definition": "",
+				"avoid": [],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "3348a011d785ff3b1718f842d772b155ee3f1f24a33b661ed899af1d1b498edc"
+			}
+		},
+		{
+			"name": "live with avoid",
+			"behavior": "context-term-content-hash",
+			"input": {
+				"term": "Port slice",
+				"definition": "One feature group",
+				"avoid": [
+					"port unit",
+					"feature port"
+				],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "53ddabd78e964646b4e1d5f125badddcf6e5cb450fb19ebdbd09f09c1039841e"
+			}
+		},
+		{
+			"name": "tombstone",
+			"behavior": "context-term-content-hash",
+			"input": {
+				"term": "Port slice",
+				"definition": "One feature group",
+				"avoid": [],
+				"tombstone": true
+			},
+			"expected": {
+				"value": "4c110a7f3554e4ab8f69d5131acced18856ef2134e33b2dbe67650b904a61ee9"
+			}
+		},
+		{
+			"name": "avoid order matters",
+			"behavior": "context-term-content-hash",
+			"input": {
+				"term": "t",
+				"definition": "d",
+				"avoid": [
+					"b",
+					"a"
+				],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "2d819acaca4a89f2a0fd96afc4a03c8c081428444516e6b1f3bd1d48f2ce8e67"
+			}
+		},
+		{
+			"name": "unicode",
+			"behavior": "context-term-content-hash",
+			"input": {
+				"term": "日本語",
+				"definition": "😀\n\"quoted\" \\ back",
+				"avoid": [
+					"é"
+				],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "b0325e14a742b92780f331a006cf8024fb2e96f3f20ad8fb5cfafc3a143d0649"
+			}
+		},
+		{
+			"name": "control characters",
+			"behavior": "context-term-content-hash",
+			"input": {
+				"term": "a\u0000b\u001f",
+				"definition": "  ",
+				"avoid": [],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "8155bed9a4be3b06e1598b578750c52fc28d710bbd1dbc71f3022d73107ec442"
+			}
+		},
+		{
+			"name": "empty",
+			"behavior": "issue-comment-content-hash",
+			"input": {
+				"body": "",
+				"referencedIssueIds": [],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "d8f1a3a06695132a2ca17e7786c846b7a26ef7e6c48efa9ddf15bada1b8bf530"
+			}
+		},
+		{
+			"name": "references",
+			"behavior": "issue-comment-content-hash",
+			"input": {
+				"body": "See",
+				"referencedIssueIds": [
+					"549c4b57-de4a-4399-b099-816aa14a58d1",
+					"12da5d89-df65-40f0-9a6e-514316a9b784"
+				],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "f9f6d4444f6659276e60270d18a7d92bfd7a824345f57b9f6213be368d1539b8"
+			}
+		},
+		{
+			"name": "tombstone",
+			"behavior": "issue-comment-content-hash",
+			"input": {
+				"body": "gone",
+				"referencedIssueIds": [],
+				"tombstone": true
+			},
+			"expected": {
+				"value": "423d8c46d7b31e15db373cdb9d93aab9ee0bf324274d9dbf33acbb7282cce6f1"
+			}
+		},
+		{
+			"name": "unicode",
+			"behavior": "issue-comment-content-hash",
+			"input": {
+				"body": "日本語 😀",
+				"referencedIssueIds": [],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "013312cb2e2f220724d7541cd941f645b3f0db64c76f1b8d7278394834e07421"
+			}
+		},
+		{
+			"name": "scope entry",
+			"behavior": "plan-entry-content-hash",
+			"input": {
+				"role": "scope",
+				"body": "Make it work",
+				"scopeDirection": "in",
+				"referencedEntityIds": [],
+				"supersededEntryIds": [],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "460685f858d0470b78fdbd9a00c0ea733f3dea337406cdf1c2e7e73fbd184a68"
+			}
+		},
+		{
+			"name": "null direction",
+			"behavior": "plan-entry-content-hash",
+			"input": {
+				"role": "decision",
+				"body": "",
+				"scopeDirection": null,
+				"referencedEntityIds": [],
+				"supersededEntryIds": [],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "c7b3abeef09b4462816e527cfa980d7a97e21a94168aca498db9b64e70ec534c"
+			}
+		},
+		{
+			"name": "references and superseded",
+			"behavior": "plan-entry-content-hash",
+			"input": {
+				"role": "decision",
+				"body": "d",
+				"scopeDirection": null,
+				"referencedEntityIds": [
+					"a",
+					"b"
+				],
+				"supersededEntryIds": [
+					"c"
+				],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "1c0a635f11dee1ec80c8e94d41b9b85bf3a84def1a483506e7feb87c18d50645"
+			}
+		},
+		{
+			"name": "tombstone",
+			"behavior": "plan-entry-content-hash",
+			"input": {
+				"role": "scope",
+				"body": "x",
+				"scopeDirection": "out",
+				"referencedEntityIds": [],
+				"supersededEntryIds": [],
+				"tombstone": true
+			},
+			"expected": {
+				"value": "93454044b1986d70005f2d9c5f32219a4dc4e94df4772a370439bc8bb82e7449"
+			}
+		},
+		{
+			"name": "unicode",
+			"behavior": "plan-entry-content-hash",
+			"input": {
+				"role": "scope",
+				"body": "日本語 😀",
+				"scopeDirection": "in",
+				"referencedEntityIds": [],
+				"supersededEntryIds": [],
+				"tombstone": false
+			},
+			"expected": {
+				"value": "fc7c218b278d388045edd0d7b8256138b9f32af1d509503293685af3c8cd38cf"
+			}
+		},
+		{
+			"name": "key order of input does not matter",
+			"behavior": "plan-entry-content-hash",
+			"input": {
+				"tombstone": false,
+				"supersededEntryIds": [],
+				"referencedEntityIds": [],
+				"scopeDirection": null,
+				"body": "o",
+				"role": "decision"
+			},
+			"expected": {
+				"value": "689c129ddd98056c8e1e9faf282555177121b05a6f48a42ab5c2918f942867e3"
+			}
+		},
+		{
+			"name": "entity initial",
+			"behavior": "canonical-state-hash",
+			"input": {
+				"registry": "entity",
+				"state": {
+					"title": "T",
+					"body": "B",
+					"bodySource": "authored",
+					"status": "todo",
+					"parentId": null,
+					"tombstone": false,
+					"category": null,
+					"priority": null,
+					"type": null
+				}
+			},
+			"expected": {
+				"value": "aa9c3ab816c47bae6ff7ce33a6cf6aee51998c5e31b5b85ac94a2251404cc0ac"
+			}
+		},
+		{
+			"name": "entity missing fields serialize as null",
+			"behavior": "canonical-state-hash",
+			"input": {
+				"registry": "entity",
+				"state": {
+					"title": "T",
+					"body": "B"
+				}
+			},
+			"expected": {
+				"value": "1ff7a2ef974f1b57a74980d9d82c16ac0ebf44b21c7671a7e009e04971059c63"
+			}
+		},
+		{
+			"name": "entity extra fields ignored",
+			"behavior": "canonical-state-hash",
+			"input": {
+				"registry": "entity",
+				"state": {
+					"title": "T",
+					"body": "B",
+					"status": "done",
+					"revision": 9,
+					"extra": "ignored"
+				}
+			},
+			"expected": {
+				"value": "974ded8a824a927693cc6745deb31ad19a024ee1abc0975fe8fc2041976d5bc2"
+			}
+		},
+		{
+			"name": "context",
+			"behavior": "canonical-state-hash",
+			"input": {
+				"registry": "context",
+				"state": {
+					"title": "T",
+					"summary": "S"
+				}
+			},
+			"expected": {
+				"value": "75d0f2b8be7a6f4657e36960b5d62acffe59368a985dc6446af54eb693e9abfc"
+			}
+		},
+		{
+			"name": "context-term",
+			"behavior": "canonical-state-hash",
+			"input": {
+				"registry": "context-term",
+				"state": {
+					"term": "t",
+					"definition": "d",
+					"avoid": [
+						"x"
+					],
+					"tombstone": false
+				}
+			},
+			"expected": {
+				"value": "fad55f67c15ead63d51106e7ba56a43f785d959abcca8d9ee1b071224de27668"
+			}
+		},
+		{
+			"name": "issue-comment",
+			"behavior": "canonical-state-hash",
+			"input": {
+				"registry": "issue-comment",
+				"state": {
+					"body": "b",
+					"referencedIssueIds": [
+						"i"
+					],
+					"tombstone": false
+				}
+			},
+			"expected": {
+				"value": "eca4ee816b52356d3ca245c8928130dbb9de5f758ac9278964f882dc7b4eb0a9"
+			}
+		},
+		{
+			"name": "plan-entry",
+			"behavior": "canonical-state-hash",
+			"input": {
+				"registry": "plan-entry",
+				"state": {
+					"role": "scope",
+					"body": "b",
+					"scopeDirection": "in",
+					"referencedEntityIds": [],
+					"supersededEntryIds": [],
+					"tombstone": false
+				}
+			},
+			"expected": {
+				"value": "973e31c69f6f22f6baaf593b28fc983190b70a3f04207dafd96ed3072e2e480b"
+			}
+		}
+	]
+}

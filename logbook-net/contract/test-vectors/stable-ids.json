@@ -1,0 +1,639 @@
+{
+	"format": 1,
+	"group": "stable-ids",
+	"vectors": [
+		{
+			"name": "project / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "project",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "2964e9d4-d2b1-83b9-8430-00d66317779a",
+					"reference": "PROJ_19CKMX9MNHGEWR8C00TSHHEXWT"
+				}
+			}
+		},
+		{
+			"name": "epic / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "epic",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "1517351e-9d3f-8777-bb3b-3ac29e31eccc",
+					"reference": "EPIC_0N2WTHX79ZGXVVPESTRAF33V6C"
+				}
+			}
+		},
+		{
+			"name": "version / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "version",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "efb133f6-73dc-8bd8-963f-7dc337a8fc7f",
+					"reference": "VER_7FP4SZCWYWHFC9CFVXRCVTHZ3Z"
+				}
+			}
+		},
+		{
+			"name": "initiative / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "initiative",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "42c963ed-2052-881c-8a69-fff1652c0bbf",
+					"reference": "INIT_22S5HYT82JH0E8MTFZY5JJR2XZ"
+				}
+			}
+		},
+		{
+			"name": "prd / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "prd",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "10d21d58-80fb-8477-9427-5bab1597b9da",
+					"reference": "PRD_0GT8ENH07VGHVS89TVNCASFEET"
+				}
+			}
+		},
+		{
+			"name": "userStory / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "userStory",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "1a80e356-6d11-850c-a1f9-8676b01a766b",
+					"reference": "US_0TG3HNCV8HGM6A3YC6ETR1MXKB"
+				}
+			}
+		},
+		{
+			"name": "adr / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "adr",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "c73a660e-08fb-8748-99e8-0e10723ba0f5",
+					"reference": "ADR_6779K0W27VGX49KT0E21S3Q87N"
+				}
+			}
+		},
+		{
+			"name": "issue / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "7a5b56a9-780b-8d7f-b33d-d8a8db0a6568",
+					"reference": "ISS_3TBDBAJY0BHNZV6FERN3DGMSB8"
+				}
+			}
+		},
+		{
+			"name": "debt / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "debt",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "2f7eea60-06f8-83b4-b07f-3424f0630e98",
+					"reference": "DEBT_1FFVN601QRGETB0ZSM4KR663MR"
+				}
+			}
+		},
+		{
+			"name": "handoff / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "handoff",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "f008f032-9433-83dd-a344-a92e824e16df",
+					"reference": "HO_7G13R3551KGFET6H595T14W5PZ"
+				}
+			}
+		},
+		{
+			"name": "plan / default alias",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "plan",
+				"legacyAlias": "default"
+			},
+			"expected": {
+				"value": {
+					"stableId": "89503fb1-6f9e-80ff-8da6-cf6213b60c89",
+					"reference": "PLAN_49A0ZV2VWYG3ZRV9PFC89VC349"
+				}
+			}
+		},
+		{
+			"name": "issue / empty",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": ""
+			},
+			"expected": {
+				"value": {
+					"stableId": "ba7df2dc-ddd4-84e3-995d-16bb9980aab7",
+					"reference": "ISS_5TFQSDSQEMGKHSJQ8PQECR1ANQ"
+				}
+			}
+		},
+		{
+			"name": "issue / ascii",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "alpha"
+			},
+			"expected": {
+				"value": {
+					"stableId": "06c643e1-24c8-830a-9594-cf43a4ca0c32",
+					"reference": "ISS_06RS1Y2968GC59B56F8EJCM31J"
+				}
+			}
+		},
+		{
+			"name": "issue / colon",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "a:b:c"
+			},
+			"expected": {
+				"value": {
+					"stableId": "5d9f85ae-4a9f-8656-ae3b-2622babb9811",
+					"reference": "ISS_2XKY2TWJMZGSBAWES64AXBQ60H"
+				}
+			}
+		},
+		{
+			"name": "issue / space and punctuation",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": " spaced out; ok. "
+			},
+			"expected": {
+				"value": {
+					"stableId": "feaeb2b4-87a4-891f-b12b-176db6a525f8",
+					"reference": "ISS_7YNTSB91X4H4FV2ARQDPVAA9FR"
+				}
+			}
+		},
+		{
+			"name": "issue / multi-byte letters",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "éèü"
+			},
+			"expected": {
+				"value": {
+					"stableId": "583d17dc-a1b1-89dd-8c1f-9766ab906370",
+					"reference": "ISS_2R7MBXS8DHH7ERR7WQCTNS0RVG"
+				}
+			}
+		},
+		{
+			"name": "issue / cjk",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "日本語"
+			},
+			"expected": {
+				"value": {
+					"stableId": "ac2228f8-fd45-8da5-b61b-f36391386df2",
+					"reference": "ISS_5C48MFHZA5HPJVC6ZKCE8KGVFJ"
+				}
+			}
+		},
+		{
+			"name": "issue / emoji surrogate pair",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "😀x"
+			},
+			"expected": {
+				"value": {
+					"stableId": "43e8d317-39f7-88d1-8459-25365d3747b8",
+					"reference": "ISS_23X39HEEFQH38R8P956SEKEHXR"
+				}
+			}
+		},
+		{
+			"name": "issue / combining mark",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "é"
+			},
+			"expected": {
+				"value": {
+					"stableId": "f5a30c26-2e78-814e-8dc2-a419775e0d6b",
+					"reference": "ISS_7NMC62CBKRG578VGN435VNW3BB"
+				}
+			}
+		},
+		{
+			"name": "issue / newlines",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "line1\nline2\r\nline3"
+			},
+			"expected": {
+				"value": {
+					"stableId": "d6d615cc-ee89-830d-8fa6-4685c75a343b",
+					"reference": "ISS_6PTRAWSVM9GC6RZ9J6GQ3NMD1V"
+				}
+			}
+		},
+		{
+			"name": "issue / nul character",
+			"behavior": "entity-identity",
+			"input": {
+				"kind": "issue",
+				"legacyAlias": "a\u0000b"
+			},
+			"expected": {
+				"value": {
+					"stableId": "ddb456cc-ab05-8d6b-a9e5-bc8033fe9f14",
+					"reference": "ISS_6XPHBCSAR5HNNTKSDWG0SZX7RM"
+				}
+			}
+		},
+		{
+			"name": "empty",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": ""
+			},
+			"expected": {
+				"value": {
+					"stableId": "82be60ed-f6c0-8b7c-a3e0-c032299f40d8",
+					"reference": "CTX_42QSGEVXP0HDYA7R6068MSYG6R"
+				}
+			}
+		},
+		{
+			"name": "ascii",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": "alpha"
+			},
+			"expected": {
+				"value": {
+					"stableId": "44fdcc38-24af-848a-878d-a42de602bd6b",
+					"reference": "CTX_24ZQ63G95FGJ58F3D45QK05FBB"
+				}
+			}
+		},
+		{
+			"name": "colon",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": "a:b:c"
+			},
+			"expected": {
+				"value": {
+					"stableId": "1ade4082-c633-8e71-8ed6-bc02384d2307",
+					"reference": "CTX_0TVS085HHKHSRRXNNW08W4T8R7"
+				}
+			}
+		},
+		{
+			"name": "space and punctuation",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": " spaced out; ok. "
+			},
+			"expected": {
+				"value": {
+					"stableId": "8266a69c-169f-8ae6-8504-1d67b4daf5b9",
+					"reference": "CTX_42CTK9R5MZHBK8A10XCYTDNXDS"
+				}
+			}
+		},
+		{
+			"name": "multi-byte letters",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": "éèü"
+			},
+			"expected": {
+				"value": {
+					"stableId": "9a906827-2356-8b3b-a98c-d810c07a693f",
+					"reference": "CTX_4TJ1M2E8TPHCXTK36R2307MT9Z"
+				}
+			}
+		},
+		{
+			"name": "cjk",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": "日本語"
+			},
+			"expected": {
+				"value": {
+					"stableId": "02184a69-1f27-8e7e-b2b1-b4a9049ab492",
+					"reference": "CTX_023156J7S7HSZB5CDMN429ND4J"
+				}
+			}
+		},
+		{
+			"name": "emoji surrogate pair",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": "😀x"
+			},
+			"expected": {
+				"value": {
+					"stableId": "483c60fa-8947-8c80-9252-07c21c701987",
+					"reference": "CTX_287HGFN2A7HJ094MG7R8E706C7"
+				}
+			}
+		},
+		{
+			"name": "combining mark",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": "é"
+			},
+			"expected": {
+				"value": {
+					"stableId": "2447b049-44a3-8754-a5fb-226435a78201",
+					"reference": "CTX_148YR4JH53GXAABYS2CGTTF0G1"
+				}
+			}
+		},
+		{
+			"name": "newlines",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": "line1\nline2\r\nline3"
+			},
+			"expected": {
+				"value": {
+					"stableId": "55cc59c0-3522-82ee-8d0e-84df53d09ba8",
+					"reference": "CTX_2NSHCW0D92GBQ8T3M4VX9X16X8"
+				}
+			}
+		},
+		{
+			"name": "nul character",
+			"behavior": "context-identity",
+			"input": {
+				"contextKey": "a\u0000b"
+			},
+			"expected": {
+				"value": {
+					"stableId": "b31e7cb2-e554-839d-987a-49e6adf4d9a9",
+					"reference": "CTX_5K3SYB5SAMGEESGYJ9WTPZ9PD9"
+				}
+			}
+		},
+		{
+			"name": "empty key and term",
+			"behavior": "context-term-id",
+			"input": {
+				"contextKey": "",
+				"term": ""
+			},
+			"expected": {
+				"value": "025667d5-c4e2-8b8c-a99b-8d9d8b68ade7"
+			}
+		},
+		{
+			"name": "ascii",
+			"behavior": "context-term-id",
+			"input": {
+				"contextKey": "initiative:INIT1",
+				"term": "Port slice"
+			},
+			"expected": {
+				"value": "83717e1d-3deb-815f-b6fc-8ca19efc3d8e"
+			}
+		},
+		{
+			"name": "boundary: key and term shift",
+			"behavior": "context-term-id",
+			"input": {
+				"contextKey": "ab",
+				"term": "c"
+			},
+			"expected": {
+				"value": "ae0dbcc7-6543-83f9-96a6-a158650cd089"
+			}
+		},
+		{
+			"name": "boundary: key and term shift (swapped)",
+			"behavior": "context-term-id",
+			"input": {
+				"contextKey": "a",
+				"term": "bc"
+			},
+			"expected": {
+				"value": "6234cd6c-e511-8f72-867f-1ffbe2a3948f"
+			}
+		},
+		{
+			"name": "unicode",
+			"behavior": "context-term-id",
+			"input": {
+				"contextKey": "日本",
+				"term": "😀"
+			},
+			"expected": {
+				"value": "adde7c50-2664-80d5-b141-99bfbd5995ee"
+			}
+		},
+		{
+			"name": "colon in term",
+			"behavior": "context-term-id",
+			"input": {
+				"contextKey": "k",
+				"term": "a:b"
+			},
+			"expected": {
+				"value": "c7d7784c-11f2-8be5-b2ce-68e7a48a1618"
+			}
+		},
+		{
+			"name": "system subject",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "agent-issues:system"
+			},
+			"expected": {
+				"value": {
+					"id": "69c66669-54e4-8bbe-a8f1-977198cf9fae",
+					"authenticationSubject": "agent-issues:system"
+				}
+			}
+		},
+		{
+			"name": "empty",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": ""
+			},
+			"expected": {
+				"value": {
+					"id": "28542d66-d5e8-8c99-9430-63dba8238384",
+					"authenticationSubject": ""
+				}
+			}
+		},
+		{
+			"name": "ascii",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "alpha"
+			},
+			"expected": {
+				"value": {
+					"id": "d21ee30d-cdab-8e09-a2e6-796fec4c82e3",
+					"authenticationSubject": "alpha"
+				}
+			}
+		},
+		{
+			"name": "colon",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "a:b:c"
+			},
+			"expected": {
+				"value": {
+					"id": "03c075f4-37b4-898e-a679-a2d256e4b841",
+					"authenticationSubject": "a:b:c"
+				}
+			}
+		},
+		{
+			"name": "space and punctuation",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": " spaced out; ok. "
+			},
+			"expected": {
+				"value": {
+					"id": "40b12207-6cad-8285-ae8f-87ebbf96a6ed",
+					"authenticationSubject": " spaced out; ok. "
+				}
+			}
+		},
+		{
+			"name": "multi-byte letters",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "éèü"
+			},
+			"expected": {
+				"value": {
+					"id": "c9a2cd49-0ce2-84c1-b633-f55f9050d928",
+					"authenticationSubject": "éèü"
+				}
+			}
+		},
+		{
+			"name": "cjk",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "日本語"
+			},
+			"expected": {
+				"value": {
+					"id": "9729d044-6cff-87c6-aa1e-d02ee2cc2b6d",
+					"authenticationSubject": "日本語"
+				}
+			}
+		},
+		{
+			"name": "emoji surrogate pair",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "😀x"
+			},
+			"expected": {
+				"value": {
+					"id": "3ef63741-b2f3-8a0d-80d4-88868432b8f0",
+					"authenticationSubject": "😀x"
+				}
+			}
+		},
+		{
+			"name": "combining mark",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "é"
+			},
+			"expected": {
+				"value": {
+					"id": "d015318e-0957-81e7-9b27-12f3b258e723",
+					"authenticationSubject": "é"
+				}
+			}
+		},
+		{
+			"name": "newlines",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "line1\nline2\r\nline3"
+			},
+			"expected": {
+				"value": {
+					"id": "d0d0ea89-1455-893c-bc51-154ec6471305",
+					"authenticationSubject": "line1\nline2\r\nline3"
+				}
+			}
+		},
+		{
+			"name": "nul character",
+			"behavior": "user-identity",
+			"input": {
+				"authenticationSubject": "a\u0000b"
+			},
+			"expected": {
+				"value": {
+					"id": "4cabebd8-1a90-8189-a1ca-4eabcb88dc5d",
+					"authenticationSubject": "a\u0000b"
+				}
+			}
+		}
+	]
+}
