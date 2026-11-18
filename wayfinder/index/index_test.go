@@ -3048,3 +3048,210 @@ func TestIndexCSharpLinksAcrossLocalProjectReferencesAndMatchesIncrementalIndex(
 		t.Errorf("fresh links = %v, want %v", got, wantFresh)
 	}
 }
+
+func csharpIncrementalWorkspace(t *testing.T) testkit.Workspace {
+	t.Helper()
+	return testkit.NewWorkspace(t, map[string]string{
+		"src/App/App.csproj": "<Project><ItemGroup><ProjectReference Include=\"..\\Mid\\Mid.csproj\" /></ItemGroup></Project>\n",
+		"src/App/Program.cs": "using Lib;\nusing Other;\nnamespace App;\npublic class Program : Lib.Widget, Mid.IGadget\n{\n    Lib.Widget widget;\n    public void Run(Mid.Gadget gadget)\n    {\n        widget.Spin();\n        gadget.Run();\n        Other.Hidden.Go();\n    }\n}\npublic class Late : Mid.Extra {}\n",
+		"src/Mid/Mid.csproj": "<Project><ItemGroup><ProjectReference Include=\"..\\Lib\\Lib.csproj\" /></ItemGroup></Project>\n",
+		"src/Mid/Gadget.cs":  "namespace Mid;\npublic interface IGadget {}\npublic class Gadget { public void Run() {} }\n",
+		"src/Lib/Lib.csproj": "<Project />\n",
+		"src/Lib/Widget.cs":  "namespace Lib;\npublic class Widget { public void Spin() {} }\n",
+		"src/Other/O.csproj": "<Project />\n",
+		"src/Other/Other.cs": "namespace Other;\npublic class Hidden { public static void Go() {} }\n",
+	})
+}
+
+func csharpFactLines(facts *factCollector) []string {
+	names := make(map[string]graph.Node, len(facts.nodes))
+	var lines []string
+	for _, node := range facts.nodes {
+		names[node.ID] = node
+		lines = append(lines, "node "+string(node.Kind)+" "+node.QualifiedName)
+	}
+	for _, edge := range facts.edges {
+		lines = append(lines, "edge "+string(edge.Relation)+" "+names[edge.SourceID].QualifiedName+" -> "+names[edge.TargetID].QualifiedName)
+	}
+	slices.Sort(lines)
+	return lines
+}
+
+func TestIndexCSharpIncrementalChangesMatchFreshIndex(t *testing.T) {
+	tests := []struct {
+		name   string
+		change func(t *testing.T, workspace testkit.Workspace) []string
+		links  []string
+	}{
+		{"target declaration renamed", func(t *testing.T, w testkit.Workspace) []string {
+			w.WriteFile(t, "src/Lib/Widget.cs", "namespace Lib;\npublic class Widget { public void Spin2() {} }\n")
+			return []string{"src/Lib/Widget.cs"}
+		}, nil},
+		{"target file deleted", func(t *testing.T, w testkit.Workspace) []string {
+			w.RemoveFile(t, "src/Lib/Widget.cs")
+			return []string{"src/Lib/Widget.cs"}
+		}, nil},
+		{"type added for an unresolved reference", func(t *testing.T, w testkit.Workspace) []string {
+			w.WriteFile(t, "src/Mid/Extra.cs", "namespace Mid;\npublic class Extra {}\n")
+			return []string{"src/Mid/Extra.cs"}
+		}, []string{"csharp:extends src/App/Program.cs::App.Late -> src/Mid/Extra.cs::Mid.Extra"}},
+		{"base type removed", func(t *testing.T, w testkit.Workspace) []string {
+			w.WriteFile(t, "src/Mid/Gadget.cs", "namespace Mid;\npublic class Gadget { public void Run() {} }\n")
+			return []string{"src/Mid/Gadget.cs"}
+		}, nil},
+		{"project reference removed", func(t *testing.T, w testkit.Workspace) []string {
+			w.WriteFile(t, "src/App/App.csproj", "<Project />\n")
+			return []string{"src/App/App.csproj"}
+		}, nil},
+		{"transitive project reference removed", func(t *testing.T, w testkit.Workspace) []string {
+			w.WriteFile(t, "src/Mid/Mid.csproj", "<Project />\n")
+			return []string{"src/Mid/Mid.csproj"}
+		}, nil},
+		{"project reference added", func(t *testing.T, w testkit.Workspace) []string {
+			w.WriteFile(t, "src/App/App.csproj", "<Project><ItemGroup><ProjectReference Include=\"..\\Mid\\Mid.csproj\" /><ProjectReference Include=\"..\\Other\\O.csproj\" /></ItemGroup></Project>\n")
+			return []string{"src/App/App.csproj"}
+		}, []string{"csharp:calls src/App/Program.cs::App.Program.Run -> src/Other/Other.cs::Other.Hidden.Go"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			workspace := csharpIncrementalWorkspace(t)
+			request := index.Request{Root: workspace.Root}
+			store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+			if err != nil {
+				t.Fatalf("open graph store: %v", err)
+			}
+			t.Cleanup(func() { _ = store.Close() })
+			if _, err := index.Publish(context.Background(), store, request); err != nil {
+				t.Fatalf("publish C# workspace: %v", err)
+			}
+			changed := test.change(t, workspace)
+			batchSnapshot, err := index.PublishBatch(context.Background(), rejectingContributionReader{Store: store}, index.BatchRequest{Root: workspace.Root, ChangedPaths: changed})
+			if err != nil {
+				t.Fatalf("publish C# batch: %v", err)
+			}
+			freshStore, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "fresh.db"))
+			if err != nil {
+				t.Fatalf("open fresh graph store: %v", err)
+			}
+			t.Cleanup(func() { _ = freshStore.Close() })
+			freshSnapshot, err := index.Publish(context.Background(), freshStore, request)
+			if err != nil {
+				t.Fatalf("publish fresh C# workspace: %v", err)
+			}
+			batch, fresh := &factCollector{}, &factCollector{}
+			if err := store.Export(context.Background(), batchSnapshot, storage.ExportRequest{}, batch); err != nil {
+				t.Fatalf("export batch graph: %v", err)
+			}
+			if err := freshStore.Export(context.Background(), freshSnapshot, storage.ExportRequest{}, fresh); err != nil {
+				t.Fatalf("export fresh graph: %v", err)
+			}
+			if got, want := csharpFactLines(batch), csharpFactLines(fresh); !slices.Equal(got, want) {
+				t.Errorf("incremental facts differ from fresh facts\nincremental only: %v\nfresh only: %v", diffLines(got, want), diffLines(want, got))
+			}
+			freshLines := strings.Join(csharpFactLines(fresh), "\n")
+			for _, link := range test.links {
+				if !strings.Contains(freshLines, "edge "+link) {
+					t.Errorf("fresh index lacks %q", link)
+				}
+			}
+		})
+	}
+}
+
+func diffLines(a, b []string) []string {
+	var only []string
+	for _, line := range a {
+		if !slices.Contains(b, line) {
+			only = append(only, line)
+		}
+	}
+	return only
+}
+
+func TestIndexCSharpSequentialIncrementalChangesMatchFreshIndex(t *testing.T) {
+	steps := [][]struct{ path, contents string }{
+		// Only the caller changes; its link target stays untouched.
+		{{"src/App/Program.cs", "using Lib;\nnamespace App;\npublic class Program\n{\n    Lib.Widget widget;\n    public void Run() { widget.Spin(); widget.Spin(); }\n}\n"}},
+		// The untouched target now loses the method the caller links to.
+		{{"src/Lib/Widget.cs", "namespace Lib;\npublic class Widget { public void Spin2() {} }\n"}},
+		// Two declarations make a reference ambiguous.
+		{{"src/Lib/Widget.cs", "namespace Lib;\npublic class Widget { public void Spin() {} }\n"}, {"src/Lib/Copy.cs", "namespace Lib;\npublic class Widget { public void Spin() {} }\n"}},
+		// Removing one duplicate resolves the reference.
+		{{"src/Lib/Copy.cs", ""}},
+	}
+	workspace := csharpIncrementalWorkspace(t)
+	request := index.Request{Root: workspace.Root}
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, request)
+	if err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+	for stepIndex, step := range steps {
+		var changed []string
+		for _, file := range step {
+			if file.contents == "" {
+				workspace.RemoveFile(t, file.path)
+			} else {
+				workspace.WriteFile(t, file.path, file.contents)
+			}
+			changed = append(changed, file.path)
+		}
+		snapshot, err = index.PublishBatch(context.Background(), rejectingContributionReader{Store: store}, index.BatchRequest{Root: workspace.Root, ChangedPaths: changed})
+		if err != nil {
+			t.Fatalf("step %d: publish C# batch: %v", stepIndex, err)
+		}
+		freshStore, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "fresh.db"))
+		if err != nil {
+			t.Fatalf("open fresh graph store: %v", err)
+		}
+		t.Cleanup(func() { _ = freshStore.Close() })
+		freshSnapshot, err := index.Publish(context.Background(), freshStore, request)
+		if err != nil {
+			t.Fatalf("step %d: publish fresh C# workspace: %v", stepIndex, err)
+		}
+		batch, fresh := &factCollector{}, &factCollector{}
+		if err := store.Export(context.Background(), snapshot, storage.ExportRequest{}, batch); err != nil {
+			t.Fatalf("export batch graph: %v", err)
+		}
+		if err := freshStore.Export(context.Background(), freshSnapshot, storage.ExportRequest{}, fresh); err != nil {
+			t.Fatalf("export fresh graph: %v", err)
+		}
+		if got, want := csharpFactLines(batch), csharpFactLines(fresh); !slices.Equal(got, want) {
+			t.Errorf("step %d: incremental facts differ from fresh facts\nincremental only: %v\nfresh only: %v", stepIndex, diffLines(got, want), diffLines(want, got))
+		}
+	}
+}
+
+func TestIndexCSharpRemovingDuplicateDeclarationResolvesAmbiguousReference(t *testing.T) {
+	workspace := testkit.NewWorkspace(t, map[string]string{
+		"src/App/App.csproj": "<Project><ItemGroup><ProjectReference Include=\"..\\Lib\\Lib.csproj\" /></ItemGroup></Project>\n",
+		"src/App/Program.cs": "namespace App;\npublic class Program : Lib.Widget {}\n",
+		"src/Lib/Lib.csproj": "<Project />\n",
+		"src/Lib/Widget.cs":  "namespace Lib;\npublic class Widget {}\n",
+		"src/Lib/Copy.cs":    "namespace Lib;\npublic class Widget {}\n",
+	})
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if _, err := index.Publish(context.Background(), store, index.Request{Root: workspace.Root}); err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+	workspace.RemoveFile(t, "src/Lib/Copy.cs")
+	snapshot, err := index.PublishBatch(context.Background(), rejectingContributionReader{Store: store}, index.BatchRequest{Root: workspace.Root, ChangedPaths: []string{"src/Lib/Copy.cs"}})
+	if err != nil {
+		t.Fatalf("publish C# batch: %v", err)
+	}
+	facts := &factCollector{}
+	if err := store.Export(context.Background(), snapshot, storage.ExportRequest{}, facts); err != nil {
+		t.Fatalf("export graph: %v", err)
+	}
+	if !strings.Contains(strings.Join(csharpFactLines(facts), "\n"), "edge csharp:extends src/App/Program.cs::App.Program -> src/Lib/Widget.cs::Lib.Widget") {
+		t.Errorf("the ambiguous base type did not resolve after the duplicate was removed")
+	}
+}

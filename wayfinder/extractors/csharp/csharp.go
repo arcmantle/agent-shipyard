@@ -404,13 +404,14 @@ func evidenceFor(source extractor.Source, node *sitter.Node) graph.FactEvidence 
 	}
 }
 
-// importableSurfaces lists the namespaces and types other files can import. A
-// change to them re-resolves the files that depend on this one.
+// importableSurfaces lists the namespaces, types, and methods other files can
+// import, reference, or call. A change to them re-resolves the files that
+// depend on this one.
 func importableSurfaces(nodes []graph.Node) []extractor.ExportedSurface {
 	var surfaces []extractor.ExportedSurface
 	for _, node := range nodes {
 		switch node.Kind {
-		case NamespaceNodeKind, ClassNodeKind, StructNodeKind, InterfaceNodeKind, RecordNodeKind, EnumNodeKind, DelegateNodeKind:
+		case NamespaceNodeKind, ClassNodeKind, StructNodeKind, InterfaceNodeKind, RecordNodeKind, EnumNodeKind, DelegateNodeKind, MethodNodeKind:
 			surfaces = append(surfaces, extractor.ExportedSurface{NodeID: node.ID, Name: node.Label})
 		}
 	}
