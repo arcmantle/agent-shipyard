@@ -104,7 +104,7 @@ export async function recordRpc(target: RpcTarget, testCase: RpcCase): Promise<O
 		try {
 			const response = await fetch(`${target.url}/rpc`, {
 				method: "POST",
-				headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+				headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
 				body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: step.method, params: substitute(step.params ?? {}, bindings) })
 			});
 			status = response.status;
