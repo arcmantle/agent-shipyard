@@ -126,7 +126,38 @@ test("a rule that cannot match a case is reported unused, and a rule that change
 	expect(report.ruleUse["command-name"]).toEqual(["cli/project-identity-help"]);
 });
 
-const base = { id: "r", cases: "cli/x-help", path: "/stdout", action: "rewrite", match: "agent-issues(?= )", replace: "agent-logbook", reason: "why" };
+test("a rule that rewrites a retained input or a stable-ID namespace is rejected", () => {
+	const rule = (match: string, action = "rewrite") => [{ ...base, match, action, replace: action === "rewrite" ? "agent-logbook" : undefined }];
+	for (const match of [
+		"agent-issues(?= )", "agent-issues(?=\\.json)", "\\.agent-issues\\.json", "agent-issues(?=/)", "agent-issues/entity-stable-id/v1", "AGENT_ISSUES(?=_PROJECT)", "AGENT_ISSUES_PROJECT_IDENTITY"
+	]) expect(() => validateRules(rule(match), "t")).toThrow(/retained input/);
+	expect(() => validateRules(rule("\\.agent-issues", "remove-line"), "t")).toThrow(/retained input/);
+	expect(() => validateRules(rule("(?<![.\\w/-])agent-issues(?= )"), "t")).not.toThrow();
+	expect(() => validateRules(rule("^agent-issues (?=project-identity)"), "t")).not.toThrow();
+});
+
+test("the approved command-name rule leaves retained names in help text", () => {
+	const legacy = { exitCode: 0, stderr: "", stdout: "  agent-issues show\n.agent-issues file\nUse .agent-issues.json file\nagent-issues/user-stable-id/v1 x\n" } as Observation;
+	const expected = applyIntended("cli/a-help", legacy, rules, new Map()) as { stdout: string };
+	expect(expected.stdout).toBe("  agent-logbook show\n.agent-issues file\nUse .agent-issues.json file\nagent-issues/user-stable-id/v1 x\n");
+});
+
+test("every rule leaves the retained inputs in the recorded legacy results unchanged", () => {
+	const retained = [".agent-issues.json", ".agent-issues", "AGENT_ISSUES_PROJECT_IDENTITY", "agent-issues/entity-stable-id/v1", "agent-issues/context-stable-id/v1", "agent-issues/context-term-id/v1", "agent-issues/user-stable-id/v1"];
+	const count = (text: string) => retained.map((input) => text.split(input).length - 1);
+	let seen = 0;
+	for (const testCase of cases) {
+		const legacy = golden(testCase.id);
+		const expected = applyIntended(testCase.id, legacy, rules, new Map());
+		const before = JSON.stringify(legacy);
+		const after = JSON.stringify(expected);
+		expect(count(after)).toEqual(count(before));
+		seen += count(before).reduce((sum, n) => sum + n, 0);
+	}
+	expect(seen).toBeGreaterThan(0);
+});
+
+const base = { id: "r", cases: "cli/x-help", path: "/stdout", action: "rewrite", match: "(?<![.\\w/-])agent-issues(?= )", replace: "agent-logbook", reason: "why" };
 test("broad or malformed rules are rejected", () => {
 	expect(validateRules([base], "t")).toHaveLength(1);
 	for (const bad of [

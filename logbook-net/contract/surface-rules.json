@@ -1,0 +1,23 @@
+{
+	"removed": [
+		{ "id": "daemon-command", "kind": "cli-command", "name": "cli:daemon", "decision": "PLAN_ENTRY_27X2TWATJV8XD9QVW2BEPMFCJM", "reason": "The daemon is removed. The Local API host replaces it." },
+		{ "id": "synchronize-command", "kind": "cli-command", "name": "cli:synchronize", "decision": "PLAN_ENTRY_27X2TWATJV8XD9QVW2BEPMFCJM", "reason": "The synchronize command and feature are removed. exportCanonicalChains and importCanonicalChains stay." },
+		{ "id": "daemon-stop-route", "kind": "host-route", "name": "POST /daemon/stop", "decision": "PLAN_ENTRY_27X2TWATJV8XD9QVW2BEPMFCJM", "reason": "The daemon is removed." },
+		{ "id": "daemon-health-method", "kind": "legacy-name", "category": "rpc-method", "name": "daemonHealth", "decision": "PLAN_ENTRY_27X2TWATJV8XD9QVW2BEPMFCJM", "reason": "The daemon is removed. The JSON-RPC host answers this method outside the rpcMethods list." },
+		{ "id": "alb-alias", "kind": "legacy-name", "category": "alias", "name": "alb", "decision": "PLAN_ENTRY_5Q1WDN9AFM8BKRF8468DT01775", "reason": "The .NET tool has the one command agent-logbook." },
+		{ "id": "daemon-idle-env", "kind": "legacy-name", "category": "environment", "name": "AGENT_ISSUES_DAEMON_IDLE_MS", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The daemon is removed." },
+		{ "id": "no-daemon-env", "kind": "legacy-name", "category": "environment", "name": "AGENT_ISSUES_NO_DAEMON", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The daemon is removed." },
+		{ "id": "db-env", "kind": "legacy-name", "category": "environment", "name": "AGENT_ISSUES_DB", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The SQLite backend is removed." },
+		{ "id": "db-path-header", "kind": "legacy-name", "category": "header", "name": "x-agent-issues-db-path", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The SQLite backend is removed." },
+		{ "id": "sqlite-file", "kind": "legacy-name", "category": "file", "name": "agent-issues.db", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The SQLite backend is removed." },
+		{ "id": "sqlite-wal-file", "kind": "legacy-name", "category": "file", "name": "agent-issues.db-wal", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The SQLite backend is removed." },
+		{ "id": "sqlite-shm-file", "kind": "legacy-name", "category": "file", "name": "agent-issues.db-shm", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The SQLite backend is removed." },
+		{ "id": "backups-folder", "kind": "legacy-name", "category": "file", "name": "backups/", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The SQLite backend is removed." },
+		{ "id": "daemon-state-file", "kind": "legacy-name", "category": "file", "name": "daemon[-<slot>].json", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The daemon is removed." },
+		{ "id": "daemon-lock-file", "kind": "legacy-name", "category": "file", "name": "daemon[-<slot>].lock", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The daemon is removed." },
+		{ "id": "daemon-credential", "kind": "legacy-name", "category": "credential", "name": "agent-issues-daemon", "decision": "PLAN_ENTRY_2PAVNM6YGX8QMA0314BVD52B5H", "reason": "The daemon is removed." },
+		{ "id": "vscode-mcp-provider", "kind": "component", "name": "logbook/packages/vscode-mcp-provider", "decision": "PLAN_ENTRY_3XC93B8GYG8DH9G2EGKZWC4A2W", "reason": "Hosts start the installed agent-logbook --mcp command. The VS Code provider is not ported." },
+		{ "id": "mcp-proxy", "kind": "component", "name": "logbook/packages/mcp-server/src/proxy.ts", "decision": "PLAN_ENTRY_3XC93B8GYG8DH9G2EGKZWC4A2W", "reason": "The MCP proxy is not ported." },
+		{ "id": "company-registry-entry", "kind": "component", "name": "logbook/docs/mcp-registry-setup.md", "decision": "PLAN_ENTRY_3XC93B8GYG8DH9G2EGKZWC4A2W", "reason": "The company registry entry is removed." }
+	]
+}

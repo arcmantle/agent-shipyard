@@ -79,4 +79,20 @@ Options: `--candidate-token` (omit for no-auth mode), `--candidate-tenant` (defa
 - Rules must be narrow. The tool rejects a rule when the `cases` glob does not name a surface and part of a case name (`cli/*` is rejected, `cli/*-help` is allowed), the path is not a pointer to one value, or the `match` pattern matches common text such as an empty string, a space, or one letter.
 - The report lists the cases that each rule changed. A rule that changed no case is reported as `UNUSED` (only when all cases ran); `--fail-on-unused` makes that a failure.
 
+A rule must not change a retained input. The tool rejects a rule when it rewrites, or removes a line with, any of the four `agent-issues/.../v1` stable-ID namespaces, `.agent-issues.json`, `.agent-issues`, or `AGENT_ISSUES_PROJECT_IDENTITY` (`src/rename.ts` lists them). The check tries each name alone and inside common text, so a lookahead such as `agent-issues(?= )` fails and `(?<![.\w/-])agent-issues(?= )` passes.
+
+### Rename and removal rules
+
+The rename is one mechanical rule for each case form (`agent-issues`, `agentIssues`, `AGENT_ISSUES`, `agent_issues`, `AgentIssues`, `Agent Issues`). `renameVisible` in `src/rename.ts` applies it and keeps the retained inputs. Text rules in `intended-differences.json` express a rename for each recorded case. A rename of a route, header, resource URI, or key has a test in `src/surfaces.test.ts` and gets a text rule when its owning feature adds a case.
+
+`contract/surface-rules.json` lists the approved removals, each with its Plan entry and reason. A removal names one exact surface: a command ID (`cli:daemon`), a route (`POST /daemon/stop`), a legacy name (environment variable, header, file, credential, alias, JSON-RPC method), or a component path. A wildcard is rejected, a command or route must exist in `contract/inventory.json`, and no removal may overlap a retained input. A removed command does not remove its sub-commands, and `exportCanonicalChains` and `importCanonicalChains` stay.
+
+```sh
+cd logbook-net/tools
+bun src/surfaces.ts          # check the rules, print the counts
+bun src/surfaces.ts --list   # one line for each inventory surface
+```
+
+Each inventory surface has one status: `removed` (an approved removal), `covered` (a case drives it), or `not-yet-ported` (no case yet). A later feature slice adds its cases before it claims completion.
+
 Limits: values are compared after `JSON.parse`, so `1` and `1.0` are equal and integers above 2^53 lose precision. `-0` and `0` differ. `--candidate-tenant` makes all cases share one tenant, so data can carry over between cases.

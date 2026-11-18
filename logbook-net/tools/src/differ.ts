@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { Case } from "./cases.ts";
 import type { Observation } from "./recorder.ts";
+import { retainedProbes } from "./rename.ts";
 
 // ---------- intended-difference rules ----------
 
@@ -64,6 +65,11 @@ export function validateRules(value: unknown, source: string): IntendedDifferenc
 			return fail(`${label}: match is not a valid regular expression`);
 		}
 		if (BROAD_PROBES.some((probe) => pattern.test(probe))) return fail(`${label}: match is too broad, it matches common text`);
+		const global = new RegExp(item.match, "g");
+		const touched = retainedProbes().find((probe) =>
+			item.action === "remove-line" ? probe.split("\n").some((line) => new RegExp(item.match).test(line)) : probe.replace(global, item.replace ?? "") !== probe
+		);
+		if (touched !== undefined) return fail(`${label}: the rule changes the retained input in ${JSON.stringify(touched)}; a rename rule must not match retained project-identity inputs or stable-ID namespaces`);
 		return item;
 	});
 }

@@ -4,9 +4,9 @@
 		"cases": "cli/*-help",
 		"path": "/stdout",
 		"action": "rewrite",
-		"match": "agent-issues(?= )",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
 		"replace": "agent-logbook",
-		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases)."
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The rule skips .agent-issues, a retained project-identity input."
 	},
 	{
 		"id": "no-sqlite-db-option",
