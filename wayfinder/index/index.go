@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -777,7 +778,7 @@ func resolveJavaScriptProjectionPages(ctx context.Context, store resolverStore, 
 }
 
 func resolveCSharpProjectionPages(ctx context.Context, store resolverStore, snapshot storage.Snapshot, projectID string, overrides map[string]extractedSource, deleted map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error) {
-	index := snapshotResolverIndex{store: store, snapshot: snapshot, overrides: overrides}
+	index := snapshotResolverIndex{store: store, snapshot: snapshot, overrides: overrides, deleted: deleted}
 	contributions := incrementalResolverContributions(projectID, "csharp", overrides, deleted)
 	var facts graph.Facts
 	diagnostics := make([]extractor.Diagnostic, 0)
@@ -835,6 +836,7 @@ type snapshotResolverIndex struct {
 	store     resolverStore
 	snapshot  storage.Snapshot
 	overrides map[string]extractedSource
+	deleted   map[string]struct{}
 }
 
 func (index snapshotResolverIndex) ResolverTarget(ctx context.Context, request extractor.ResolverTargetRequest) (extractor.ResolverTarget, bool, error) {
@@ -849,9 +851,13 @@ func (index snapshotResolverIndex) ResolverPackagePage(ctx context.Context, requ
 	if err != nil {
 		return nil, err
 	}
+	targets = slices.DeleteFunc(targets, func(target extractor.ResolverTarget) bool {
+		_, removed := index.deleted[target.SourcePath]
+		return removed
+	})
 	overridePaths := make([]string, 0, len(index.overrides))
 	for sourcePath, override := range index.overrides {
-		if override.projectID == request.ProjectID && override.language == request.Language && resolverPackageContains(request, sourcePath) && sourcePath > request.AfterSourcePath {
+		if override.projectID == request.ProjectID && override.language == request.Language && inPackage(sourcePath, request) && sourcePath > request.AfterSourcePath {
 			overridePaths = append(overridePaths, sourcePath)
 		}
 	}
@@ -874,7 +880,7 @@ func (index snapshotResolverIndex) ResolverPackagePage(ctx context.Context, requ
 	return targets, nil
 }
 
-func resolverPackageContains(request extractor.ResolverPackagePageRequest, sourcePath string) bool {
+func inPackage(sourcePath string, request extractor.ResolverPackagePageRequest) bool {
 	if !request.Recursive {
 		return path.Dir(sourcePath) == request.PackagePath
 	}
