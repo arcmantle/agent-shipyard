@@ -143,3 +143,89 @@ func TestExtractFileScopedNamespaceOwnsLaterDeclarations(t *testing.T) {
 		t.Errorf("qualified names = %v, want %v", names, want)
 	}
 }
+
+func TestExtractReturnsVariableFactsWithOwnership(t *testing.T) {
+	contents := `class Widget
+{
+    private int size, count = 2;
+    public const string Name = "w";
+    public int Prop { get; set; }
+    void Run(int parameter)
+    {
+        var local = 1;
+        const int Limit = 3;
+        foreach (var item in new int[0]) {}
+        for (int i = 0; i < 2; i++) {}
+    }
+}
+`
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "V.cs", Contents: []byte(contents)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	facts := contribution.Facts()
+	ids := map[string]string{}
+	for _, node := range facts.Nodes {
+		ids[node.ID] = node.QualifiedName
+	}
+	owners := map[string]string{}
+	for _, edge := range facts.Edges {
+		if edge.Relation == "defines" {
+			owners[ids[edge.TargetID]] = ids[edge.SourceID]
+		}
+	}
+	want := map[string][2]int{ // qualified name -> start line, end line
+		"V.cs::Widget.size":      {3, 3},
+		"V.cs::Widget.count":     {3, 3},
+		"V.cs::Widget.Name":      {4, 4},
+		"V.cs::Widget.Run.local": {8, 8},
+		"V.cs::Widget.Run.Limit": {9, 9},
+		"V.cs::Widget.Run.item":  {10, 10},
+		"V.cs::Widget.Run.i":     {11, 11},
+	}
+	variables := 0
+	for _, node := range facts.Nodes {
+		if node.Kind == VariableNodeKind {
+			variables++
+			lines, found := want[node.QualifiedName]
+			if !found || node.Evidence.Span.StartLine != lines[0] || node.Evidence.Span.EndLine != lines[1] {
+				t.Errorf("variable %+v not in expected set with lines %v", node, want)
+			}
+		}
+		if node.Label == "Prop" || node.Label == "parameter" {
+			t.Errorf("node %+v, want no property or parameter node", node)
+		}
+	}
+	if variables != len(want) {
+		t.Errorf("variable count = %d, want %d", variables, len(want))
+	}
+	for name, owner := range map[string]string{
+		"V.cs::Widget.size":      "V.cs::Widget",
+		"V.cs::Widget.Name":      "V.cs::Widget",
+		"V.cs::Widget.Run.local": "V.cs::Widget.Run",
+		"V.cs::Widget.Run.i":     "V.cs::Widget.Run",
+	} {
+		if owners[name] != owner {
+			t.Errorf("owner of %q = %q, want %q", name, owners[name], owner)
+		}
+	}
+}
+
+func TestExtractReturnsLocalsInAccessorsAndPatterns(t *testing.T) {
+	contents := "class C\n{\n    int P { get { var viaAccessor = 1; return viaAccessor; } }\n    void M(object o)\n    {\n        int.TryParse(\"1\", out var parsed);\n        if (o is string text) {}\n        try {} catch (System.Exception caught) {}\n    }\n}\n"
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "P.cs", Contents: []byte(contents)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	got := map[string]bool{}
+	for _, node := range contribution.Facts().Nodes {
+		if node.Kind == VariableNodeKind {
+			got[node.QualifiedName] = true
+		}
+	}
+	for _, name := range []string{"P.cs::C.viaAccessor", "P.cs::C.M.parsed", "P.cs::C.M.text", "P.cs::C.M.caught"} {
+		if !got[name] {
+			t.Errorf("variables = %v, want %q", got, name)
+		}
+	}
+}
