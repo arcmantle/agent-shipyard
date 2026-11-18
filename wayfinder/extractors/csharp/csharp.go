@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"agent-wayfinder/extractor"
 	"agent-wayfinder/graph"
@@ -25,7 +26,13 @@ const (
 	TypeAliasNodeKind   graph.NodeKind = "csharp:type_alias"
 	MethodNodeKind      graph.NodeKind = "csharp:method"
 	ConstructorNodeKind graph.NodeKind = "csharp:constructor"
+	// ImportNodeKind is a namespace or static `using` directive. An alias
+	// directive is recorded as a TypeAliasNodeKind node instead.
+	ImportNodeKind graph.NodeKind = "csharp:import"
 )
+
+// StaticBinding marks the import binding of a `using static` directive.
+const StaticBinding = "static"
 
 func New() extractor.Extractor {
 	return extractorDefinition{}
@@ -61,6 +68,7 @@ func (extractorDefinition) Vocabulary() (graph.Vocabulary, error) {
 		TypeAliasNodeKind,
 		MethodNodeKind,
 		ConstructorNodeKind,
+		ImportNodeKind,
 	})
 }
 
@@ -130,15 +138,18 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 			Evidence: fileEvidence,
 		}},
 	}
-	collectDeclarations(source, root, fileID, source.SourcePath, &facts)
+	var references []extractor.UnresolvedReference
+	collectDeclarations(source, root, fileID, source.SourcePath, &facts, &references)
 
 	return extractor.NewContribution(vocabulary, extractor.ContributionInput{
-		ProjectID:           source.ProjectID,
-		SourcePath:          source.SourcePath,
-		Metadata:            New().Metadata(),
-		Facts:               facts,
-		CatalogUnits:        extractor.CatalogUnitsForSource(source, facts),
-		CatalogUnitsOmitted: source.OmitCatalogUnits,
+		ProjectID:            source.ProjectID,
+		SourcePath:           source.SourcePath,
+		Metadata:             New().Metadata(),
+		Facts:                facts,
+		CatalogUnits:         extractor.CatalogUnitsForSource(source, facts),
+		CatalogUnitsOmitted:  source.OmitCatalogUnits,
+		UnresolvedReferences: references,
+		ExportedSurfaces:     importableSurfaces(facts.Nodes),
 	})
 }
 
@@ -146,13 +157,21 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 // and constructors. Each declaration is owned by its enclosing declaration or the
 // file, and its qualified name extends the owner's. Parameters and properties are
 // not declarations.
-func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts) {
+//
+// Every namespace, static, and alias `using` directive is also recorded as an
+// unresolved import reference from the node that carries its source evidence.
+// `extern alias` is not an import.
+func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts, references *[]extractor.UnresolvedReference) {
 	for childIndex := uint(0); childIndex < node.NamedChildCount(); childIndex++ {
 		child := node.NamedChild(childIndex)
 		kind, found := declarationKind(source, child)
+		if !found && child.Kind() == "using_directive" {
+			appendImport(source, child, ownerID, ownerName, facts, references)
+			continue
+		}
 		if !found {
 			if child.Kind() == "declaration_list" {
-				collectDeclarations(source, child, ownerID, ownerName, facts)
+				collectDeclarations(source, child, ownerID, ownerName, facts, references)
 			}
 			continue
 		}
@@ -166,13 +185,75 @@ func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ow
 		qualifiedName := qualifyName(source.SourcePath, ownerName, label)
 		facts.Nodes = append(facts.Nodes, graph.Node{ID: id, Kind: kind, Label: label, QualifiedName: qualifiedName, Evidence: evidence})
 		facts.Edges = append(facts.Edges, graph.Edge{SourceID: ownerID, TargetID: id, Relation: "defines", Evidence: evidence})
+		if child.Kind() == "using_directive" {
+			if reference, ok := importReference(source, child, id); ok {
+				*references = append(*references, reference)
+			}
+			continue
+		}
 		if child.Kind() == "file_scoped_namespace_declaration" {
 			// A file-scoped namespace owns every later sibling declaration.
 			ownerID, ownerName = id, qualifiedName
 			continue
 		}
-		collectDeclarations(source, child, id, qualifiedName, facts)
+		collectDeclarations(source, child, id, qualifiedName, facts, references)
 	}
+}
+
+// appendImport records a non-alias `using` directive as an import node owned by
+// its enclosing namespace or file.
+func appendImport(source extractor.Source, directive *sitter.Node, ownerID, ownerName string, facts *graph.Facts, references *[]extractor.UnresolvedReference) {
+	evidence := evidenceFor(source, directive)
+	id := graph.NewNodeID(ImportNodeKind, evidence.Span)
+	reference, ok := importReference(source, directive, id)
+	if !ok {
+		return
+	}
+	qualifier := "using "
+	if hasToken(directive, "global") {
+		qualifier = "global using "
+	}
+	if hasToken(directive, "static") {
+		qualifier += "static "
+	}
+	facts.Nodes = append(facts.Nodes, graph.Node{ID: id, Kind: ImportNodeKind, Label: reference.Target, QualifiedName: qualifyName(source.SourcePath, ownerName, qualifier+reference.Target), Evidence: evidence})
+	facts.Edges = append(facts.Edges, graph.Edge{SourceID: ownerID, TargetID: id, Relation: "defines", Evidence: evidence})
+	*references = append(*references, reference)
+}
+
+// importReference describes the target of a `using` directive. A namespace
+// import has no bindings, a static import binds StaticBinding, and an alias
+// import binds its local name.
+func importReference(source extractor.Source, directive *sitter.Node, sourceID string) (extractor.UnresolvedReference, bool) {
+	var target *sitter.Node
+	alias := directive.ChildByFieldName("name")
+	for childIndex := uint(0); childIndex < directive.NamedChildCount(); childIndex++ {
+		child := directive.NamedChild(childIndex)
+		if alias == nil || child.Id() != alias.Id() {
+			target = child
+		}
+	}
+	if target == nil {
+		return extractor.UnresolvedReference{}, false
+	}
+	name := strings.TrimPrefix(strings.Join(strings.Fields(target.Utf8Text(source.Contents)), ""), "global::")
+	reference := extractor.UnresolvedReference{SourceID: sourceID, Target: name, Kind: extractor.ModuleReferenceImport}
+	switch {
+	case alias != nil:
+		reference.Bindings = []extractor.ModuleBinding{{ImportedName: name, LocalName: alias.Utf8Text(source.Contents)}}
+	case hasToken(directive, "static"):
+		reference.Bindings = []extractor.ModuleBinding{{ImportedName: name, ExportedName: StaticBinding}}
+	}
+	return reference, true
+}
+
+func hasToken(node *sitter.Node, kind string) bool {
+	for childIndex := uint(0); childIndex < node.ChildCount(); childIndex++ {
+		if child := node.Child(childIndex); !child.IsNamed() && child.Kind() == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func declarationKind(source extractor.Source, node *sitter.Node) (graph.NodeKind, bool) {
@@ -256,4 +337,17 @@ func evidenceFor(source extractor.Source, node *sitter.Node) graph.FactEvidence 
 		Provenance: "static",
 		Confidence: graph.ConfidenceExtracted,
 	}
+}
+
+// importableSurfaces lists the namespaces and types other files can import. A
+// change to them re-resolves the files that depend on this one.
+func importableSurfaces(nodes []graph.Node) []extractor.ExportedSurface {
+	var surfaces []extractor.ExportedSurface
+	for _, node := range nodes {
+		switch node.Kind {
+		case NamespaceNodeKind, ClassNodeKind, StructNodeKind, InterfaceNodeKind, RecordNodeKind, EnumNodeKind, DelegateNodeKind:
+			surfaces = append(surfaces, extractor.ExportedSurface{NodeID: node.ID, Name: node.Label})
+		}
+	}
+	return surfaces
 }

@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -777,7 +778,7 @@ func resolveJavaScriptProjectionPages(ctx context.Context, store resolverStore, 
 }
 
 func resolveCSharpProjectionPages(ctx context.Context, store resolverStore, snapshot storage.Snapshot, projectID string, overrides map[string]extractedSource, deleted map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error) {
-	index := snapshotResolverIndex{store: store, snapshot: snapshot, overrides: overrides}
+	index := snapshotResolverIndex{store: store, snapshot: snapshot, overrides: overrides, deleted: deleted}
 	contributions := incrementalResolverContributions(projectID, "csharp", overrides, deleted)
 	var facts graph.Facts
 	diagnostics := make([]extractor.Diagnostic, 0)
@@ -835,6 +836,7 @@ type snapshotResolverIndex struct {
 	store     resolverStore
 	snapshot  storage.Snapshot
 	overrides map[string]extractedSource
+	deleted   map[string]struct{}
 }
 
 func (index snapshotResolverIndex) ResolverTarget(ctx context.Context, request extractor.ResolverTargetRequest) (extractor.ResolverTarget, bool, error) {
@@ -849,9 +851,13 @@ func (index snapshotResolverIndex) ResolverPackagePage(ctx context.Context, requ
 	if err != nil {
 		return nil, err
 	}
+	targets = slices.DeleteFunc(targets, func(target extractor.ResolverTarget) bool {
+		_, removed := index.deleted[target.SourcePath]
+		return removed
+	})
 	overridePaths := make([]string, 0, len(index.overrides))
 	for sourcePath, override := range index.overrides {
-		if override.projectID == request.ProjectID && override.language == request.Language && path.Dir(sourcePath) == request.PackagePath && sourcePath > request.AfterSourcePath {
+		if override.projectID == request.ProjectID && override.language == request.Language && inPackage(sourcePath, request) && sourcePath > request.AfterSourcePath {
 			overridePaths = append(overridePaths, sourcePath)
 		}
 	}
@@ -872,6 +878,13 @@ func (index snapshotResolverIndex) ResolverPackagePage(ctx context.Context, requ
 	sort.Slice(targets, func(first, second int) bool { return targets[first].SourcePath < targets[second].SourcePath })
 	targets = targets[:min(len(targets), request.Limit)]
 	return targets, nil
+}
+
+func inPackage(sourcePath string, request extractor.ResolverPackagePageRequest) bool {
+	if !request.Recursive {
+		return path.Dir(sourcePath) == request.PackagePath
+	}
+	return request.PackagePath == "." || strings.HasPrefix(sourcePath, request.PackagePath+"/")
 }
 
 func resolverTargetFromContribution(source extractedSource) extractor.ResolverTarget {

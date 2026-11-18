@@ -2669,3 +2669,82 @@ func TestIndexCSharpSolutionIndexesOnlyOwnedSourcesWithoutSymbolLinks(t *testing
 		}
 	}
 }
+
+func TestIndexCSharpImportsResolveWithinProjectAndMatchFreshIndex(t *testing.T) {
+	workspace := testkit.NewWorkspace(t, map[string]string{
+		"src/App.cs": "using Lib;\nusing System;\n\nnamespace App;\n\npublic class Program {}\n",
+		"src/Lib.cs": "namespace Lib;\n\npublic class Service {}\n",
+	})
+	request := index.Request{Root: workspace.Root, ConfiguredRoots: []string{"."}}
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, request)
+	if err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+	importLinks := func(facts *factCollector) []string {
+		names := make(map[string]string)
+		for _, node := range facts.nodes {
+			names[node.ID] = node.QualifiedName
+		}
+		var links []string
+		for _, edge := range facts.edges {
+			if edge.Relation == "csharp:imports_from" && strings.Contains(names[edge.SourceID], "::using") {
+				links = append(links, names[edge.SourceID]+" -> "+names[edge.TargetID])
+			}
+		}
+		return links
+	}
+	published := &factCollector{}
+	if err := store.Export(context.Background(), snapshot, storage.ExportRequest{}, published); err != nil {
+		t.Fatalf("export graph: %v", err)
+	}
+	if got, want := importLinks(published), []string{"src/App.cs::using Lib -> src/Lib.cs::Lib"}; !slices.Equal(got, want) {
+		t.Errorf("import links = %v, want %v (external System stays unresolved)", got, want)
+	}
+
+	workspace.WriteFile(t, "src/Lib.cs", "namespace Other;\n\npublic class Service {}\n")
+	batchSnapshot, err := index.PublishBatch(context.Background(), rejectingContributionReader{Store: store}, index.BatchRequest{Root: workspace.Root, ConfiguredRoots: []string{"."}, ChangedPaths: []string{"src/Lib.cs"}})
+	if err != nil {
+		t.Fatalf("publish C# batch: %v", err)
+	}
+	batch := &factCollector{}
+	if err := store.Export(context.Background(), batchSnapshot, storage.ExportRequest{}, batch); err != nil {
+		t.Fatalf("export batch graph: %v", err)
+	}
+	if got := importLinks(batch); len(got) != 0 {
+		t.Errorf("import links after the namespace moved = %v, want none", got)
+	}
+}
+
+func TestIndexCSharpImportsDropWhenTargetFileIsDeleted(t *testing.T) {
+	workspace := testkit.NewWorkspace(t, map[string]string{
+		"src/App.cs": "using Lib;\n\nnamespace App;\n\npublic class Program {}\n",
+		"src/Lib.cs": "namespace Lib;\n\npublic class Service {}\n",
+	})
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if _, err := index.Publish(context.Background(), store, index.Request{Root: workspace.Root, ConfiguredRoots: []string{"."}}); err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+	workspace.RemoveFile(t, "src/Lib.cs")
+	snapshot, err := index.PublishBatch(context.Background(), rejectingContributionReader{Store: store}, index.BatchRequest{Root: workspace.Root, ConfiguredRoots: []string{"."}, ChangedPaths: []string{"src/Lib.cs"}})
+	if err != nil {
+		t.Fatalf("publish C# batch: %v", err)
+	}
+	facts := &factCollector{}
+	if err := store.Export(context.Background(), snapshot, storage.ExportRequest{}, facts); err != nil {
+		t.Fatalf("export graph: %v", err)
+	}
+	for _, edge := range facts.edges {
+		if edge.Relation == "csharp:imports_from" {
+			t.Errorf("edge %+v remains after its target file was deleted", edge)
+		}
+	}
+}
