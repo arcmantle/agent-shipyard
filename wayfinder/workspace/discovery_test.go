@@ -405,3 +405,52 @@ func TestDiscoverIncludesCSharpSourcesUnderConfiguredRoots(t *testing.T) {
 		t.Errorf("sources = %#v, want %#v", discovery.Sources, want)
 	}
 }
+
+func TestDiscoverCSharpSolutionProjectsAndExclusions(t *testing.T) {
+	fixture := testkit.NewWorkspace(t, map[string]string{
+		"App.sln": "Microsoft Visual Studio Solution File\r\n" +
+			"Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"App\", \"src\\App\\App.csproj\", \"{1}\"\r\nEndProject\r\n" +
+			"Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Lib\", \"src\\Lib\\Lib.csproj\", \"{2}\"\r\nEndProject\r\n" +
+			"Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"Items\", \"Items\", \"{3}\"\r\nEndProject\r\n",
+		"src/App/App.csproj":           "<Project />\n",
+		"src/App/Program.cs":           "class Program {}\n",
+		"src/App/Program.csx":          "var x = 1;\n",
+		"src/App/Form.Designer.cs":     "partial class Form {}\n",
+		"src/App/Model.g.cs":           "partial class Model {}\n",
+		"src/App/obj/Debug/Temp.cs":    "class Temp {}\n",
+		"src/App/bin/Debug/Out.cs":     "class Out {}\n",
+		"src/Lib/Lib.csproj":           "<Project />\n",
+		"src/Lib/Service.cs":           "class Service {}\n",
+		"src/Lib/Nested/Nested.csproj": "<Project />\n",
+		"src/Lib/Nested/Inner.cs":      "class Inner {}\n",
+		"Loose/Loose.cs":               "class Loose {}\n",
+		"Unlisted/Unlisted.csproj":     "<Project />\n",
+		"Unlisted/Unlisted.cs":         "class Unlisted {}\n",
+	})
+
+	discovery, err := workspace.Discover(fixture.Root, workspace.DiscoverOptions{ConfiguredRoots: []string{"Loose"}})
+	if err != nil {
+		t.Fatalf("discover workspace: %v", err)
+	}
+
+	wantProjects := []workspace.Project{
+		{ID: "project:Loose", Root: "Loose"},
+		{ID: "project:Unlisted", Root: "Unlisted"},
+		{ID: "project:src/App", Root: "src/App"},
+		{ID: "project:src/Lib", Root: "src/Lib"},
+		{ID: "project:src/Lib/Nested", Root: "src/Lib/Nested"},
+	}
+	if !reflect.DeepEqual(discovery.Projects, wantProjects) {
+		t.Errorf("projects = %#v, want %#v", discovery.Projects, wantProjects)
+	}
+	wantSources := []workspace.Source{
+		{Path: "Loose/Loose.cs", ProjectID: "project:Loose"},
+		{Path: "Unlisted/Unlisted.cs", ProjectID: "project:Unlisted"},
+		{Path: "src/App/Program.cs", ProjectID: "project:src/App"},
+		{Path: "src/Lib/Nested/Inner.cs", ProjectID: "project:src/Lib/Nested"},
+		{Path: "src/Lib/Service.cs", ProjectID: "project:src/Lib"},
+	}
+	if !reflect.DeepEqual(discovery.Sources, wantSources) {
+		t.Errorf("sources = %#v, want %#v", discovery.Sources, wantSources)
+	}
+}
