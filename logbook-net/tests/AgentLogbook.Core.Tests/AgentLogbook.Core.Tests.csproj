@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <ProjectReference Include="../../src/AgentLogbook.Core/AgentLogbook.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../contract/test-vectors/record-keys.json" Link="test-vectors/record-keys.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
