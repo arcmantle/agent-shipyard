@@ -14,7 +14,18 @@ import (
 
 const Version = "v0"
 
-const ClassNodeKind graph.NodeKind = "csharp:class"
+const (
+	NamespaceNodeKind   graph.NodeKind = "csharp:namespace"
+	ClassNodeKind       graph.NodeKind = "csharp:class"
+	StructNodeKind      graph.NodeKind = "csharp:struct"
+	InterfaceNodeKind   graph.NodeKind = "csharp:interface"
+	RecordNodeKind      graph.NodeKind = "csharp:record"
+	EnumNodeKind        graph.NodeKind = "csharp:enum"
+	DelegateNodeKind    graph.NodeKind = "csharp:delegate"
+	TypeAliasNodeKind   graph.NodeKind = "csharp:type_alias"
+	MethodNodeKind      graph.NodeKind = "csharp:method"
+	ConstructorNodeKind graph.NodeKind = "csharp:constructor"
+)
 
 func New() extractor.Extractor {
 	return extractorDefinition{}
@@ -39,7 +50,18 @@ func (extractorDefinition) Metadata() extractor.Metadata {
 }
 
 func (extractorDefinition) Vocabulary() (graph.Vocabulary, error) {
-	return extractor.NewLanguageVocabulary("csharp", []graph.NodeKind{ClassNodeKind})
+	return extractor.NewLanguageVocabulary("csharp", []graph.NodeKind{
+		NamespaceNodeKind,
+		ClassNodeKind,
+		StructNodeKind,
+		InterfaceNodeKind,
+		RecordNodeKind,
+		EnumNodeKind,
+		DelegateNodeKind,
+		TypeAliasNodeKind,
+		MethodNodeKind,
+		ConstructorNodeKind,
+	})
 }
 
 func Extract(source extractor.Source) (extractor.Contribution, error) {
@@ -108,7 +130,7 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 			Evidence: fileEvidence,
 		}},
 	}
-	collectClasses(source, root, fileID, &facts)
+	collectDeclarations(source, root, fileID, source.SourcePath, &facts)
 
 	return extractor.NewContribution(vocabulary, extractor.ContributionInput{
 		ProjectID:           source.ProjectID,
@@ -120,37 +142,71 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 	})
 }
 
-// collectClasses records top-level and namespace-level classes. Later issues extend
-// the declaration set and qualify names by namespace and nesting.
-func collectClasses(source extractor.Source, node *sitter.Node, fileID string, facts *graph.Facts) {
+// collectDeclarations records namespaces, types, delegates, type aliases, methods,
+// and constructors. Each declaration is owned by its enclosing declaration or the
+// file, and its qualified name extends the owner's. Parameters and properties are
+// not declarations.
+func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts) {
 	for childIndex := uint(0); childIndex < node.NamedChildCount(); childIndex++ {
 		child := node.NamedChild(childIndex)
-		switch child.Kind() {
-		case "namespace_declaration", "file_scoped_namespace_declaration", "declaration_list":
-			collectClasses(source, child, fileID, facts)
-		case "class_declaration":
-			name := child.ChildByFieldName("name")
-			if name == nil {
-				continue
+		kind, found := declarationKind(source, child)
+		if !found {
+			if child.Kind() == "declaration_list" {
+				collectDeclarations(source, child, ownerID, ownerName, facts)
 			}
-			evidence := evidenceFor(source, child)
-			classID := graph.NewNodeID(ClassNodeKind, evidence.Span)
-			className := name.Utf8Text(source.Contents)
-			facts.Nodes = append(facts.Nodes, graph.Node{
-				ID:            classID,
-				Kind:          ClassNodeKind,
-				Label:         className,
-				QualifiedName: source.SourcePath + "::" + className,
-				Evidence:      evidence,
-			})
-			facts.Edges = append(facts.Edges, graph.Edge{
-				SourceID: fileID,
-				TargetID: classID,
-				Relation: "defines",
-				Evidence: evidence,
-			})
+			continue
 		}
+		name := child.ChildByFieldName("name")
+		if name == nil {
+			continue
+		}
+		evidence := evidenceFor(source, child)
+		id := graph.NewNodeID(kind, evidence.Span)
+		label := name.Utf8Text(source.Contents)
+		qualifiedName := qualifyName(source.SourcePath, ownerName, label)
+		facts.Nodes = append(facts.Nodes, graph.Node{ID: id, Kind: kind, Label: label, QualifiedName: qualifiedName, Evidence: evidence})
+		facts.Edges = append(facts.Edges, graph.Edge{SourceID: ownerID, TargetID: id, Relation: "defines", Evidence: evidence})
+		if child.Kind() == "file_scoped_namespace_declaration" {
+			// A file-scoped namespace owns every later sibling declaration.
+			ownerID, ownerName = id, qualifiedName
+			continue
+		}
+		collectDeclarations(source, child, id, qualifiedName, facts)
 	}
+}
+
+func declarationKind(source extractor.Source, node *sitter.Node) (graph.NodeKind, bool) {
+	switch node.Kind() {
+	case "namespace_declaration", "file_scoped_namespace_declaration":
+		return NamespaceNodeKind, true
+	case "class_declaration":
+		return ClassNodeKind, true
+	case "struct_declaration":
+		return StructNodeKind, true
+	case "interface_declaration":
+		return InterfaceNodeKind, true
+	case "record_declaration", "record_struct_declaration":
+		return RecordNodeKind, true
+	case "enum_declaration":
+		return EnumNodeKind, true
+	case "delegate_declaration":
+		return DelegateNodeKind, true
+	case "method_declaration":
+		return MethodNodeKind, true
+	case "constructor_declaration":
+		return ConstructorNodeKind, true
+	case "using_directive":
+		// Only `using Alias = Target;` declares a name.
+		return TypeAliasNodeKind, node.ChildByFieldName("name") != nil
+	}
+	return "", false
+}
+
+func qualifyName(sourcePath, ownerName, name string) string {
+	if ownerName == sourcePath {
+		return sourcePath + "::" + name
+	}
+	return ownerName + "." + name
 }
 
 func parseError(sourcePath string, root *sitter.Node) error {

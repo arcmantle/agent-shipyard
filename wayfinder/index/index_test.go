@@ -2525,7 +2525,7 @@ func TestIndexCSharpClassUnderConfiguredRootMatchesFreshIndex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query C# class: %v", err)
 	}
-	if len(result.Rows) != 1 || result.Rows[0][1] != "src/Widget.cs::Widget" {
+	if len(result.Rows) != 1 || result.Rows[0][1] != "src/Widget.cs::Fixture.Widget" {
 		t.Fatalf("query rows = %+v, want the Widget class", result.Rows)
 	}
 	if len(result.Evidence) == 0 || result.Evidence[0].Span.Path != "src/Widget.cs" || result.Evidence[0].Span.StartLine != 3 {
@@ -2561,6 +2561,52 @@ func TestIndexCSharpClassUnderConfiguredRootMatchesFreshIndex(t *testing.T) {
 		t.Errorf("fresh graph nodes = %+v, want Gadget", fresh.nodes)
 	}
 }
+
+func TestIndexCSharpDeclarationSetIsQueryable(t *testing.T) {
+	workspace := testkit.NewWorkspace(t, map[string]string{
+		"src/All.cs": csharpDeclarationFixture,
+	})
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, index.Request{Root: workspace.Root, ConfiguredRoots: []string{"."}})
+	if err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+	want := map[string]string{
+		"Fixture": "src/All.cs::Fixture",
+		"Widget":  "src/All.cs::Fixture.Widget",
+		"Run":     "src/All.cs::Fixture.Widget.Run",
+		"Point":   "src/All.cs::Fixture.Point",
+		"IShape":  "src/All.cs::Fixture.IShape",
+		"Person":  "src/All.cs::Fixture.Person",
+		"Color":   "src/All.cs::Fixture.Color",
+		"Handler": "src/All.cs::Fixture.Handler",
+		"Text":    "src/All.cs::Text",
+	}
+	for name, qualifiedName := range want {
+		result, err := query.ExecuteGraphQuerySnapshot(context.Background(), store, snapshot, mustParseGraphQuery(t, fmt.Sprintf(`MATCH (node {name: %q}) RETURN node.qualifiedName LIMIT 5`, name)), query.GraphQueryLimits{MaxDepth: 2, MaxNodes: 20}, query.GraphQueryOptions{})
+		if err != nil {
+			t.Fatalf("query C# declaration %q: %v", name, err)
+		}
+		if len(result.Rows) == 0 || !slices.ContainsFunc(result.Rows, func(row []any) bool { return row[0] == qualifiedName }) {
+			t.Errorf("query rows for %q = %+v, want %q", name, result.Rows, qualifiedName)
+		}
+	}
+	for _, name := range []string{"Size", "count"} {
+		result, err := query.ExecuteGraphQuerySnapshot(context.Background(), store, snapshot, mustParseGraphQuery(t, fmt.Sprintf(`MATCH (node {name: %q}) RETURN node.qualifiedName LIMIT 5`, name)), query.GraphQueryLimits{MaxDepth: 2, MaxNodes: 20}, query.GraphQueryOptions{})
+		if err != nil {
+			t.Fatalf("query C# name %q: %v", name, err)
+		}
+		if len(result.Rows) != 0 {
+			t.Errorf("query rows for %q = %+v, want no property or parameter node", name, result.Rows)
+		}
+	}
+}
+
+const csharpDeclarationFixture = "using Text = System.Text.StringBuilder;\nnamespace Fixture;\npublic class Widget { public Widget() {} public int Size { get; set; } public void Run(int count) {} }\nstruct Point {}\ninterface IShape {}\nrecord Person(string Name);\nenum Color { Red }\ndelegate void Handler(int value);\n"
 
 func mustParseGraphQuery(t *testing.T, source string) query.GraphQuery {
 	t.Helper()
