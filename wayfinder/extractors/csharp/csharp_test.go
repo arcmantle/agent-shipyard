@@ -1,6 +1,7 @@
 package csharp
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -102,8 +103,9 @@ namespace Outer.Inner
 			t.Errorf("node %q = %+v (found %v), want kind %s", name, node, found, kind)
 		}
 	}
-	if len(facts.Nodes) != len(want)+2 {
-		t.Errorf("nodes = %+v, want declarations plus project and file only (no parameter or property nodes)", facts.Nodes)
+	// The `using System;` directive is the only import node.
+	if len(facts.Nodes) != len(want)+3 {
+		t.Errorf("nodes = %+v, want declarations, one import, project, and file only (no parameter or property nodes)", facts.Nodes)
 	}
 	owners := map[string]string{}
 	ids := map[string]string{}
@@ -141,6 +143,41 @@ func TestExtractFileScopedNamespaceOwnsLaterDeclarations(t *testing.T) {
 	want := []string{"F.cs::A.B", "F.cs::A.B.C", "F.cs::A.B.C.M", "F.cs::A.B.P"}
 	if !slices.Equal(names, want) {
 		t.Errorf("qualified names = %v, want %v", names, want)
+	}
+}
+
+func TestExtractRecordsEveryUsingFormAsImportWithEvidence(t *testing.T) {
+	contents := "global using System;\nglobal using static System.Math;\nextern alias Legacy;\nusing Text = global::System.Text.StringBuilder;\nusing static Fixture.Util<int>;\nnamespace Outer { using Inner.Deep; }\n"
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "U.cs", Contents: []byte(contents)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	nodes := map[string]graph.Node{}
+	for _, node := range contribution.Facts().Nodes {
+		nodes[node.ID] = node
+	}
+	type got struct {
+		kind     graph.NodeKind
+		line     int
+		bindings []extractor.ModuleBinding
+	}
+	byTarget := map[string]got{}
+	for _, reference := range contribution.UnresolvedReferences() {
+		node := nodes[reference.SourceID]
+		if reference.Kind != extractor.ModuleReferenceImport {
+			t.Errorf("reference %+v kind, want import", reference)
+		}
+		byTarget[reference.Target] = got{node.Kind, node.Evidence.Span.StartLine, reference.Bindings}
+	}
+	want := map[string]got{
+		"System":                    {ImportNodeKind, 1, nil},
+		"System.Math":               {ImportNodeKind, 2, []extractor.ModuleBinding{{ImportedName: "System.Math", ExportedName: StaticBinding}}},
+		"System.Text.StringBuilder": {TypeAliasNodeKind, 4, []extractor.ModuleBinding{{ImportedName: "System.Text.StringBuilder", LocalName: "Text"}}},
+		"Fixture.Util<int>":         {ImportNodeKind, 5, []extractor.ModuleBinding{{ImportedName: "Fixture.Util<int>", ExportedName: StaticBinding}}},
+		"Inner.Deep":                {ImportNodeKind, 6, nil},
+	}
+	if !reflect.DeepEqual(byTarget, want) {
+		t.Errorf("imports = %+v, want %+v (extern alias excluded)", byTarget, want)
 	}
 }
 
