@@ -1,0 +1,9 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"command": "project-identity",
+		"identity": "default-project",
+		"source": "folder-name"
+	}
+}
