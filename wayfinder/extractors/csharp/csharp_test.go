@@ -1,6 +1,7 @@
 package csharp
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,15 +26,15 @@ func TestExtractReturnsClassWithSourceEvidence(t *testing.T) {
 		t.Fatalf("class nodes = %+v, want exactly one", classes)
 	}
 	class := classes[0]
-	if class.Label != "Widget" || class.QualifiedName != "src/Widget.cs::Widget" {
+	if class.Label != "Widget" || class.QualifiedName != "src/Widget.cs::Fixture.Widget" {
 		t.Errorf("class = %+v, want Widget with source-qualified name", class)
 	}
 	span := class.Evidence.Span
 	if span.Path != "src/Widget.cs" || span.StartLine != 3 || span.EndLine != 6 || class.Evidence.Extractor != "csharp@"+Version {
 		t.Errorf("class evidence = %+v, want span 3-6 in src/Widget.cs from the C# extractor", class.Evidence)
 	}
-	if len(contribution.CatalogUnits()) != 1 || contribution.CatalogUnits()[0].Name != "Widget" {
-		t.Errorf("catalog units = %+v, want only Widget", contribution.CatalogUnits())
+	if units := contribution.CatalogUnits(); len(units) != 2 || units[0].Name != "Widget" || units[1].Name != "Run" {
+		t.Errorf("catalog units = %+v, want Widget and Run", units)
 	}
 }
 
@@ -42,8 +43,8 @@ func TestExtractClassInBlockNamespace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("extract C# source: %v", err)
 	}
-	if got := contribution.Facts().Nodes; len(got) != 3 || got[2].Label != "A" {
-		t.Errorf("nodes = %+v, want project, file, and class A", got)
+	if got := contribution.Facts().Nodes; len(got) != 4 || got[3].Label != "A" {
+		t.Errorf("nodes = %+v, want project, file, namespace, and class A", got)
 	}
 }
 
@@ -51,5 +52,94 @@ func TestExtractRejectsInvalidSourceWithLocation(t *testing.T) {
 	_, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "Bad.cs", Contents: []byte("class {")})
 	if err == nil || !strings.Contains(err.Error(), `parse C# source "Bad.cs" at 1:`) {
 		t.Errorf("extract error = %v, want parse error with location", err)
+	}
+}
+
+func TestExtractReturnsEveryDeclarationKindWithOwnership(t *testing.T) {
+	contents := `using Text = System.Text.StringBuilder;
+using System;
+namespace Outer.Inner
+{
+    public class Widget
+    {
+        public Widget(int seed) {}
+        public int Size { get; set; }
+        public void Run(int count) {}
+        class Nested {}
+    }
+    struct Point {}
+    interface IShape { void Draw(); }
+    record Person(string Name);
+    enum Color { Red }
+    delegate void Handler(int value);
+}
+`
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "All.cs", Contents: []byte(contents)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	facts := contribution.Facts()
+	byName := map[string]graph.Node{}
+	for _, node := range facts.Nodes {
+		byName[node.QualifiedName] = node
+	}
+	want := map[string]graph.NodeKind{
+		"All.cs::Text":                      TypeAliasNodeKind,
+		"All.cs::Outer.Inner":               NamespaceNodeKind,
+		"All.cs::Outer.Inner.Widget":        ClassNodeKind,
+		"All.cs::Outer.Inner.Widget.Widget": ConstructorNodeKind,
+		"All.cs::Outer.Inner.Widget.Run":    MethodNodeKind,
+		"All.cs::Outer.Inner.Widget.Nested": ClassNodeKind,
+		"All.cs::Outer.Inner.Point":         StructNodeKind,
+		"All.cs::Outer.Inner.IShape":        InterfaceNodeKind,
+		"All.cs::Outer.Inner.IShape.Draw":   MethodNodeKind,
+		"All.cs::Outer.Inner.Person":        RecordNodeKind,
+		"All.cs::Outer.Inner.Color":         EnumNodeKind,
+		"All.cs::Outer.Inner.Handler":       DelegateNodeKind,
+	}
+	for name, kind := range want {
+		if node, found := byName[name]; !found || node.Kind != kind {
+			t.Errorf("node %q = %+v (found %v), want kind %s", name, node, found, kind)
+		}
+	}
+	if len(facts.Nodes) != len(want)+2 {
+		t.Errorf("nodes = %+v, want declarations plus project and file only (no parameter or property nodes)", facts.Nodes)
+	}
+	owners := map[string]string{}
+	ids := map[string]string{}
+	for _, node := range facts.Nodes {
+		ids[node.ID] = node.QualifiedName
+	}
+	for _, edge := range facts.Edges {
+		if edge.Relation == "defines" {
+			owners[ids[edge.TargetID]] = ids[edge.SourceID]
+		}
+	}
+	for name, owner := range map[string]string{
+		"All.cs::Text":                      "All.cs",
+		"All.cs::Outer.Inner":               "All.cs",
+		"All.cs::Outer.Inner.Widget":        "All.cs::Outer.Inner",
+		"All.cs::Outer.Inner.Widget.Run":    "All.cs::Outer.Inner.Widget",
+		"All.cs::Outer.Inner.Widget.Nested": "All.cs::Outer.Inner.Widget",
+		"All.cs::Outer.Inner.IShape.Draw":   "All.cs::Outer.Inner.IShape",
+	} {
+		if owners[name] != owner {
+			t.Errorf("owner of %q = %q, want %q", name, owners[name], owner)
+		}
+	}
+}
+
+func TestExtractFileScopedNamespaceOwnsLaterDeclarations(t *testing.T) {
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "F.cs", Contents: []byte("namespace A.B;\nclass C { void M() {} }\nrecord struct P(int X);\n")})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	var names []string
+	for _, node := range contribution.Facts().Nodes[2:] {
+		names = append(names, node.QualifiedName)
+	}
+	want := []string{"F.cs::A.B", "F.cs::A.B.C", "F.cs::A.B.C.M", "F.cs::A.B.P"}
+	if !slices.Equal(names, want) {
+		t.Errorf("qualified names = %v, want %v", names, want)
 	}
 }
