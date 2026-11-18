@@ -2669,3 +2669,111 @@ func TestIndexCSharpSolutionIndexesOnlyOwnedSourcesWithoutSymbolLinks(t *testing
 		}
 	}
 }
+
+func csharpSymbolWorkspace(t *testing.T) testkit.Workspace {
+	t.Helper()
+	return testkit.NewWorkspace(t, map[string]string{
+		"src/App/App.csproj":     "<Project />\n",
+		"src/App/Caller.cs":      "namespace Shared;\npublic class Caller\n{\n    public void Run(Helper helper)\n    {\n        helper.Assist();\n        External.Go();\n    }\n}\n",
+		"src/App/deep/Helper.cs": "namespace Shared;\npublic class Helper { public void Assist() {} }\n",
+		"src/Lib/Lib.csproj":     "<Project />\n",
+		"src/Lib/Helper.cs":      "namespace Shared;\npublic class Helper { public void Assist() {} }\n",
+		"src/Lib/External.cs":    "namespace Shared;\npublic class External { public static void Go() {} }\n",
+	})
+}
+
+func TestIndexCSharpLinksSymbolReferencesAndCallsWithinOneProject(t *testing.T) {
+	workspace := csharpSymbolWorkspace(t)
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, index.Request{Root: workspace.Root})
+	if err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+
+	source := `MATCH (caller {name: "Run"})-[link:references]->(target) RETURN target.qualifiedName LIMIT 10`
+	result, err := query.ExecuteGraphQuerySnapshot(context.Background(), store, snapshot, mustParseGraphQuery(t, source), query.GraphQueryLimits{MaxDepth: 2, MaxNodes: 20}, query.GraphQueryOptions{})
+	if err != nil {
+		t.Fatalf("query C# references: %v", err)
+	}
+	if len(result.Rows) != 1 || result.Rows[0][0] != "src/App/deep/Helper.cs::Shared.Helper" {
+		t.Errorf("reference rows = %+v, want only the App project's Helper (none in Lib)", result.Rows)
+	}
+
+	pathRequest := func(target string) query.PathRequest {
+		return query.PathRequest{
+			Source:    "src/App/Caller.cs::Shared.Caller.Run",
+			Target:    target,
+			Relations: []graph.RelationKind{"csharp:calls"},
+			MaxDepth:  1,
+			MaxNodes:  10,
+		}
+	}
+	path, err := query.FindPathSnapshot(context.Background(), store, store, snapshot, pathRequest("src/App/deep/Helper.cs::Shared.Helper.Assist"))
+	if err != nil {
+		t.Fatalf("find C# call path: %v", err)
+	}
+	if len(path.Edges) != 1 || path.Edges[0].Relation != "csharp:calls" {
+		t.Errorf("call path edges = %+v, want one csharp:calls edge to the App project's Assist", path.Edges)
+	}
+	for _, unlinked := range []string{"src/Lib/Helper.cs::Shared.Helper.Assist", "src/Lib/External.cs::Shared.External.Go"} {
+		path, err := query.FindPathSnapshot(context.Background(), store, store, snapshot, pathRequest(unlinked))
+		if err != nil {
+			t.Fatalf("find C# call path to %s: %v", unlinked, err)
+		}
+		if len(path.Edges) != 0 {
+			t.Errorf("call path to %s edges = %+v, want none (other project)", unlinked, path.Edges)
+		}
+	}
+}
+
+func TestIndexCSharpIncrementalSymbolLinksMatchFreshIndex(t *testing.T) {
+	workspace := csharpSymbolWorkspace(t)
+	request := index.Request{Root: workspace.Root}
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if _, err := index.Publish(context.Background(), store, request); err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+
+	// Only the caller changes; its targets live in unchanged files.
+	workspace.WriteFile(t, "src/App/Caller.cs", "namespace Shared;\npublic class Caller\n{\n    public void Run(Helper helper)\n    {\n        helper.Assist();\n        helper.Assist();\n    }\n}\n")
+	batchSnapshot, err := index.PublishBatch(context.Background(), rejectingContributionReader{Store: store}, index.BatchRequest{Root: workspace.Root, ChangedPaths: []string{"src/App/Caller.cs"}})
+	if err != nil {
+		t.Fatalf("publish C# batch: %v", err)
+	}
+	freshStore, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "fresh.db"))
+	if err != nil {
+		t.Fatalf("open fresh graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = freshStore.Close() })
+	freshSnapshot, err := index.Publish(context.Background(), freshStore, request)
+	if err != nil {
+		t.Fatalf("publish fresh C# workspace: %v", err)
+	}
+	batch, fresh := &factCollector{}, &factCollector{}
+	if err := store.Export(context.Background(), batchSnapshot, storage.ExportRequest{}, batch); err != nil {
+		t.Fatalf("export batch graph: %v", err)
+	}
+	if err := freshStore.Export(context.Background(), freshSnapshot, storage.ExportRequest{}, fresh); err != nil {
+		t.Fatalf("export fresh graph: %v", err)
+	}
+	if !reflect.DeepEqual(batch.nodes, fresh.nodes) || !reflect.DeepEqual(batch.edges, fresh.edges) {
+		t.Errorf("incremental facts differ from fresh facts\nincremental: %+v\nfresh: %+v", batch, fresh)
+	}
+	calls := 0
+	for _, edge := range fresh.edges {
+		if edge.Relation == "csharp:calls" {
+			calls++
+		}
+	}
+	if calls != 1 {
+		t.Errorf("fresh call edges = %d, want 1", calls)
+	}
+}

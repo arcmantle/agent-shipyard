@@ -851,7 +851,7 @@ func (index snapshotResolverIndex) ResolverPackagePage(ctx context.Context, requ
 	}
 	overridePaths := make([]string, 0, len(index.overrides))
 	for sourcePath, override := range index.overrides {
-		if override.projectID == request.ProjectID && override.language == request.Language && path.Dir(sourcePath) == request.PackagePath && sourcePath > request.AfterSourcePath {
+		if override.projectID == request.ProjectID && override.language == request.Language && resolverPackageContains(request, sourcePath) && sourcePath > request.AfterSourcePath {
 			overridePaths = append(overridePaths, sourcePath)
 		}
 	}
@@ -872,6 +872,13 @@ func (index snapshotResolverIndex) ResolverPackagePage(ctx context.Context, requ
 	sort.Slice(targets, func(first, second int) bool { return targets[first].SourcePath < targets[second].SourcePath })
 	targets = targets[:min(len(targets), request.Limit)]
 	return targets, nil
+}
+
+func resolverPackageContains(request extractor.ResolverPackagePageRequest, sourcePath string) bool {
+	if !request.Recursive {
+		return path.Dir(sourcePath) == request.PackagePath
+	}
+	return request.PackagePath == "." || strings.HasPrefix(sourcePath, request.PackagePath+"/")
 }
 
 func resolverTargetFromContribution(source extractedSource) extractor.ResolverTarget {

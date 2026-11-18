@@ -130,13 +130,15 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 			Evidence: fileEvidence,
 		}},
 	}
-	collectDeclarations(source, root, fileID, source.SourcePath, &facts)
+	var references []extractor.SymbolReference
+	collectDeclarations(source, root, fileID, source.SourcePath, &facts, &references)
 
 	return extractor.NewContribution(vocabulary, extractor.ContributionInput{
 		ProjectID:           source.ProjectID,
 		SourcePath:          source.SourcePath,
 		Metadata:            New().Metadata(),
 		Facts:               facts,
+		SymbolReferences:    references,
 		CatalogUnits:        extractor.CatalogUnitsForSource(source, facts),
 		CatalogUnitsOmitted: source.OmitCatalogUnits,
 	})
@@ -146,13 +148,13 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 // and constructors. Each declaration is owned by its enclosing declaration or the
 // file, and its qualified name extends the owner's. Parameters and properties are
 // not declarations.
-func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts) {
+func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts, references *[]extractor.SymbolReference) {
 	for childIndex := uint(0); childIndex < node.NamedChildCount(); childIndex++ {
 		child := node.NamedChild(childIndex)
 		kind, found := declarationKind(source, child)
 		if !found {
 			if child.Kind() == "declaration_list" {
-				collectDeclarations(source, child, ownerID, ownerName, facts)
+				collectDeclarations(source, child, ownerID, ownerName, facts, references)
 			}
 			continue
 		}
@@ -171,7 +173,8 @@ func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ow
 			ownerID, ownerName = id, qualifiedName
 			continue
 		}
-		collectDeclarations(source, child, id, qualifiedName, facts)
+		collectReferences(source, child, id, references)
+		collectDeclarations(source, child, id, qualifiedName, facts, references)
 	}
 }
 

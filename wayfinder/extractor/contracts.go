@@ -56,6 +56,9 @@ type ResolverPackagePageRequest struct {
 	PackagePath     string
 	AfterSourcePath string
 	Limit           int
+	// Recursive includes sources in every directory below PackagePath instead
+	// of only the directory itself.
+	Recursive bool
 }
 
 type ResolverProjection struct {
