@@ -20,6 +20,7 @@ import (
 	"agent-wayfinder/graph"
 	"agent-wayfinder/index"
 	"agent-wayfinder/indexer"
+	"agent-wayfinder/query"
 	"agent-wayfinder/storage"
 	"agent-wayfinder/storage/sqlite"
 	"agent-wayfinder/testkit"
@@ -2503,4 +2504,69 @@ func hasRelationBetweenQualifiedNames(facts *factCollector, sourceQualifiedName,
 		}
 	}
 	return false
+}
+
+func TestIndexCSharpClassUnderConfiguredRootMatchesFreshIndex(t *testing.T) {
+	workspace := testkit.NewWorkspace(t, map[string]string{
+		"src/Widget.cs": "namespace Fixture;\n\npublic class Widget {}\n",
+	})
+	request := index.Request{Root: workspace.Root, ConfiguredRoots: []string{"."}}
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, request)
+	if err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+
+	result, err := query.ExecuteGraphQuerySnapshot(context.Background(), store, snapshot, mustParseGraphQuery(t, `MATCH (node {name: "Widget"}) RETURN node.name, node.qualifiedName LIMIT 5`), query.GraphQueryLimits{MaxDepth: 2, MaxNodes: 20}, query.GraphQueryOptions{})
+	if err != nil {
+		t.Fatalf("query C# class: %v", err)
+	}
+	if len(result.Rows) != 1 || result.Rows[0][1] != "src/Widget.cs::Widget" {
+		t.Fatalf("query rows = %+v, want the Widget class", result.Rows)
+	}
+	if len(result.Evidence) == 0 || result.Evidence[0].Span.Path != "src/Widget.cs" || result.Evidence[0].Span.StartLine != 3 {
+		t.Errorf("query evidence = %+v, want Widget source span", result.Evidence)
+	}
+
+	workspace.WriteFile(t, "src/Widget.cs", "namespace Fixture;\n\npublic class Gadget {}\n")
+	batchRequest := index.BatchRequest{Root: workspace.Root, ConfiguredRoots: []string{"."}, ChangedPaths: []string{"src/Widget.cs"}}
+	batchSnapshot, err := index.PublishBatch(context.Background(), rejectingContributionReader{Store: store}, batchRequest)
+	if err != nil {
+		t.Fatalf("publish C# batch: %v", err)
+	}
+	freshStore, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "fresh.db"))
+	if err != nil {
+		t.Fatalf("open fresh graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = freshStore.Close() })
+	freshSnapshot, err := index.Publish(context.Background(), freshStore, request)
+	if err != nil {
+		t.Fatalf("publish fresh C# workspace: %v", err)
+	}
+	batch, fresh := &factCollector{}, &factCollector{}
+	if err := store.Export(context.Background(), batchSnapshot, storage.ExportRequest{}, batch); err != nil {
+		t.Fatalf("export batch graph: %v", err)
+	}
+	if err := freshStore.Export(context.Background(), freshSnapshot, storage.ExportRequest{}, fresh); err != nil {
+		t.Fatalf("export fresh graph: %v", err)
+	}
+	if !reflect.DeepEqual(batch.nodes, fresh.nodes) || !reflect.DeepEqual(batch.edges, fresh.edges) {
+		t.Errorf("incremental facts differ from fresh facts\nincremental: %+v\nfresh: %+v", batch, fresh)
+	}
+	if !slices.ContainsFunc(fresh.nodes, func(node graph.Node) bool { return node.Label == "Gadget" }) {
+		t.Errorf("fresh graph nodes = %+v, want Gadget", fresh.nodes)
+	}
+}
+
+func mustParseGraphQuery(t *testing.T, source string) query.GraphQuery {
+	t.Helper()
+	parsed, err := query.ParseGraphQuery(source)
+	if err != nil {
+		t.Fatalf("parse graph query: %v", err)
+	}
+	return parsed
 }

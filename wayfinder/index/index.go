@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"agent-wayfinder/extractor"
+	"agent-wayfinder/extractors/csharp"
 	goextractor "agent-wayfinder/extractors/go"
 	"agent-wayfinder/extractors/javascript"
 	"agent-wayfinder/extractors/registry"
@@ -765,6 +766,24 @@ func resolveJavaScriptProjectionPages(ctx context.Context, store resolverStore, 
 	for len(contributions) > 0 {
 		pageSize := min(len(contributions), resolverProjectionPageSize)
 		resolution, err := javascript.ResolvePage(ctx, contributions[:pageSize], projectID, index)
+		if err != nil {
+			return graph.Facts{}, nil, err
+		}
+		facts.Edges = append(facts.Edges, resolution.Facts().Edges...)
+		diagnostics = append(diagnostics, resolution.Diagnostics()...)
+		contributions = contributions[pageSize:]
+	}
+	return facts, diagnostics, nil
+}
+
+func resolveCSharpProjectionPages(ctx context.Context, store resolverStore, snapshot storage.Snapshot, projectID string, overrides map[string]extractedSource, deleted map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error) {
+	index := snapshotResolverIndex{store: store, snapshot: snapshot, overrides: overrides}
+	contributions := incrementalResolverContributions(projectID, "csharp", overrides, deleted)
+	var facts graph.Facts
+	diagnostics := make([]extractor.Diagnostic, 0)
+	for len(contributions) > 0 {
+		pageSize := min(len(contributions), resolverProjectionPageSize)
+		resolution, err := csharp.ResolvePage(ctx, contributions[:pageSize], projectID, index)
 		if err != nil {
 			return graph.Facts{}, nil, err
 		}

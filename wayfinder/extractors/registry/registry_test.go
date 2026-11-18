@@ -19,6 +19,7 @@ func TestDefaultSelectsIsolatedLanguageExtractors(t *testing.T) {
 		{path: "cmd/agent-wayfinder/main.go", name: "go"},
 		{path: "src/component.tsx", name: "typescript"},
 		{path: "src/server.mjs", name: "javascript"},
+		{path: "src/Widget.cs", name: "csharp"},
 	}
 
 	for _, testCase := range testCases {
