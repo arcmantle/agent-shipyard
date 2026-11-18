@@ -169,25 +169,41 @@ func PublishBatch(ctx context.Context, store batchStore, request BatchRequest) (
 	if err != nil {
 		return storage.Snapshot{}, fmt.Errorf("publish source batch: %w", err)
 	}
-	if len(changed) == 0 {
+	projectFilesChanged := csharpProjectFileChanged(changedPaths)
+	if len(changed) == 0 && !projectFilesChanged {
 		return snapshot, nil
 	}
-	changedContributions := contributionsFromSources(changed)
-	changedUpdate, err := extractor.NewGraphUpdate(changedContributions)
-	if err != nil {
-		return storage.Snapshot{}, fmt.Errorf("publish source batch: create changed graph update: %w", err)
-	}
 	affectedSourceSelectionStarted := time.Now()
-	affectedPaths, err := store.AffectedSources(ctx, snapshot, storage.AffectedSourcesRequest{Update: changedUpdate})
-	if err != nil {
-		return storage.Snapshot{}, fmt.Errorf("publish source batch: find affected sources: %w", err)
+	var affectedPaths []string
+	if len(changed) > 0 {
+		changedUpdate, err := extractor.NewGraphUpdate(contributionsFromSources(changed))
+		if err != nil {
+			return storage.Snapshot{}, fmt.Errorf("publish source batch: create changed graph update: %w", err)
+		}
+		affectedPaths, err = store.AffectedSources(ctx, snapshot, storage.AffectedSourcesRequest{Update: changedUpdate})
+		if err != nil {
+			return storage.Snapshot{}, fmt.Errorf("publish source batch: find affected sources: %w", err)
+		}
+		addedDeclarationPaths, err := csharpAddedDeclarationPaths(ctx, root, store, snapshot, discovery.Sources, changed)
+		if err != nil {
+			return storage.Snapshot{}, fmt.Errorf("publish source batch: find C# sources affected by new declarations: %w", err)
+		}
+		affectedPaths = append(affectedPaths, addedDeclarationPaths...)
+	}
+	if projectFilesChanged {
+		affectedPaths = append(affectedPaths, allCSharpPaths(discovery.Sources)...)
 	}
 	reportMeasurement(request.Measurement, AffectedSourceSelectionMeasurement, time.Since(affectedSourceSelectionStarted))
 	affectedSources := make([]workspace.Source, 0, len(affectedPaths))
+	seenAffected := make(map[string]struct{}, len(affectedPaths))
 	for _, sourcePath := range affectedPaths {
 		if _, changed := changedSet[sourcePath]; changed {
 			continue
 		}
+		if _, duplicate := seenAffected[sourcePath]; duplicate {
+			continue
+		}
+		seenAffected[sourcePath] = struct{}{}
 		if source, found := sourcesByPath[sourcePath]; found {
 			affectedSources = append(affectedSources, source)
 		}
@@ -586,13 +602,18 @@ func withResolvedDependencies(contributions []extractor.Contribution, facts grap
 	pathsByFileID := make(map[string]string, len(contributions))
 	for _, contribution := range contributions {
 		for _, node := range contribution.Facts().Nodes {
-			if node.Kind == "file" {
+			if node.Kind == "file" || contribution.Metadata().Name == csharpLanguage {
 				pathsByFileID[node.ID] = contribution.SourcePath()
 			}
 		}
 	}
 	for _, node := range facts.Nodes {
-		if node.Kind == "file" && node.Evidence.Span.Path != "" {
+		if node.Evidence.Span.Path == "" {
+			continue
+		}
+		// A C# link joins declarations, not files; its file depends on the
+		// file that declares the target.
+		if node.Kind == "file" || strings.HasPrefix(node.Evidence.Extractor, csharpLanguage+"@") {
 			pathsByFileID[node.ID] = node.Evidence.Span.Path
 		}
 	}
@@ -697,6 +718,7 @@ func resolveWorkspaceFacts(root string, sources []extractedSource) (graph.Facts,
 		if err != nil {
 			return graph.Facts{}, nil, err
 		}
+		facts.Nodes = append(facts.Nodes, groupFacts.Nodes...)
 		facts.Edges = append(facts.Edges, groupFacts.Edges...)
 		diagnostics = append(diagnostics, groupDiagnostics...)
 	}
@@ -740,6 +762,7 @@ func resolveIncrementalWorkspaceFacts(ctx context.Context, root string, store re
 		if err != nil {
 			return graph.Facts{}, nil, err
 		}
+		facts.Nodes = append(facts.Nodes, groupFacts.Nodes...)
 		facts.Edges = append(facts.Edges, groupFacts.Edges...)
 		diagnostics = append(diagnostics, groupDiagnostics...)
 	}
@@ -794,6 +817,7 @@ func resolveCSharpProjectionPages(ctx context.Context, root string, store resolv
 		if err != nil {
 			return graph.Facts{}, nil, err
 		}
+		facts.Nodes = append(facts.Nodes, resolution.Facts().Nodes...)
 		facts.Edges = append(facts.Edges, resolution.Facts().Edges...)
 		diagnostics = append(diagnostics, resolution.Diagnostics()...)
 		contributions = contributions[pageSize:]

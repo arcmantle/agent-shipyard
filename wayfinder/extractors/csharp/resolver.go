@@ -298,7 +298,7 @@ func resolveWith(contributions []extractor.Contribution, visible *visibleSymbols
 			return Resolution{}, fmt.Errorf("validate C# resolution: %w", err)
 		}
 	}
-	resolution.facts.Nodes = uniqueNodes(append(imports.facts.Nodes, typeFacts.Nodes...))
+	resolution.facts.Nodes = uniqueNodes(append(append(resolution.facts.Nodes, imports.facts.Nodes...), typeFacts.Nodes...))
 	resolution.facts.Edges = append(resolution.facts.Edges, imports.facts.Edges...)
 	resolution.facts.Edges = append(resolution.facts.Edges, typeFacts.Edges...)
 	resolution.diagnostics = append(resolution.diagnostics, imports.diagnostics...)
@@ -458,6 +458,9 @@ func resolveSymbols(contribution extractor.Contribution, visible *visibleSymbols
 			continue
 		}
 		if len(matches) == 1 {
+			// Both endpoints travel with the edge so the caller can tell which
+			// files the link joins.
+			resolution.facts.Nodes = append(resolution.facts.Nodes, source, matches[0])
 			resolution.facts.Edges = append(resolution.facts.Edges, graph.Edge{
 				SourceID: reference.SourceID,
 				TargetID: matches[0].ID,
