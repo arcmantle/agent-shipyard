@@ -439,3 +439,19 @@ func TestResolveRejectsMixedProjectContributions(t *testing.T) {
 		t.Error("Resolve accepted a referenced contribution of the resolved project")
 	}
 }
+
+func TestResolveOwnTypeShadowsReferencedTypeForUnqualifiedCalls(t *testing.T) {
+	contributions := extractFiles(t, []sourceFile{
+		{"project:app", "app/T.cs", "namespace N;\nclass T { void Run() { Helper(); } }\n"},
+		{"project:lib", "lib/T.cs", "namespace N;\nclass T { void Helper() {} }\n"},
+	})
+	references := map[string][]string{"project:app": {"project:lib"}}
+	for name, resolution := range map[string]Resolution{
+		"workspace": resolveProjects(t, contributions, references),
+		"pages":     resolvePages(t, contributions, contributions, references),
+	} {
+		if got := describeEdges(contributions, resolution.Facts().Edges); len(got) != 0 {
+			t.Errorf("%s edges = %v, want none (own T shadows the referenced T)", name, got)
+		}
+	}
+}

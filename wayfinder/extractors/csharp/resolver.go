@@ -487,9 +487,8 @@ func lookupMethod(visible *visibleSymbols, scopes []string, target string) []gra
 			if len(tier.types[scope]) == 0 {
 				continue
 			}
-			if matches := tier.methods[scope+"."+target]; len(matches) > 0 {
-				return matches
-			}
+			// The first project declaring the enclosing type shadows later ones.
+			return tier.methods[scope+"."+target]
 		}
 	}
 	return nil
