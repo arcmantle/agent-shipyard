@@ -40,9 +40,6 @@ Requires **Node.js 24 or newer**. Install the CLI and MCP server:
 npm install --global agent-issues agent-issues-mcp
 ```
 
-The CLI is also available as `agent-logbook` and `alb`. All three command names
-run the same CLI and use the same data.
-
 From your project directory:
 
 ```bash
@@ -62,15 +59,15 @@ Export the current project to a directory. Import that directory to a separate,
 empty database:
 
 ```bash
-agent-logbook export project --output ./project-export
-agent-logbook import ./project-export --db ./restored.db
+agent-issues export project --output ./project-export
+agent-issues import ./project-export --db ./restored.db
 ```
 
 In another workspace, use the project reference returned by import with
 `--project-identity` to select the restored project:
 
 ```bash
-agent-logbook list initiative --db ./restored.db --project-identity <project-reference>
+agent-issues list initiative --db ./restored.db --project-identity <project-reference>
 ```
 
 Import keeps the original project title. It does not register a project for the
