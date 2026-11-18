@@ -18,6 +18,16 @@ const (
 	ReferencesRelation graph.RelationKind = "references"
 	// CallsRelation links a declaration to a method it invokes.
 	CallsRelation graph.RelationKind = "csharp:calls"
+	// ExtendsRelation links a class to its base class, a record to its base
+	// record, and an interface to an interface it inherits.
+	ExtendsRelation graph.RelationKind = "csharp:extends"
+	// ImplementsRelation links a class, struct, or record to an interface it
+	// implements.
+	ImplementsRelation graph.RelationKind = "csharp:implements"
+	// BaseTypeRelation is an extracted base-list entry of a class or record whose
+	// relation depends on what the name resolves to. Resolution replaces it with
+	// ExtendsRelation or ImplementsRelation and never publishes it.
+	BaseTypeRelation graph.RelationKind = "csharp:base_type"
 )
 
 const resolverPageLimit = 128
@@ -39,7 +49,8 @@ func (resolution Resolution) Diagnostics() []extractor.Diagnostic {
 	return append([]extractor.Diagnostic(nil), resolution.diagnostics...)
 }
 
-// ResolverVocabulary describes the import facts C# resolution adds to extracted nodes.
+// ResolverVocabulary describes the import and type-relationship facts C#
+// resolution adds to extracted nodes.
 func ResolverVocabulary() (graph.Vocabulary, error) {
 	sources := []graph.NodeKind{ImportNodeKind, TypeAliasNodeKind}
 	// A file-to-file link records the dependency incremental indexing follows.
@@ -53,7 +64,19 @@ func ResolverVocabulary() (graph.Vocabulary, error) {
 	endpoints = append(endpoints, graph.EndpointRule{Source: "file", Target: "file"})
 	return graph.NewVocabulary(graph.VocabularyDefinition{
 		NodeKinds: append(append([]graph.NodeKind{"file"}, sources...), targets...),
-		Relations: []graph.RelationDefinition{{Kind: ImportsFromRelation, Endpoints: endpoints}},
+		Relations: []graph.RelationDefinition{
+			{Kind: ImportsFromRelation, Endpoints: endpoints},
+			{Kind: ExtendsRelation, Endpoints: []graph.EndpointRule{
+				{Source: ClassNodeKind, Target: ClassNodeKind},
+				{Source: RecordNodeKind, Target: RecordNodeKind},
+				{Source: InterfaceNodeKind, Target: InterfaceNodeKind},
+			}},
+			{Kind: ImplementsRelation, Endpoints: []graph.EndpointRule{
+				{Source: ClassNodeKind, Target: InterfaceNodeKind},
+				{Source: StructNodeKind, Target: InterfaceNodeKind},
+				{Source: RecordNodeKind, Target: InterfaceNodeKind},
+			}},
+		},
 	})
 }
 
@@ -255,9 +278,10 @@ func (visible *visibleSymbols) file(path string) (graph.Node, bool) {
 func resolveWith(contributions []extractor.Contribution, visible *visibleSymbols) (Resolution, error) {
 	resolution := Resolution{}
 	imports := Resolution{}
+	typeFacts := graph.Facts{}
 	links := map[[2]string]graph.FactEvidence{}
 	for _, contribution := range contributions {
-		resolveSymbols(contribution, visible, &resolution)
+		resolveSymbols(contribution, visible, &resolution, &typeFacts)
 		resolveImports(contribution, visible, &imports, links)
 	}
 	for link, evidence := range links {
@@ -268,11 +292,15 @@ func resolveWith(contributions []extractor.Contribution, visible *visibleSymbols
 	if err != nil {
 		return Resolution{}, fmt.Errorf("get C# resolver vocabulary: %w", err)
 	}
-	if err := vocabulary.Validate(imports.facts); err != nil {
-		return Resolution{}, fmt.Errorf("validate C# resolution: %w", err)
+	typeFacts.Nodes = uniqueNodes(typeFacts.Nodes)
+	for _, facts := range []graph.Facts{imports.facts, typeFacts} {
+		if err := vocabulary.Validate(facts); err != nil {
+			return Resolution{}, fmt.Errorf("validate C# resolution: %w", err)
+		}
 	}
-	resolution.facts.Nodes = imports.facts.Nodes
+	resolution.facts.Nodes = uniqueNodes(append(imports.facts.Nodes, typeFacts.Nodes...))
 	resolution.facts.Edges = append(resolution.facts.Edges, imports.facts.Edges...)
+	resolution.facts.Edges = append(resolution.facts.Edges, typeFacts.Edges...)
 	resolution.diagnostics = append(resolution.diagnostics, imports.diagnostics...)
 	sort.SliceStable(resolution.facts.Edges, func(left, right int) bool {
 		a, b := resolution.facts.Edges[left], resolution.facts.Edges[right]
@@ -388,7 +416,7 @@ func (visible *visibleSymbols) types(full string) ([]graph.Node, *projectSymbols
 	return nil, nil
 }
 
-func resolveSymbols(contribution extractor.Contribution, visible *visibleSymbols, resolution *Resolution) {
+func resolveSymbols(contribution extractor.Contribution, visible *visibleSymbols, resolution *Resolution, typeFacts *graph.Facts) {
 	references := contribution.SymbolReferences()
 	if len(references) == 0 {
 		return
@@ -405,6 +433,16 @@ func resolveSymbols(contribution extractor.Contribution, visible *visibleSymbols
 		scopes := lookupScopes(fullName(source))
 		var matches []graph.Node
 		switch reference.Relation {
+		case BaseTypeRelation, ExtendsRelation, ImplementsRelation:
+			// A base list is read outside the declaring type's own members.
+			matches, _, _ = lookupType(visible, scopes[1:], reference.Target)
+			if len(matches) == 1 {
+				if relation, valid := typeRelation(source.Kind, matches[0].Kind, reference.Relation); valid {
+					typeFacts.Nodes = append(typeFacts.Nodes, source, matches[0])
+					typeFacts.Edges = append(typeFacts.Edges, graph.Edge{SourceID: source.ID, TargetID: matches[0].ID, Relation: relation, Evidence: reference.Evidence})
+				}
+				continue
+			}
 		case ReferencesRelation:
 			matches, _, _ = lookupType(visible, scopes, reference.Target)
 		case CallsRelation:
@@ -431,10 +469,29 @@ func resolveSymbols(contribution extractor.Contribution, visible *visibleSymbols
 }
 
 func relationLabel(relation graph.RelationKind) string {
-	if relation == CallsRelation {
+	switch relation {
+	case CallsRelation:
 		return "call"
+	case BaseTypeRelation, ExtendsRelation, ImplementsRelation:
+		return "base type"
 	}
 	return "reference"
+}
+
+// typeRelation gives the edge a base-list entry produces between a declaration
+// and the unique type it names. A target the language does not allow in that
+// position, such as a struct base class or an enum interface, produces no edge.
+func typeRelation(source, target graph.NodeKind, extracted graph.RelationKind) (graph.RelationKind, bool) {
+	if target == InterfaceNodeKind {
+		if source == InterfaceNodeKind {
+			return ExtendsRelation, true
+		}
+		return ImplementsRelation, source == ClassNodeKind || source == StructNodeKind || source == RecordNodeKind
+	}
+	if extracted == BaseTypeRelation && source == target && (source == ClassNodeKind || source == RecordNodeKind) {
+		return ExtendsRelation, true
+	}
+	return "", false
 }
 
 // lookupScopes lists the enclosing C# scopes of a declaration from innermost to

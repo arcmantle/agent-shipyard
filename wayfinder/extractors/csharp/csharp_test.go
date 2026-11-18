@@ -406,3 +406,44 @@ func TestExtractSkipsAmbiguousReceiversAndLocalFunctionCalls(t *testing.T) {
 		t.Errorf("call targets = %v, want %v (no guess for a name declared with two types or for a local function)", calls, want)
 	}
 }
+
+func TestExtractReturnsBaseListEntriesWithSourceLocations(t *testing.T) {
+	contents := `namespace N;
+class A : B, N.I<int>, global::X.Y {}
+record R(int X) : Base(X), I {}
+record struct RS : I {}
+struct S : I {}
+interface J : K, L<T> {}
+enum E : byte { One }
+`
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "T.cs", Contents: []byte(contents)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	nodes := map[string]string{}
+	for _, node := range contribution.Facts().Nodes {
+		nodes[node.ID] = node.QualifiedName
+	}
+	type fact struct {
+		source, relation, target string
+		line, column             int
+	}
+	var got []fact
+	for _, reference := range contribution.SymbolReferences() {
+		span := reference.Evidence.Span
+		got = append(got, fact{nodes[reference.SourceID], string(reference.Relation), reference.Target, span.StartLine, span.StartColumn})
+	}
+	want := []fact{
+		{"T.cs::N.A", "csharp:base_type", "B", 2, 11},
+		{"T.cs::N.A", "csharp:base_type", "N.I", 2, 14},
+		{"T.cs::N.R", "csharp:base_type", "Base", 3, 19},
+		{"T.cs::N.R", "csharp:base_type", "I", 3, 28},
+		{"T.cs::N.RS", "csharp:implements", "I", 4, 20},
+		{"T.cs::N.S", "csharp:implements", "I", 5, 12},
+		{"T.cs::N.J", "csharp:extends", "K", 6, 15},
+		{"T.cs::N.J", "csharp:extends", "L", 6, 18},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("base list facts = %+v\nwant %+v (alias-qualified and enum underlying types are unsupported)", got, want)
+	}
+}

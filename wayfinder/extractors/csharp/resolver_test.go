@@ -455,3 +455,83 @@ func TestResolveOwnTypeShadowsReferencedTypeForUnqualifiedCalls(t *testing.T) {
 		}
 	}
 }
+
+var typeRelationFixture = []sourceFile{
+	{"project:app", "app/Types.cs", `namespace App;
+interface IRoot {}
+interface IChild : IRoot {}
+class Base {}
+class Derived : Base, IChild {}
+class Plain : IRoot {}
+struct Value : IRoot {}
+record BaseRecord;
+record DerivedRecord : BaseRecord, IRoot;
+record struct ValueRecord : IRoot;
+class Wrong : Value {}
+struct WrongStruct : Base {}
+class External : System.Object, IDisposable {}
+class Twin : Pair {}
+class Pair {}
+`},
+	{"project:app", "app/Pair2.cs", "namespace App;\nclass Pair {}\n"},
+	{"project:app", "app/Cross.cs", "namespace App;\nclass Cross : LibBase, ILib, Hidden {}\n"},
+	{"project:lib", "lib/Lib.cs", "namespace App;\npublic class LibBase {}\npublic interface ILib {}\n"},
+	{"project:other", "other/Other.cs", "namespace App;\npublic class Hidden {}\n"},
+}
+
+func TestResolveLinksDirectTypeRelationsWithinAndAcrossProjects(t *testing.T) {
+	contributions := extractFiles(t, typeRelationFixture)
+	references := map[string][]string{"project:app": {"project:lib"}}
+	want := []string{
+		"csharp:extends Types.cs::App.Derived -> Types.cs::App.Base",
+		"csharp:extends Types.cs::App.DerivedRecord -> Types.cs::App.BaseRecord",
+		"csharp:extends Types.cs::App.IChild -> Types.cs::App.IRoot",
+		"csharp:extends Cross.cs::App.Cross -> Lib.cs::App.LibBase",
+		"csharp:implements Types.cs::App.Derived -> Types.cs::App.IChild",
+		"csharp:implements Types.cs::App.DerivedRecord -> Types.cs::App.IRoot",
+		"csharp:implements Types.cs::App.Plain -> Types.cs::App.IRoot",
+		"csharp:implements Types.cs::App.Value -> Types.cs::App.IRoot",
+		"csharp:implements Types.cs::App.ValueRecord -> Types.cs::App.IRoot",
+		"csharp:implements Cross.cs::App.Cross -> Lib.cs::App.ILib",
+	}
+	sort.Strings(want)
+	for name, resolution := range map[string]Resolution{
+		"workspace": resolveProjects(t, contributions, references),
+		"pages":     resolvePages(t, contributions, contributions, references),
+	} {
+		var got []string
+		for _, edge := range describeEdges(contributions, resolution.Facts().Edges) {
+			if strings.HasPrefix(edge, "csharp:extends") || strings.HasPrefix(edge, "csharp:implements") || strings.HasPrefix(edge, "csharp:base_type") {
+				got = append(got, edge)
+			}
+		}
+		for index := range got {
+			got[index] = strings.ReplaceAll(got[index], "lib/", "")
+		}
+		got = shortenPaths(got)
+		if !slices.Equal(got, want) {
+			t.Errorf("%s type edges =\n%s\nwant\n%s\n(no edge for struct base classes, class-to-struct, external, ambiguous, or unreferenced targets)", name, strings.Join(got, "\n"), strings.Join(want, "\n"))
+		}
+	}
+}
+
+func TestResolveFollowsTransitiveProjectReferencesForTypeRelations(t *testing.T) {
+	contributions := extractFiles(t, []sourceFile{
+		{"project:app", "app/App.cs", "namespace Lib;\nclass Impl : Root, IRoot {}\n"},
+		{"project:lib", "lib/Lib.cs", "namespace Lib;\npublic class Root {}\npublic interface IRoot {}\n"},
+	})
+	references := map[string][]string{"project:app": {"project:lib"}}
+	for name, resolution := range map[string]Resolution{
+		"workspace": resolveProjects(t, contributions, references),
+		"pages":     resolvePages(t, contributions, contributions, references),
+	} {
+		got := describeEdges(contributions, resolution.Facts().Edges)
+		want := []string{
+			"csharp:extends app/App.cs::Lib.Impl -> lib/Lib.cs::Lib.Root",
+			"csharp:implements app/App.cs::Lib.Impl -> lib/Lib.cs::Lib.IRoot",
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s edges = %v, want %v", name, got, want)
+		}
+	}
+}
