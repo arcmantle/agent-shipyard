@@ -1,0 +1,588 @@
+{
+	"format": 1,
+	"group": "record-keys",
+	"vectors": [
+		{
+			"name": "entity / uuid",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			}
+		},
+		{
+			"name": "context / uuid",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "context",
+				"value": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			}
+		},
+		{
+			"name": "context-term / uuid",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "context-term",
+				"value": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			}
+		},
+		{
+			"name": "issue-comment / uuid",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "issue-comment",
+				"value": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			}
+		},
+		{
+			"name": "plan-entry / uuid",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "plan-entry",
+				"value": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			}
+		},
+		{
+			"name": "entity / empty",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": ""
+			},
+			"expected": {
+				"value": "0:"
+			}
+		},
+		{
+			"name": "entity / ascii",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "alpha"
+			},
+			"expected": {
+				"value": "5:alpha"
+			}
+		},
+		{
+			"name": "entity / colon",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "a:b:c"
+			},
+			"expected": {
+				"value": "5:a:b:c"
+			}
+		},
+		{
+			"name": "entity / space and punctuation",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": " spaced out; ok. "
+			},
+			"expected": {
+				"value": "17: spaced out; ok. "
+			}
+		},
+		{
+			"name": "entity / multi-byte letters",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "éèü"
+			},
+			"expected": {
+				"value": "6:éèü"
+			}
+		},
+		{
+			"name": "entity / cjk",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "日本語"
+			},
+			"expected": {
+				"value": "9:日本語"
+			}
+		},
+		{
+			"name": "entity / emoji surrogate pair",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "😀x"
+			},
+			"expected": {
+				"value": "5:😀x"
+			}
+		},
+		{
+			"name": "entity / combining mark",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "é"
+			},
+			"expected": {
+				"value": "3:é"
+			}
+		},
+		{
+			"name": "entity / newlines",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "line1\nline2\r\nline3"
+			},
+			"expected": {
+				"value": "18:line1\nline2\r\nline3"
+			}
+		},
+		{
+			"name": "entity / nul character",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "a\u0000b"
+			},
+			"expected": {
+				"value": "3:a\u0000b"
+			}
+		},
+		{
+			"name": "context / initiative key",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "context",
+				"value": "initiative:71720236-f3e6-4fd7-aa32-3490ad097f63"
+			},
+			"expected": {
+				"value": "47:initiative:71720236-f3e6-4fd7-aa32-3490ad097f63"
+			}
+		},
+		{
+			"name": "entity / length crosses 9 to 10 bytes",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "123456789"
+			},
+			"expected": {
+				"value": "9:123456789"
+			}
+		},
+		{
+			"name": "entity / ten bytes",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "1234567890"
+			},
+			"expected": {
+				"value": "10:1234567890"
+			}
+		},
+		{
+			"name": "entity / ten bytes from five two-byte characters",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "ééééé"
+			},
+			"expected": {
+				"value": "10:ééééé"
+			}
+		},
+		{
+			"name": "entity / hundred bytes",
+			"behavior": "encode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"value": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
+			},
+			"expected": {
+				"value": "100:kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
+			}
+		},
+		{
+			"name": "entity / uuid",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": {
+					"entityId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "context / uuid",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "context",
+				"recordKey": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": {
+					"contextKey": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "context-term / uuid",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "context-term",
+				"recordKey": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": {
+					"contextTermId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "issue-comment / uuid",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "issue-comment",
+				"recordKey": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": {
+					"issueCommentId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "plan-entry / uuid",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "plan-entry",
+				"recordKey": "36:549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": {
+					"planEntryId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "entity / round trip empty",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "0:"
+			},
+			"expected": {
+				"value": {
+					"entityId": ""
+				}
+			}
+		},
+		{
+			"name": "entity / round trip ascii",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "5:alpha"
+			},
+			"expected": {
+				"value": {
+					"entityId": "alpha"
+				}
+			}
+		},
+		{
+			"name": "entity / round trip colon",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "5:a:b:c"
+			},
+			"expected": {
+				"value": {
+					"entityId": "a:b:c"
+				}
+			}
+		},
+		{
+			"name": "entity / round trip space and punctuation",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "17: spaced out; ok. "
+			},
+			"expected": {
+				"value": {
+					"entityId": " spaced out; ok. "
+				}
+			}
+		},
+		{
+			"name": "entity / round trip multi-byte letters",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "6:éèü"
+			},
+			"expected": {
+				"value": {
+					"entityId": "éèü"
+				}
+			}
+		},
+		{
+			"name": "entity / round trip cjk",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "9:日本語"
+			},
+			"expected": {
+				"value": {
+					"entityId": "日本語"
+				}
+			}
+		},
+		{
+			"name": "entity / round trip emoji surrogate pair",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "5:😀x"
+			},
+			"expected": {
+				"value": {
+					"entityId": "😀x"
+				}
+			}
+		},
+		{
+			"name": "entity / round trip combining mark",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "3:é"
+			},
+			"expected": {
+				"value": {
+					"entityId": "é"
+				}
+			}
+		},
+		{
+			"name": "entity / round trip newlines",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "18:line1\nline2\r\nline3"
+			},
+			"expected": {
+				"value": {
+					"entityId": "line1\nline2\r\nline3"
+				}
+			}
+		},
+		{
+			"name": "entity / round trip nul character",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "3:a\u0000b"
+			},
+			"expected": {
+				"value": {
+					"entityId": "a\u0000b"
+				}
+			}
+		},
+		{
+			"name": "malformed: empty key",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": ""
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: no separator",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "5"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: no length",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": ":abc"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: leading zero length",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "03:abc"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: negative length",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "-1:a"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: non-numeric length",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "x:abc"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: length longer than value",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "5:abc"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: length shorter than value (trailing bytes)",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "2:abc"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: trailing part",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "1:a1:b"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: length cuts a two-byte character",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "1:é"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: length cuts an emoji",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "2:😀"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: zero length with trailing data",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "0:a"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: length with space",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": " 1:a"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "malformed: huge length",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "entity",
+				"recordKey": "99999999999999999999:a"
+			},
+			"expected": {
+				"error": "Malformed revision patch record key."
+			}
+		},
+		{
+			"name": "valid empty value",
+			"behavior": "decode-record-key",
+			"input": {
+				"recordKind": "context",
+				"recordKey": "0:"
+			},
+			"expected": {
+				"value": {
+					"contextKey": ""
+				}
+			}
+		}
+	]
+}

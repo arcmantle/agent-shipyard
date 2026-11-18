@@ -1,0 +1,605 @@
+{
+	"format": 1,
+	"group": "project-identity",
+	"vectors": [
+		{
+			"name": "plain",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "agent-issues"
+			},
+			"expected": {
+				"value": "agent-issues"
+			}
+		},
+		{
+			"name": "mixed case and spaces",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "  My Project  "
+			},
+			"expected": {
+				"value": "my-project"
+			}
+		},
+		{
+			"name": "underscores and dots",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "my_project.v2"
+			},
+			"expected": {
+				"value": "my-project-v2"
+			}
+		},
+		{
+			"name": "scoped package name",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "@scope/package-name"
+			},
+			"expected": {
+				"value": "scope-package-name"
+			}
+		},
+		{
+			"name": "repeated separators",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "a---b___c"
+			},
+			"expected": {
+				"value": "a-b-c"
+			}
+		},
+		{
+			"name": "only separators",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "---"
+			},
+			"expected": {
+				"value": ""
+			}
+		},
+		{
+			"name": "empty",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": ""
+			},
+			"expected": {
+				"value": ""
+			}
+		},
+		{
+			"name": "unicode letters are removed",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "Projekt Übung"
+			},
+			"expected": {
+				"value": "projekt-bung"
+			}
+		},
+		{
+			"name": "cjk only",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "日本語"
+			},
+			"expected": {
+				"value": ""
+			}
+		},
+		{
+			"name": "digits",
+			"behavior": "sanitize-path-segment",
+			"input": {
+				"value": "2026 Q4"
+			},
+			"expected": {
+				"value": "2026-q4"
+			}
+		},
+		{
+			"name": "folder name only",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"directories": [
+						"My Folder"
+					],
+					"workingDirectory": "My Folder",
+					"files": {
+						"My Folder/package.json": "{}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "fixture-root",
+					"source": "folder-name"
+				}
+			}
+		},
+		{
+			"name": "package name",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"package.json": "{\"name\":\"@acme/Widget\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "acme-widget",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "package without name uses folder",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"package.json": "{}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "fixture-root",
+					"source": "folder-name"
+				}
+			}
+		},
+		{
+			"name": "invalid package json uses folder",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"package.json": "{not json"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "fixture-root",
+					"source": "folder-name"
+				}
+			}
+		},
+		{
+			"name": "git origin https",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".git/config": "[core]\n\tbare = false\n[remote \"origin\"]\n\turl = https://example.com/org/Repo-Name.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+						"package.json": "{\"name\":\"pkg\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "repo-name",
+					"source": "git-repository"
+				}
+			}
+		},
+		{
+			"name": "git origin scp style",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".git/config": "[core]\n\tbare = false\n[remote \"origin\"]\n\turl = git@example.com:org/Other_Repo.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "other-repo",
+					"source": "git-repository"
+				}
+			}
+		},
+		{
+			"name": "git origin without suffix",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".git/config": "[core]\n\tbare = false\n[remote \"origin\"]\n\turl = https://example.com/org/plain\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "plain",
+					"source": "git-repository"
+				}
+			}
+		},
+		{
+			"name": "git config without origin",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".git/config": "[core]\n\tbare = false\n",
+						"package.json": "{\"name\":\"from-package\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "from-package",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "git origin with trailing slash falls through",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".git/config": "[core]\n\tbare = false\n[remote \"origin\"]\n\turl = https://example.com/org/repo/\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+						"package.json": "{\"name\":\"after-slash\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "after-slash",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "git origin followed by another section with CRLF",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".git/config": "[remote \"origin\"]\r\n\turl = https://example.com/org/Crlf.git\r\n[branch \"main\"]\r\n\tremote = origin\r\n"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "crlf",
+					"source": "git-repository"
+				}
+			}
+		},
+		{
+			"name": "git directory without config",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"directories": [
+						".git"
+					],
+					"files": {
+						"package.json": "{\"name\":\"no-config\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "no-config",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "git file with gitdir and local config",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".git": "gitdir: ../gitdir-a\n",
+						"../gitdir-a/config": "[core]\n\tbare = false\n[remote \"origin\"]\n\turl = https://example.com/org/Worktree-A.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "worktree-a",
+					"source": "git-repository"
+				}
+			}
+		},
+		{
+			"name": "git file with gitdir and commondir",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".git": "gitdir: ../gitdir-b\n",
+						"../gitdir-b/commondir": "../common\n",
+						"../common/config": "[core]\n\tbare = false\n[remote \"origin\"]\n\turl = https://example.com/org/Common-Repo.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "common-repo",
+					"source": "git-repository"
+				}
+			}
+		},
+		{
+			"name": "package json array is ignored",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"package.json": "[1]"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "fixture-root",
+					"source": "folder-name"
+				}
+			}
+		},
+		{
+			"name": "package name that is not a string is ignored",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"package.json": "{\"name\":7}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "fixture-root",
+					"source": "folder-name"
+				}
+			}
+		},
+		{
+			"name": "project file beats git",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".agent-issues.json": "{\"projectIdentity\":\"From File\"}",
+						".git/config": "[core]\n\tbare = false\n[remote \"origin\"]\n\turl = https://x/y/repo.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "from-file",
+					"source": "project-file"
+				}
+			}
+		},
+		{
+			"name": "extensionless project file",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".agent-issues": "{\"projectIdentity\":\"Extensionless One\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "extensionless-one",
+					"source": "project-file"
+				}
+			}
+		},
+		{
+			"name": "json project file beats extensionless",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".agent-issues.json": "{\"projectIdentity\":\"json-wins\"}",
+						".agent-issues": "{\"projectIdentity\":\"plain-loses\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "json-wins",
+					"source": "project-file"
+				}
+			}
+		},
+		{
+			"name": "json file without identity falls to extensionless",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".agent-issues.json": "{}",
+						".agent-issues": "{\"projectIdentity\":\"plain-used\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "plain-used",
+					"source": "project-file"
+				}
+			}
+		},
+		{
+			"name": "project file with unsanitizable identity is skipped",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".agent-issues.json": "{\"projectIdentity\":\"---\"}",
+						"package.json": "{\"name\":\"pkg-used\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "pkg-used",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "extensionless folder is ignored",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"directories": [
+						".agent-issues"
+					],
+					"files": {
+						"package.json": "{\"name\":\"pkg-after-folder\"}"
+					}
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "pkg-after-folder",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "nested working directory resolves root",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"package.json": "{\"name\":\"root-package\"}",
+						"sub/deep/file.txt": ""
+					},
+					"workingDirectory": "sub/deep"
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "root-package",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "pnpm workspace root wins over nested package",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"pnpm-workspace.yaml": "",
+						"package.json": "{\"name\":\"workspace-root\"}",
+						"packages/app/package.json": "{\"name\":\"app\"}"
+					},
+					"workingDirectory": "packages/app"
+				},
+				"environment": {}
+			},
+			"expected": {
+				"value": {
+					"identity": "workspace-root",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "environment beats project file",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						".agent-issues.json": "{\"projectIdentity\":\"file\"}"
+					}
+				},
+				"environment": {
+					"AGENT_ISSUES_PROJECT_IDENTITY": "Env Project"
+				}
+			},
+			"expected": {
+				"value": {
+					"identity": "env-project",
+					"source": "environment"
+				}
+			}
+		},
+		{
+			"name": "empty environment is ignored",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"package.json": "{\"name\":\"pkg\"}"
+					}
+				},
+				"environment": {
+					"AGENT_ISSUES_PROJECT_IDENTITY": ""
+				}
+			},
+			"expected": {
+				"value": {
+					"identity": "pkg",
+					"source": "package-json"
+				}
+			}
+		},
+		{
+			"name": "unsanitizable environment is ignored",
+			"behavior": "resolve-project-identity",
+			"input": {
+				"fixture": {
+					"files": {
+						"package.json": "{\"name\":\"pkg\"}"
+					}
+				},
+				"environment": {
+					"AGENT_ISSUES_PROJECT_IDENTITY": "***"
+				}
+			},
+			"expected": {
+				"value": {
+					"identity": "pkg",
+					"source": "package-json"
+				}
+			}
+		}
+	]
+}

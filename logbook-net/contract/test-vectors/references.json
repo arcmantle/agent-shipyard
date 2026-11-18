@@ -1,0 +1,835 @@
+{
+	"format": 1,
+	"group": "references",
+	"vectors": [
+		{
+			"name": "planEntry / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "planEntry",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "PLAN_ENTRY_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "project / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "project",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "PROJ_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "epic / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "epic",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "EPIC_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "version / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "version",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "VER_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "initiative / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "initiative",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "INIT_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "prd / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "prd",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "PRD_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "userStory / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "userStory",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "US_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "adr / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "adr",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "ADR_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "issue / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issue",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "ISS_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "debt / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "debt",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "DEBT_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "handoff / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "handoff",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "HO_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "plan / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "plan",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "PLAN_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "context / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "context",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "CTX_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "contextTerm / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "contextTerm",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "TERM_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "issueComment / sample",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issueComment",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "COM_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "issue / 00000000-0000-0000-0000-000000000000",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issue",
+				"stableId": "00000000-0000-0000-0000-000000000000"
+			},
+			"expected": {
+				"value": "ISS_00000000000000000000000000"
+			}
+		},
+		{
+			"name": "issue / ffffffff-ffff-ffff-ffff-ffffffffffff",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issue",
+				"stableId": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+			},
+			"expected": {
+				"value": "ISS_7ZZZZZZZZZZZZZZZZZZZZZZZZZ"
+			}
+		},
+		{
+			"name": "issue / 01234567-0123-0123-0123-0123456789ab",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issue",
+				"stableId": "01234567-0123-0123-0123-0123456789ab"
+			},
+			"expected": {
+				"value": "ISS_014D2PE09304HG28R14D2PF2DB"
+			}
+		},
+		{
+			"name": "issue / 549c4b57-de4a-4399-b099-816aa14a58d1",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issue",
+				"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": "ISS_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "issue / 7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issue",
+				"stableId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7"
+			},
+			"expected": {
+				"value": "ISS_3WKSK7JX1583F98JZ0FZ0ZJ2Q7"
+			}
+		},
+		{
+			"name": "invalid uuid",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issue",
+				"stableId": "not-a-uuid"
+			},
+			"expected": {
+				"error": "Invalid stable UUID: not-a-uuid"
+			}
+		},
+		{
+			"name": "uuid without dashes",
+			"behavior": "encode-reference",
+			"input": {
+				"kind": "issue",
+				"stableId": "549c4b57de4a4399b099816aa14a58d1"
+			},
+			"expected": {
+				"error": "Invalid stable UUID: 549c4b57de4a4399b099816aa14a58d1"
+			}
+		},
+		{
+			"name": "round trip planEntry",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "PLAN_ENTRY_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "planEntry",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip project",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "PROJ_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "project",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip epic",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "EPIC_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "epic",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip version",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "VER_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "version",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip initiative",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "INIT_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "initiative",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip prd",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "PRD_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "prd",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip userStory",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "US_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "userStory",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip adr",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ADR_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "adr",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip issue",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "issue",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip debt",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "DEBT_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "debt",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip handoff",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "HO_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "handoff",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip plan",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "PLAN_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "plan",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip context",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "CTX_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "context",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip contextTerm",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "TERM_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "contextTerm",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "round trip issueComment",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "COM_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "issueComment",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "issue",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": {
+					"kind": "issue",
+					"stableId": "549c4b57-de4a-4399-b099-816aa14a58d1"
+				}
+			}
+		},
+		{
+			"name": "initiative",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "INIT_3HE813DWZ69ZBTMCHMJ2PGJZV3"
+			},
+			"expected": {
+				"value": {
+					"kind": "initiative",
+					"stableId": "71720236-f3e6-4fd7-aa32-3490ad097f63"
+				}
+			}
+		},
+		{
+			"name": "plan entry",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "PLAN_ENTRY_5EY3H1CM5893E8R84JAZ8EV1KC"
+			},
+			"expected": {
+				"value": {
+					"kind": "planEntry",
+					"stableId": "aef0e216-50a8-48dc-8c20-9257d0ed866c"
+				}
+			}
+		},
+		{
+			"name": "lowercase",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "iss_2mkh5nfqja8ecv16c1daggmmp6h"
+			},
+			"expected": {
+				"error": "Canonical reference must use uppercase Crockford Base32: iss_2mkh5nfqja8ecv16c1daggmmp6h"
+			}
+		},
+		{
+			"name": "unknown prefix",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ZZZ_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"error": "Invalid canonical reference prefix: ZZZ_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "missing separator",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"error": "Canonical reference must separate kind and identity with _: ISS2MKH5NFQJA8ECV16C1DAGMMP6H"
+			}
+		},
+		{
+			"name": "short payload",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS_2MKH5NFQJA8ECV16C1DAGMMP6"
+			},
+			"expected": {
+				"error": "Invalid canonical reference length: ISS_2MKH5NFQJA8ECV16C1DAGMMP6"
+			}
+		},
+		{
+			"name": "long payload",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS_2MKH5NFQJA8ECV16C1DAGMMP6HH"
+			},
+			"expected": {
+				"error": "Invalid canonical reference length: ISS_2MKH5NFQJA8ECV16C1DAGMMP6HH"
+			}
+		},
+		{
+			"name": "invalid character U",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS_2MKH5NFQJA8ECV16C1DAGMMP6U"
+			},
+			"expected": {
+				"error": "Invalid canonical reference character: U"
+			}
+		},
+		{
+			"name": "exceeds uuid entropy",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS_ZZZZZZZZZZZZZZZZZZZZZZZZZZ"
+			},
+			"expected": {
+				"error": "Canonical reference exceeds UUID entropy: ISS_ZZZZZZZZZZZZZZZZZZZZZZZZZZ"
+			}
+		},
+		{
+			"name": "all zero",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS_00000000000000000000000000"
+			},
+			"expected": {
+				"value": {
+					"kind": "issue",
+					"stableId": "00000000-0000-0000-0000-000000000000"
+				}
+			}
+		},
+		{
+			"name": "max uuid",
+			"behavior": "decode-reference",
+			"input": {
+				"reference": "ISS_7ZZZZZZZZZZZZZZZZZZZZZZZZZ"
+			},
+			"expected": {
+				"value": {
+					"kind": "issue",
+					"stableId": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+				}
+			}
+		},
+		{
+			"name": "issue / 549c4b57-de4a-4399-b099-816aa14a58d1",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "549c4b57-de4a-4399-b099-816aa14a58d1",
+					"kind": "issue"
+				}
+			},
+			"expected": {
+				"value": "ISS_5R4V3C"
+			}
+		},
+		{
+			"name": "issue / 12da5d89-df65-40f0-9a6e-514316a9b784",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "12da5d89-df65-40f0-9a6e-514316a9b784",
+					"kind": "issue"
+				}
+			},
+			"expected": {
+				"value": "ISS_R4JQE0"
+			}
+		},
+		{
+			"name": "initiative / 71720236-f3e6-4fd7-aa32-3490ad097f63",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "71720236-f3e6-4fd7-aa32-3490ad097f63",
+					"kind": "initiative"
+				}
+			},
+			"expected": {
+				"value": "INIT_8M4873"
+			}
+		},
+		{
+			"name": "issue / empty id",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "",
+					"kind": "issue"
+				}
+			},
+			"expected": {
+				"value": "ISS_0HS7E5"
+			}
+		},
+		{
+			"name": "adr / 日本語",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "日本語",
+					"kind": "adr"
+				}
+			},
+			"expected": {
+				"value": "ADR_A0CDTE"
+			}
+		},
+		{
+			"name": "plan / a",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "a",
+					"kind": "plan"
+				}
+			},
+			"expected": {
+				"value": "PLAN_J0RA9C"
+			}
+		},
+		{
+			"name": "prd / a-much-longer-id-that-is-not-a-uuid-at-all",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "a-much-longer-id-that-is-not-a-uuid-at-all",
+					"kind": "prd"
+				}
+			},
+			"expected": {
+				"value": "PRD_GHA0S5"
+			}
+		},
+		{
+			"name": "context / 549c4b57-de4a-4399-b099-816aa14a58d1",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "549c4b57-de4a-4399-b099-816aa14a58d1",
+					"kind": "context"
+				}
+			},
+			"expected": {
+				"value": "CTX_5R4V3C"
+			}
+		},
+		{
+			"name": "contextTerm / 549c4b57-de4a-4399-b099-816aa14a58d1",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "549c4b57-de4a-4399-b099-816aa14a58d1",
+					"kind": "contextTerm"
+				}
+			},
+			"expected": {
+				"value": "TERM_5R4V3C"
+			}
+		},
+		{
+			"name": "issueComment / 549c4b57-de4a-4399-b099-816aa14a58d1",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "549c4b57-de4a-4399-b099-816aa14a58d1",
+					"kind": "issueComment"
+				}
+			},
+			"expected": {
+				"value": "COM_5R4V3C"
+			}
+		},
+		{
+			"name": "planEntry / 549c4b57-de4a-4399-b099-816aa14a58d1",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "549c4b57-de4a-4399-b099-816aa14a58d1",
+					"kind": "planEntry"
+				}
+			},
+			"expected": {
+				"value": "PLAN_ENTRY_5R4V3C"
+			}
+		},
+		{
+			"name": "userStory / 549c4b57-de4a-4399-b099-816aa14a58d1",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "549c4b57-de4a-4399-b099-816aa14a58d1",
+					"kind": "userStory"
+				}
+			},
+			"expected": {
+				"value": "US_5R4V3C"
+			}
+		},
+		{
+			"name": "unknownkind / 549c4b57-de4a-4399-b099-816aa14a58d1",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "549c4b57-de4a-4399-b099-816aa14a58d1",
+					"kind": "unknownkind"
+				}
+			},
+			"expected": {
+				"value": "UNKN_5R4V3C"
+			}
+		},
+		{
+			"name": "stored short reference wins",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "x",
+					"kind": "issue",
+					"shortReference": "ISS_R4JQE0"
+				}
+			},
+			"expected": {
+				"value": "ISS_R4JQE0"
+			}
+		},
+		{
+			"name": "empty stored short reference falls back",
+			"behavior": "short-reference",
+			"input": {
+				"entity": {
+					"id": "x",
+					"kind": "issue",
+					"shortReference": ""
+				}
+			},
+			"expected": {
+				"value": "ISS_YGRM47"
+			}
+		},
+		{
+			"name": "stable id",
+			"behavior": "direct-selector",
+			"input": {
+				"selector": "549c4b57-de4a-4399-b099-816aa14a58d1"
+			},
+			"expected": {
+				"value": true
+			}
+		},
+		{
+			"name": "uppercase stable id",
+			"behavior": "direct-selector",
+			"input": {
+				"selector": "549C4B57-DE4A-4399-B099-816AA14A58D1"
+			},
+			"expected": {
+				"value": true
+			}
+		},
+		{
+			"name": "canonical reference",
+			"behavior": "direct-selector",
+			"input": {
+				"selector": "ISS_2MKH5NFQJA8ECV16C1DAGMMP6H"
+			},
+			"expected": {
+				"value": true
+			}
+		},
+		{
+			"name": "repository name",
+			"behavior": "direct-selector",
+			"input": {
+				"selector": "agent-issues"
+			},
+			"expected": {
+				"value": false
+			}
+		},
+		{
+			"name": "empty",
+			"behavior": "direct-selector",
+			"input": {
+				"selector": ""
+			},
+			"expected": {
+				"value": false
+			}
+		},
+		{
+			"name": "malformed reference",
+			"behavior": "direct-selector",
+			"input": {
+				"selector": "ISS_nope"
+			},
+			"expected": {
+				"value": false
+			}
+		}
+	]
+}

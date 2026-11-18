@@ -1,0 +1,46 @@
+{
+	"format": 1,
+	"group": "namespaces",
+	"vectors": [
+		{
+			"name": "entity namespace",
+			"behavior": "literal",
+			"input": {
+				"namespace": "entity"
+			},
+			"expected": {
+				"value": "agent-issues/entity-stable-id/v1"
+			}
+		},
+		{
+			"name": "context namespace",
+			"behavior": "literal",
+			"input": {
+				"namespace": "context"
+			},
+			"expected": {
+				"value": "agent-issues/context-stable-id/v1"
+			}
+		},
+		{
+			"name": "contextTerm namespace",
+			"behavior": "literal",
+			"input": {
+				"namespace": "contextTerm"
+			},
+			"expected": {
+				"value": "agent-issues/context-term-id/v1"
+			}
+		},
+		{
+			"name": "user namespace",
+			"behavior": "literal",
+			"input": {
+				"namespace": "user"
+			},
+			"expected": {
+				"value": "agent-issues/user-stable-id/v1"
+			}
+		}
+	]
+}
