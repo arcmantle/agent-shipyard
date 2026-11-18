@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <ProjectReference Include="../../src/AgentLogbook.Storage.Postgres/AgentLogbook.Storage.Postgres.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>AgentLogbook.Storage.Postgres</AssemblyName>
+    <RootNamespace>AgentLogbook.Storage.Postgres</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Npgsql" />
+    <EmbeddedResource Include="Schema/baseline.sql" LogicalName="AgentLogbook.Storage.Postgres.Schema.baseline.sql" />
+    <InternalsVisibleTo Include="AgentLogbook.Storage.Postgres.Tests" />
+  </ItemGroup>
+</Project>
