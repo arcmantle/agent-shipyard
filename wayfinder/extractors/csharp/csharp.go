@@ -29,6 +29,9 @@ const (
 	// ImportNodeKind is a namespace or static `using` directive. An alias
 	// directive is recorded as a TypeAliasNodeKind node instead.
 	ImportNodeKind graph.NodeKind = "csharp:import"
+	// VariableNodeKind covers fields, constants, and local variables. Constants
+	// are variables whose declaration carries the const modifier.
+	VariableNodeKind graph.NodeKind = "csharp:variable"
 )
 
 // StaticBinding marks the import binding of a `using static` directive.
@@ -69,6 +72,7 @@ func (extractorDefinition) Vocabulary() (graph.Vocabulary, error) {
 		MethodNodeKind,
 		ConstructorNodeKind,
 		ImportNodeKind,
+		VariableNodeKind,
 	})
 }
 
@@ -154,7 +158,7 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 }
 
 // collectDeclarations records namespaces, types, delegates, type aliases, methods,
-// and constructors. Each declaration is owned by its enclosing declaration or the
+// constructors, and variable facts. Each declaration is owned by its enclosing declaration or the
 // file, and its qualified name extends the owner's. Parameters and properties are
 // not declarations.
 //
@@ -170,8 +174,15 @@ func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ow
 			continue
 		}
 		if !found {
-			if child.Kind() == "declaration_list" {
+			switch child.Kind() {
+			case "declaration_list":
 				collectDeclarations(source, child, ownerID, ownerName, facts, references)
+			case "field_declaration":
+				collectVariableDeclarators(source, child, ownerID, ownerName, facts)
+			case "global_statement", "property_declaration", "indexer_declaration", "destructor_declaration", "operator_declaration", "conversion_operator_declaration":
+				// Properties and indexers are not nodes, but locals in their
+				// accessors belong to the enclosing declaration.
+				collectLocalVariables(source, child, ownerID, ownerName, facts)
 			}
 			continue
 		}
@@ -197,6 +208,9 @@ func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ow
 			continue
 		}
 		collectDeclarations(source, child, id, qualifiedName, facts, references)
+		if kind == MethodNodeKind || kind == ConstructorNodeKind {
+			collectLocalVariables(source, child, id, qualifiedName, facts)
+		}
 	}
 }
 
@@ -254,6 +268,54 @@ func hasToken(node *sitter.Node, kind string) bool {
 		}
 	}
 	return false
+}
+
+// collectLocalVariables records the variables declared anywhere inside a method,
+// constructor, or top-level statement, owned by that enclosing declaration.
+func collectLocalVariables(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts) {
+	for childIndex := uint(0); childIndex < node.NamedChildCount(); childIndex++ {
+		child := node.NamedChild(childIndex)
+		switch child.Kind() {
+		case "variable_declaration":
+			collectVariableDeclarators(source, child, ownerID, ownerName, facts)
+		case "declaration_expression", "declaration_pattern", "catch_declaration":
+			// `out var x`, `is Foo x`, and `catch (E x)`.
+			if name := child.ChildByFieldName("name"); name != nil {
+				appendVariable(source, child, name, ownerID, ownerName, facts)
+			}
+		case "foreach_statement":
+			if left := child.ChildByFieldName("left"); left != nil && left.Kind() == "identifier" {
+				appendVariable(source, left, left, ownerID, ownerName, facts)
+			}
+		}
+		collectLocalVariables(source, child, ownerID, ownerName, facts)
+	}
+}
+
+// collectVariableDeclarators records one variable per declarator below node, so
+// `int a, b;` yields two variables. It does not descend into initializers.
+func collectVariableDeclarators(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts) {
+	for childIndex := uint(0); childIndex < node.NamedChildCount(); childIndex++ {
+		child := node.NamedChild(childIndex)
+		switch child.Kind() {
+		case "variable_declaration":
+			collectVariableDeclarators(source, child, ownerID, ownerName, facts)
+		case "variable_declarator":
+			if name := child.ChildByFieldName("name"); name != nil {
+				appendVariable(source, child, name, ownerID, ownerName, facts)
+			} else if first := child.NamedChild(0); first != nil && first.Kind() == "identifier" {
+				appendVariable(source, child, first, ownerID, ownerName, facts)
+			}
+		}
+	}
+}
+
+func appendVariable(source extractor.Source, declaration, name *sitter.Node, ownerID, ownerName string, facts *graph.Facts) {
+	evidence := evidenceFor(source, declaration)
+	id := graph.NewNodeID(VariableNodeKind, evidence.Span)
+	label := name.Utf8Text(source.Contents)
+	facts.Nodes = append(facts.Nodes, graph.Node{ID: id, Kind: VariableNodeKind, Label: label, QualifiedName: qualifyName(source.SourcePath, ownerName, label), Evidence: evidence})
+	facts.Edges = append(facts.Edges, graph.Edge{SourceID: ownerID, TargetID: id, Relation: "defines", Evidence: evidence})
 }
 
 func declarationKind(source extractor.Source, node *sitter.Node) (graph.NodeKind, bool) {

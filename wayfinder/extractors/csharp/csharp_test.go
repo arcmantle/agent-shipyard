@@ -180,3 +180,144 @@ func TestExtractRecordsEveryUsingFormAsImportWithEvidence(t *testing.T) {
 		t.Errorf("imports = %+v, want %+v (extern alias excluded)", byTarget, want)
 	}
 }
+
+func TestExtractReturnsVariableFactsWithOwnership(t *testing.T) {
+	contents := `class Widget
+{
+    private int size, count = 2;
+    public const string Name = "w";
+    public int Prop { get; set; }
+    void Run(int parameter)
+    {
+        var local = 1;
+        const int Limit = 3;
+        foreach (var item in new int[0]) {}
+        for (int i = 0; i < 2; i++) {}
+    }
+}
+`
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "V.cs", Contents: []byte(contents)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	facts := contribution.Facts()
+	ids := map[string]string{}
+	for _, node := range facts.Nodes {
+		ids[node.ID] = node.QualifiedName
+	}
+	owners := map[string]string{}
+	for _, edge := range facts.Edges {
+		if edge.Relation == "defines" {
+			owners[ids[edge.TargetID]] = ids[edge.SourceID]
+		}
+	}
+	want := map[string][2]int{ // qualified name -> start line, end line
+		"V.cs::Widget.size":      {3, 3},
+		"V.cs::Widget.count":     {3, 3},
+		"V.cs::Widget.Name":      {4, 4},
+		"V.cs::Widget.Run.local": {8, 8},
+		"V.cs::Widget.Run.Limit": {9, 9},
+		"V.cs::Widget.Run.item":  {10, 10},
+		"V.cs::Widget.Run.i":     {11, 11},
+	}
+	variables := 0
+	for _, node := range facts.Nodes {
+		if node.Kind == VariableNodeKind {
+			variables++
+			lines, found := want[node.QualifiedName]
+			if !found || node.Evidence.Span.StartLine != lines[0] || node.Evidence.Span.EndLine != lines[1] {
+				t.Errorf("variable %+v not in expected set with lines %v", node, want)
+			}
+		}
+		if node.Label == "Prop" || node.Label == "parameter" {
+			t.Errorf("node %+v, want no property or parameter node", node)
+		}
+	}
+	if variables != len(want) {
+		t.Errorf("variable count = %d, want %d", variables, len(want))
+	}
+	for name, owner := range map[string]string{
+		"V.cs::Widget.size":      "V.cs::Widget",
+		"V.cs::Widget.Name":      "V.cs::Widget",
+		"V.cs::Widget.Run.local": "V.cs::Widget.Run",
+		"V.cs::Widget.Run.i":     "V.cs::Widget.Run",
+	} {
+		if owners[name] != owner {
+			t.Errorf("owner of %q = %q, want %q", name, owners[name], owner)
+		}
+	}
+}
+
+func TestExtractReturnsLocalsInAccessorsAndPatterns(t *testing.T) {
+	contents := "class C\n{\n    int P { get { var viaAccessor = 1; return viaAccessor; } }\n    void M(object o)\n    {\n        int.TryParse(\"1\", out var parsed);\n        if (o is string text) {}\n        try {} catch (System.Exception caught) {}\n    }\n}\n"
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "P.cs", Contents: []byte(contents)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	got := map[string]bool{}
+	for _, node := range contribution.Facts().Nodes {
+		if node.Kind == VariableNodeKind {
+			got[node.QualifiedName] = true
+		}
+	}
+	for _, name := range []string{"P.cs::C.viaAccessor", "P.cs::C.M.parsed", "P.cs::C.M.text", "P.cs::C.M.caught"} {
+		if !got[name] {
+			t.Errorf("variables = %v, want %q", got, name)
+		}
+	}
+}
+
+func TestExtractCatalogUnitsCoverDeclarationKinds(t *testing.T) {
+	source := "using Text = System.Text.StringBuilder;\nnamespace N;\n// Holds a widget.\npublic class Widget { public Widget() {} public int Size { get; set; } public void Run(int count) { var local = 1; } }\nstruct Point {}\ninterface IShape {}\nrecord Person(string Name);\nenum Color { Red }\ndelegate void Handler(int value);\n"
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "A.cs", Contents: []byte(source)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	units := map[string]extractor.CatalogUnit{}
+	for _, unit := range contribution.CatalogUnits() {
+		units[unit.Name+"/"+string(unit.Kind)] = unit
+	}
+	for _, key := range []string{"Widget/csharp:class", "Widget/csharp:constructor", "Run/csharp:method", "Point/csharp:struct", "IShape/csharp:interface", "Person/csharp:record", "Color/csharp:enum", "Handler/csharp:delegate"} {
+		unit, ok := units[key]
+		if !ok {
+			t.Errorf("catalog units = %+v, missing %s", units, key)
+			continue
+		}
+		if unit.Signature == "" || unit.DeclarationSource == "" {
+			t.Errorf("catalog unit %s = %+v, want signature and declaration source", key, unit)
+		}
+	}
+	for key, want := range map[string]string{"Color/csharp:enum": "enum Color", "Person/csharp:record": "record Person(string Name);", "Handler/csharp:delegate": "delegate void Handler(int value);", "Point/csharp:struct": "struct Point"} {
+		if got := units[key].Signature; got != want {
+			t.Errorf("%s signature = %q, want %q", key, got, want)
+		}
+	}
+	nodeSpans := map[string]int{}
+	for _, node := range contribution.Facts().Nodes {
+		nodeSpans[node.ID] = node.Evidence.Span.StartLine
+	}
+	if line := nodeSpans[units["Color/csharp:enum"].NodeID]; line != 8 {
+		t.Errorf("enum catalog node start line = %d, want 8", line)
+	}
+	for key := range units {
+		if strings.HasSuffix(key, "/csharp:namespace") || strings.HasSuffix(key, "/csharp:variable") || strings.HasSuffix(key, "/csharp:type_alias") {
+			t.Errorf("catalog unit %s present, want declarations only", key)
+		}
+	}
+	if got := units["Run/csharp:method"].Owner; got != "Widget" {
+		t.Errorf("method owner = %q, want Widget", got)
+	}
+	if got := units["Widget/csharp:constructor"].Owner; got != "Widget" {
+		t.Errorf("constructor owner = %q, want Widget", got)
+	}
+	if got := units["Widget/csharp:class"].Comments; len(got) != 1 || got[0] != "Holds a widget." {
+		t.Errorf("class comments = %v, want leading comment", got)
+	}
+	for _, name := range []string{"Size", "count", "Name", "local"} {
+		for key := range units {
+			if strings.HasPrefix(key, name+"/") {
+				t.Errorf("catalog unit %s present, want none for properties, parameters, or locals", key)
+			}
+		}
+	}
+}
