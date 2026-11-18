@@ -6802,6 +6802,12 @@
 			]
 		},
 		{
+			"path": "/daemon/stop",
+			"methods": [
+				"POST"
+			]
+		},
+		{
 			"path": "/health/live",
 			"methods": [
 				"GET"

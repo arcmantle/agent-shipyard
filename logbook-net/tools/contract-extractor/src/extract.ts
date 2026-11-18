@@ -240,7 +240,7 @@ export async function buildInventory(root: string): Promise<Inventory> {
 		rpc: await extractRpc(root),
 		mcp: extractMcp(root),
 		website: extractWebsite(root),
-		hostRoutes: scanExpressRoutes(read(root, "logbook/packages/api-pg/src/index.ts")),
+		hostRoutes: [...scanExpressRoutes(read(root, "logbook/packages/api-pg/src/index.ts")), ...scanExpressRoutes(read(root, "logbook/packages/api-local/src/daemon/local-daemon-server.ts"))].sort((a, b) => compare(a.path, b.path)),
 		storageContract: { groups: scanContractGroups(read(root, "logbook/packages/core/src/features/storage-driver/storage-driver-contract.ts")) }
 	};
 }

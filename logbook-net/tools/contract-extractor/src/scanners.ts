@@ -29,6 +29,8 @@ export function scanStringConstants(text: string): Map<string, string> {
 export function scanMcpTools(text: string): McpTool[] {
 	const constants = scanStringConstants(text);
 	const starts = [...text.matchAll(/\b(registerTool|registerAppTool)\(\s*(?:server\s*,\s*)?"([^"]+)"/g)];
+	const callSites = [...text.matchAll(/\.?\bregister(?:App)?Tool\(/g)].length;
+	if (callSites !== starts.length) throw new Error(`${callSites} MCP tool registrations but ${starts.length} with a literal name; the scanner cannot read every registration.`);
 	return starts.map((match, index) => {
 		const end = starts[index + 1]?.index ?? text.length;
 		const block = text.slice(match.index, end);
@@ -52,6 +54,8 @@ export function scanMcpResources(text: string): McpResource[] {
 		const uri = raw.startsWith("\"") ? raw.slice(1, -1) : constants.get(raw);
 		found.push({ name: match[1]!, uri: uri ?? `unresolved:${raw}` });
 	}
+	const callSites = [...text.matchAll(/\bregisterAppResource\(/g)].length;
+	if (callSites !== found.length) throw new Error(`${callSites} MCP resource registrations but ${found.length} parsed; the scanner cannot read every registration.`);
 	return found.sort((a, b) => compare(a.uri, b.uri));
 }
 
@@ -103,6 +107,13 @@ export function scanPathnameRoutes(text: string, externalConstants: ReadonlyMap<
 			routes.set(path, set);
 		}
 	}
+
+	const mentions = [...text.matchAll(/\bpathname\s*(?:===|!==|==|\.startsWith|\.endsWith|\.match)|\.includes\(\s*requestUrl\.pathname/g)].length;
+	const seen = [...text.matchAll(/pathname\s*===\s*(?:"\/[^"]*"|[A-Z_][A-Z0-9_]*)|\.includes\(\s*requestUrl\.pathname/g)].length;
+	const comparisons = [...text.matchAll(/\bpathname\s*!==/g)].length;
+	const bare = [...routes].filter(([, methods]) => methods.size === 0).map(([path]) => path);
+	if (bare.length > 0) throw new Error(`Routes without a method: ${bare.join(", ")}.`);
+	if (mentions !== seen + [...text.matchAll(/\bpathname\.endsWith/g)].length + comparisons) throw new Error("A pathname check has a shape the route scanner does not read.");
 
 	return [...routes]
 		.map(([path, methods]) => ({ path, methods: [...methods].sort(compare) }))

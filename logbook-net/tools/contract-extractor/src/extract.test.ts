@@ -34,6 +34,12 @@ describe("scanners detect a deliberate registration change", () => {
 		expect(paths).not.toContain("/api/project-debt");
 	});
 
+	test("a registration the scanners cannot read fails instead of being omitted", () => {
+		expect(() => scanMcpTools(`${mcp}\nserver.registerTool(name, {}, async () => ({}));`)).toThrow();
+		expect(() => scanPathnameRoutes(`${siteRoutes}\n\tif (requestUrl.pathname.startsWith("/api/x")) {\n\t}`)).toThrow();
+		expect(() => scanPathnameRoutes(`${siteRoutes}\n\tif (requestUrl.pathname === route) {\n\t}`)).toThrow();
+	});
+
 	test("a new Express route appears", () => {
 		const changed = `${source("logbook/packages/api-pg/src/index.ts")}\napp.post("/added", () => {});`;
 		expect(scanExpressRoutes(changed)).toContainEqual({ path: "/added", methods: ["POST"] });
@@ -82,6 +88,7 @@ describe("inventory of the current registrations", async () => {
 	test("every RPC method has an owner and every write method has a handler", () => {
 		expect(first.rpc.methods.length).toBeGreaterThan(80);
 		for (const method of first.rpc.methods) expect(method.owner).not.toBe("unowned");
+		expect(first.hostRoutes.map((route) => route.path)).toContain("/daemon/stop");
 		expect(first.rpc.endpoints.map((route) => route.path)).toEqual(["/events", "/rpc"]);
 	});
 
