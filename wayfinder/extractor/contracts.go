@@ -51,14 +51,14 @@ type ResolverIndex interface {
 }
 
 type ResolverPackagePageRequest struct {
-	ProjectID   string
-	Language    string
-	PackagePath string
-	// Recursive reads every source of the project and language below
-	// PackagePath, not only those directly in it.
-	Recursive       bool
+	ProjectID       string
+	Language        string
+	PackagePath     string
 	AfterSourcePath string
 	Limit           int
+	// Recursive includes sources in every directory below PackagePath instead
+	// of only the directory itself.
+	Recursive bool
 }
 
 type ResolverProjection struct {

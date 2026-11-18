@@ -2243,6 +2243,43 @@ func TestResolverPackagePageReadsOrderedGoTargets(t *testing.T) {
 	}
 }
 
+func TestResolverPackagePageRecursiveReadsEveryDirectoryBelowThePackage(t *testing.T) {
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	for _, sourcePath := range []string{"service/a.go", "service/deep/b.go", "service/deep/er/c.go", "other/d.go", "top.go"} {
+		contribution, err := goextractor.Extract(extractor.Source{ProjectID: "project:fixture", SourcePath: sourcePath, Contents: []byte("package service\n\nfunc Run() {}\n")})
+		if err != nil {
+			t.Fatalf("extract %q: %v", sourcePath, err)
+		}
+		update, err := extractor.NewGraphUpdate([]extractor.Contribution{contribution})
+		if err != nil {
+			t.Fatalf("create update for %q: %v", sourcePath, err)
+		}
+		if _, err := store.Publish(context.Background(), storage.PublishRequest{Workspace: "workspace", Update: update}); err != nil {
+			t.Fatalf("publish %q: %v", sourcePath, err)
+		}
+	}
+	snapshot, err := store.OpenSnapshot(context.Background(), storage.OpenSnapshotRequest{Workspace: "workspace"})
+	if err != nil {
+		t.Fatalf("open snapshot: %v", err)
+	}
+	for packagePath, want := range map[string][]string{
+		".":       {"other/d.go", "service/a.go", "service/deep/b.go", "service/deep/er/c.go", "top.go"},
+		"service": {"service/a.go", "service/deep/b.go", "service/deep/er/c.go"},
+	} {
+		page, err := store.ResolverPackagePage(context.Background(), snapshot, extractor.ResolverPackagePageRequest{ProjectID: "project:fixture", Language: "go", PackagePath: packagePath, Limit: 10, Recursive: true})
+		if err != nil {
+			t.Fatalf("read recursive page %q: %v", packagePath, err)
+		}
+		if got := resolverTargetPaths(page); !reflect.DeepEqual(got, want) {
+			t.Errorf("recursive page %q paths = %q, want %q", packagePath, got, want)
+		}
+	}
+}
+
 func resolverTargetPaths(targets []extractor.ResolverTarget) []string {
 	paths := make([]string, 0, len(targets))
 	for _, target := range targets {

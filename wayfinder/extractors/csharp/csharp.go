@@ -142,17 +142,19 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 			Evidence: fileEvidence,
 		}},
 	}
-	var references []extractor.UnresolvedReference
-	collectDeclarations(source, root, fileID, source.SourcePath, &facts, &references)
+	var imports []extractor.UnresolvedReference
+	var references []extractor.SymbolReference
+	collectDeclarations(source, root, fileID, source.SourcePath, &facts, &imports, &references)
 
 	return extractor.NewContribution(vocabulary, extractor.ContributionInput{
 		ProjectID:            source.ProjectID,
 		SourcePath:           source.SourcePath,
 		Metadata:             New().Metadata(),
 		Facts:                facts,
+		UnresolvedReferences: imports,
+		SymbolReferences:     references,
 		CatalogUnits:         extractor.CatalogUnitsForSource(source, facts),
 		CatalogUnitsOmitted:  source.OmitCatalogUnits,
-		UnresolvedReferences: references,
 		ExportedSurfaces:     importableSurfaces(facts.Nodes),
 	})
 }
@@ -164,19 +166,20 @@ func (worker *Worker) Extract(source extractor.Source) (extractor.Contribution, 
 //
 // Every namespace, static, and alias `using` directive is also recorded as an
 // unresolved import reference from the node that carries its source evidence.
-// `extern alias` is not an import.
-func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts, references *[]extractor.UnresolvedReference) {
+// `extern alias` is not an import. Type names and call sites are recorded as
+// symbol references.
+func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ownerName string, facts *graph.Facts, imports *[]extractor.UnresolvedReference, references *[]extractor.SymbolReference) {
 	for childIndex := uint(0); childIndex < node.NamedChildCount(); childIndex++ {
 		child := node.NamedChild(childIndex)
 		kind, found := declarationKind(source, child)
 		if !found && child.Kind() == "using_directive" {
-			appendImport(source, child, ownerID, ownerName, facts, references)
+			appendImport(source, child, ownerID, ownerName, facts, imports)
 			continue
 		}
 		if !found {
 			switch child.Kind() {
 			case "declaration_list":
-				collectDeclarations(source, child, ownerID, ownerName, facts, references)
+				collectDeclarations(source, child, ownerID, ownerName, facts, imports, references)
 			case "field_declaration":
 				collectVariableDeclarators(source, child, ownerID, ownerName, facts)
 			case "global_statement", "property_declaration", "indexer_declaration", "destructor_declaration", "operator_declaration", "conversion_operator_declaration":
@@ -198,7 +201,7 @@ func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ow
 		facts.Edges = append(facts.Edges, graph.Edge{SourceID: ownerID, TargetID: id, Relation: "defines", Evidence: evidence})
 		if child.Kind() == "using_directive" {
 			if reference, ok := importReference(source, child, id); ok {
-				*references = append(*references, reference)
+				*imports = append(*imports, reference)
 			}
 			continue
 		}
@@ -207,7 +210,8 @@ func collectDeclarations(source extractor.Source, node *sitter.Node, ownerID, ow
 			ownerID, ownerName = id, qualifiedName
 			continue
 		}
-		collectDeclarations(source, child, id, qualifiedName, facts, references)
+		collectReferences(source, child, id, references)
+		collectDeclarations(source, child, id, qualifiedName, facts, imports, references)
 		if kind == MethodNodeKind || kind == ConstructorNodeKind {
 			collectLocalVariables(source, child, id, qualifiedName, facts)
 		}

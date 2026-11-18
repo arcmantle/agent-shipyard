@@ -321,3 +321,88 @@ func TestExtractCatalogUnitsCoverDeclarationKinds(t *testing.T) {
 		}
 	}
 }
+
+const symbolFixture = `namespace Fixture;
+class Caller
+{
+    private Helper helper;
+    void Run(Widget widget)
+    {
+        var made = new Gadget();
+        Local();
+        this.Local();
+        Util.Stat();
+        widget.Spin();
+        made.Spin();
+        helper?.Assist();
+        Fixture.Util.Stat();
+        Make().Hidden();
+    }
+    void Local() {}
+}
+`
+
+func TestExtractReturnsSymbolReferencesAndCallsWithSourceLocations(t *testing.T) {
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "Caller.cs", Contents: []byte(symbolFixture)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	nodes := map[string]string{}
+	for _, node := range contribution.Facts().Nodes {
+		nodes[node.ID] = node.QualifiedName
+	}
+	type fact struct {
+		source, relation, target string
+		line, column             int
+	}
+	var got []fact
+	for _, reference := range contribution.SymbolReferences() {
+		span := reference.Evidence.Span
+		got = append(got, fact{nodes[reference.SourceID], string(reference.Relation), reference.Target, span.StartLine, span.StartColumn})
+	}
+	want := []fact{
+		{"Caller.cs::Fixture.Caller", "references", "Helper", 4, 13},
+		{"Caller.cs::Fixture.Caller.Run", "references", "Widget", 5, 14},
+		{"Caller.cs::Fixture.Caller.Run", "references", "Gadget", 7, 24},
+		{"Caller.cs::Fixture.Caller.Run", "csharp:calls", "Local", 8, 9},
+		{"Caller.cs::Fixture.Caller.Run", "csharp:calls", "Local", 9, 14},
+		{"Caller.cs::Fixture.Caller.Run", "csharp:calls", "Util.Stat", 10, 14},
+		{"Caller.cs::Fixture.Caller.Run", "csharp:calls", "Widget.Spin", 11, 16},
+		{"Caller.cs::Fixture.Caller.Run", "csharp:calls", "Gadget.Spin", 12, 14},
+		{"Caller.cs::Fixture.Caller.Run", "csharp:calls", "Helper.Assist", 13, 17},
+		{"Caller.cs::Fixture.Caller.Run", "csharp:calls", "Fixture.Util.Stat", 14, 22},
+		{"Caller.cs::Fixture.Caller.Run", "csharp:calls", "Make", 15, 9},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("symbol references = %+v\nwant %+v", got, want)
+	}
+}
+
+func TestExtractSkipsAmbiguousReceiversAndLocalFunctionCalls(t *testing.T) {
+	contents := `class C
+{
+    Settings Config { get; }
+    void A()
+    {
+        { Foo x; x.Go(); }
+        { Bar x; x.Go(); }
+        Config.Get();
+        Inner();
+        void Inner() {}
+    }
+}
+`
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "C.cs", Contents: []byte(contents)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	var calls []string
+	for _, reference := range contribution.SymbolReferences() {
+		if reference.Relation == CallsRelation {
+			calls = append(calls, reference.Target)
+		}
+	}
+	if want := []string{"Settings.Get"}; !slices.Equal(calls, want) {
+		t.Errorf("call targets = %v, want %v (no guess for a name declared with two types or for a local function)", calls, want)
+	}
+}
