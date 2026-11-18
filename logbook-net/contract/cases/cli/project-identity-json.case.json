@@ -1,0 +1,7 @@
+{
+	"id": "cli/project-identity-json",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["project-identity", "--json"],
+	"stdout": "json"
+}

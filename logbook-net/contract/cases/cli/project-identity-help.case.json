@@ -1,0 +1,7 @@
+{
+	"id": "cli/project-identity-help",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["project-identity", "--help"],
+	"stdout": "text"
+}
