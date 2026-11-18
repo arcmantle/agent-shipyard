@@ -990,14 +990,13 @@ func (session *contributionSession) ResolverPackagePage(ctx context.Context, sna
 		prefix := request.PackagePath + "/"
 		pathFilter = "contributions.source_path LIKE ? AND INSTR(SUBSTR(contributions.source_path, LENGTH(?) + 1), '/') = 0"
 		pathArguments = []any{prefix + "%", prefix}
-		if request.Recursive {
-			pathFilter = "contributions.source_path LIKE ?"
-			pathArguments = []any{prefix + "%"}
-		}
 	}
-	if request.Recursive && request.PackagePath == "." {
+	if request.Recursive {
 		pathFilter = "contributions.source_path LIKE ?"
 		pathArguments = []any{"%"}
+		if request.PackagePath != "." {
+			pathArguments = []any{request.PackagePath + "/%"}
+		}
 	}
 	query := `SELECT contributions.source_path FROM file_contributions contributions JOIN contribution_session_sources sources ON sources.workspace = contributions.workspace AND sources.pending_version = ? AND sources.source_path = contributions.source_path WHERE contributions.workspace = ? AND contributions.valid_from_version <= ? AND (contributions.valid_to_version IS NULL OR contributions.valid_to_version >= ?) AND contributions.project_id = ? AND contributions.extractor_name = ? AND ` + pathFilter + ` AND contributions.source_path > ? ORDER BY contributions.source_path LIMIT ?`
 	arguments := []any{session.pendingVersion, session.workspace, session.pendingVersion, session.pendingVersion, request.ProjectID, request.Language}
@@ -1198,14 +1197,13 @@ func (stager *resolverStager) ResolverPackagePage(ctx context.Context, snapshot 
 		prefix := request.PackagePath + "/"
 		pathFilter = "source_path LIKE ? AND INSTR(SUBSTR(source_path, LENGTH(?) + 1), '/') = 0"
 		pathArguments = []any{prefix + "%", prefix}
-		if request.Recursive {
-			pathFilter = "source_path LIKE ?"
-			pathArguments = []any{prefix + "%"}
-		}
 	}
-	if request.Recursive && request.PackagePath == "." {
+	if request.Recursive {
 		pathFilter = "source_path LIKE ?"
 		pathArguments = []any{"%"}
+		if request.PackagePath != "." {
+			pathArguments = []any{request.PackagePath + "/%"}
+		}
 	}
 	query := `SELECT source_path FROM file_contributions WHERE workspace = ? AND valid_from_version <= ? AND (valid_to_version IS NULL OR valid_to_version >= ?) AND project_id = ? AND extractor_name = ? AND ` + pathFilter + ` AND source_path > ? ORDER BY source_path LIMIT ?`
 	arguments := []any{stager.workspace, stager.snapshot.Version, stager.snapshot.Version, request.ProjectID, request.Language}
@@ -2060,14 +2058,13 @@ func (store *Store) ResolverPackagePage(ctx context.Context, snapshot storage.Sn
 		prefix := request.PackagePath + "/"
 		pathFilter = "source_path LIKE ? AND INSTR(SUBSTR(source_path, LENGTH(?) + 1), '/') = 0"
 		pathArguments = []any{prefix + "%", prefix}
-		if request.Recursive {
-			pathFilter = "source_path LIKE ?"
-			pathArguments = []any{prefix + "%"}
-		}
 	}
-	if request.Recursive && request.PackagePath == "." {
+	if request.Recursive {
 		pathFilter = "source_path LIKE ?"
 		pathArguments = []any{"%"}
+		if request.PackagePath != "." {
+			pathArguments = []any{request.PackagePath + "/%"}
+		}
 	}
 	query := `
 		SELECT source_path

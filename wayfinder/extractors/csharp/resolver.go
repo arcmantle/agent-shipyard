@@ -10,18 +10,17 @@ import (
 	"agent-wayfinder/graph"
 )
 
-// ImportsFromRelation links an import directive to the namespace or type it
-// names within the same project.
-const ImportsFromRelation graph.RelationKind = "csharp:imports_from"
-
 const (
+	// ImportsFromRelation links an import directive to the namespace or type it
+	// names.
+	ImportsFromRelation graph.RelationKind = "csharp:imports_from"
 	// ReferencesRelation links a declaration to a declared type it names.
 	ReferencesRelation graph.RelationKind = "references"
 	// CallsRelation links a declaration to a method it invokes.
 	CallsRelation graph.RelationKind = "csharp:calls"
 )
 
-const resolverPackagePageSize = 128
+const resolverPageLimit = 128
 
 // Resolution holds the cross-source facts C# resolution produces.
 type Resolution struct {
@@ -40,10 +39,9 @@ func (resolution Resolution) Diagnostics() []extractor.Diagnostic {
 	return append([]extractor.Diagnostic(nil), resolution.diagnostics...)
 }
 
-// ResolverVocabulary describes the facts C# resolution adds to extracted nodes.
+// ResolverVocabulary describes the import facts C# resolution adds to extracted nodes.
 func ResolverVocabulary() (graph.Vocabulary, error) {
 	sources := []graph.NodeKind{ImportNodeKind, TypeAliasNodeKind}
-	symbolSources := []graph.NodeKind{ClassNodeKind, StructNodeKind, InterfaceNodeKind, RecordNodeKind, EnumNodeKind, DelegateNodeKind, MethodNodeKind, ConstructorNodeKind}
 	// A file-to-file link records the dependency incremental indexing follows.
 	targets := []graph.NodeKind{NamespaceNodeKind, ClassNodeKind, StructNodeKind, InterfaceNodeKind, RecordNodeKind, EnumNodeKind, DelegateNodeKind}
 	var endpoints []graph.EndpointRule
@@ -53,153 +51,175 @@ func ResolverVocabulary() (graph.Vocabulary, error) {
 		}
 	}
 	endpoints = append(endpoints, graph.EndpointRule{Source: "file", Target: "file"})
-	var references, calls []graph.EndpointRule
-	for _, source := range symbolSources {
-		for _, target := range targets[1:] {
-			references = append(references, graph.EndpointRule{Source: source, Target: target})
-		}
-		calls = append(calls, graph.EndpointRule{Source: source, Target: MethodNodeKind})
-	}
-	nodeKinds := append(append([]graph.NodeKind{"file", MethodNodeKind, ConstructorNodeKind}, sources...), targets...)
 	return graph.NewVocabulary(graph.VocabularyDefinition{
-		NodeKinds: nodeKinds,
-		Relations: []graph.RelationDefinition{
-			{Kind: ImportsFromRelation, Endpoints: endpoints},
-			{Kind: ReferencesRelation, Endpoints: references},
-			{Kind: CallsRelation, Endpoints: calls},
-		},
+		NodeKinds: append(append([]graph.NodeKind{"file"}, sources...), targets...),
+		Relations: []graph.RelationDefinition{{Kind: ImportsFromRelation, Endpoints: endpoints}},
 	})
 }
 
-// Resolve links the import directives, symbol references, and calls of each
-// project's contributions. Targets in other projects are never considered.
-func Resolve(contributions []extractor.Contribution) (Resolution, error) {
-	if err := checkContributions(contributions); err != nil {
+// Resolve links the imports, symbol references, and calls of one project's
+// contributions. A target is looked up in the project itself first and, when
+// the project does not declare it, in the contributions of the projects it
+// reaches through local project references. Nothing else is searched.
+func Resolve(contributions []extractor.Contribution, referenced []extractor.Contribution) (Resolution, error) {
+	if err := checkContributions(contributions, referenced); err != nil {
 		return Resolution{}, err
 	}
-	var projectIDs []string
-	byProject := make(map[string][]extractor.Contribution)
-	for _, contribution := range contributions {
-		if _, found := byProject[contribution.ProjectID()]; !found {
-			projectIDs = append(projectIDs, contribution.ProjectID())
-		}
-		byProject[contribution.ProjectID()] = append(byProject[contribution.ProjectID()], contribution)
-	}
-	resolution := Resolution{}
-	for _, projectID := range projectIDs {
-		declarations := newDeclarations()
-		symbols := newProjectSymbols()
-		for _, contribution := range byProject[projectID] {
-			declarations.add(contribution.Facts().Nodes)
-			symbols.addNodes(contribution.Facts().Nodes)
-		}
-		projectResolution, err := resolveWith(byProject[projectID], declarations, symbols)
-		if err != nil {
-			return Resolution{}, err
-		}
-		resolution.facts.Nodes = append(resolution.facts.Nodes, projectResolution.facts.Nodes...)
-		resolution.facts.Edges = append(resolution.facts.Edges, projectResolution.facts.Edges...)
-		resolution.diagnostics = append(resolution.diagnostics, projectResolution.diagnostics...)
-	}
-	return resolution, nil
+	visible := newVisibleSymbols()
+	visible.own.addNodes(contributionNodes(contributions))
+	visible.referenced.addNodes(contributionNodes(referenced))
+	return resolveWith(contributions, visible)
 }
 
-// ResolvePage links the import directives of a page of one project's
-// contributions against every declaration the resolver index holds for the
-// project.
-func ResolvePage(ctx context.Context, contributions []extractor.Contribution, projectID string, index extractor.ResolverIndex) (Resolution, error) {
+// ResolvePage resolves one page of a project's contributions against every
+// declaration of the project and of the referenced projects, read from the
+// resolver index.
+func ResolvePage(ctx context.Context, contributions []extractor.Contribution, projectID string, referencedProjectIDs []string, index extractor.ResolverIndex) (Resolution, error) {
 	if projectID == "" || index == nil {
 		return Resolution{}, fmt.Errorf("resolve C# page: project and resolver index are required")
 	}
 	if err := ctx.Err(); err != nil {
 		return Resolution{}, err
 	}
-	if err := checkContributions(contributions); err != nil {
+	if err := checkContributions(contributions, nil); err != nil {
 		return Resolution{}, err
 	}
-	if !hasReferences(contributions) {
+	resolvable := false
+	for _, contribution := range contributions {
+		if contribution.ProjectID() != projectID {
+			return Resolution{}, fmt.Errorf("resolve C# page: contribution %q belongs to project %q, not %q", contribution.SourcePath(), contribution.ProjectID(), projectID)
+		}
+		resolvable = resolvable || len(contribution.SymbolReferences()) > 0 || len(contribution.UnresolvedReferences()) > 0
+	}
+	if !resolvable {
 		return Resolution{}, nil
 	}
+
 	index = extractor.NewPageResolverIndex(index)
-	declarations := newDeclarations()
-	symbols := newProjectSymbols()
-	for _, contribution := range contributions {
-		declarations.add(contribution.Facts().Nodes)
-		symbols.addNodes(contribution.Facts().Nodes)
+	visible := newVisibleSymbols()
+	visible.own.addNodes(contributionNodes(contributions))
+	if err := readProject(ctx, index, projectID, visible.own); err != nil {
+		return Resolution{}, err
 	}
+	for _, referencedID := range uniqueProjectIDs(referencedProjectIDs, projectID) {
+		if err := readProject(ctx, index, referencedID, visible.referenced); err != nil {
+			return Resolution{}, err
+		}
+	}
+	return resolveWith(contributions, visible)
+}
+
+// uniqueProjectIDs drops repeated project IDs and the project itself, so a
+// project that references itself or is listed twice is read once.
+func uniqueProjectIDs(projectIDs []string, self string) []string {
+	seen := map[string]struct{}{self: {}}
+	unique := make([]string, 0, len(projectIDs))
+	for _, projectID := range projectIDs {
+		if _, duplicate := seen[projectID]; duplicate {
+			continue
+		}
+		seen[projectID] = struct{}{}
+		unique = append(unique, projectID)
+	}
+	return unique
+}
+
+func readProject(ctx context.Context, index extractor.ResolverIndex, projectID string, symbols *projectSymbols) error {
 	after := ""
 	for {
-		page, err := index.ResolverPackagePage(ctx, extractor.ResolverPackagePageRequest{
+		targets, err := index.ResolverPackagePage(ctx, extractor.ResolverPackagePageRequest{
 			ProjectID:       projectID,
 			Language:        "csharp",
 			PackagePath:     ".",
-			Recursive:       true,
 			AfterSourcePath: after,
-			Limit:           resolverPackagePageSize,
+			Limit:           resolverPageLimit,
+			Recursive:       true,
 		})
 		if err != nil {
-			return Resolution{}, fmt.Errorf("read C# resolver project %q: %w", projectID, err)
+			return fmt.Errorf("read C# project %q: %w", projectID, err)
 		}
-		if len(page) == 0 {
-			break
+		if len(targets) == 0 {
+			return nil
 		}
-		for _, target := range page {
-			after = target.SourcePath
-			declarations.add(target.Nodes)
+		for _, target := range targets {
 			symbols.addNodes(target.Nodes)
+			after = target.SourcePath
 		}
 	}
-	return resolveWith(contributions, declarations, symbols)
 }
 
-func checkContributions(contributions []extractor.Contribution) error {
-	for _, contribution := range contributions {
+// checkContributions requires C# contributions of one project and referenced
+// contributions of other projects.
+func checkContributions(contributions, referenced []extractor.Contribution) error {
+	projectID := ""
+	for index, contribution := range contributions {
 		if contribution.Metadata().Name != "csharp" {
 			return fmt.Errorf("resolve C#: contribution %q belongs to extractor %q", contribution.SourcePath(), contribution.Metadata().Name)
+		}
+		if index == 0 {
+			projectID = contribution.ProjectID()
+		} else if contribution.ProjectID() != projectID {
+			return fmt.Errorf("resolve C#: contribution %q belongs to project %q, not %q", contribution.SourcePath(), contribution.ProjectID(), projectID)
+		}
+	}
+	for _, contribution := range referenced {
+		if contribution.Metadata().Name != "csharp" {
+			return fmt.Errorf("resolve C#: contribution %q belongs to extractor %q", contribution.SourcePath(), contribution.Metadata().Name)
+		}
+		if len(contributions) > 0 && contribution.ProjectID() == projectID {
+			return fmt.Errorf("resolve C#: referenced contribution %q belongs to the resolved project %q", contribution.SourcePath(), projectID)
 		}
 	}
 	return nil
 }
 
-func hasReferences(contributions []extractor.Contribution) bool {
+func contributionNodes(contributions []extractor.Contribution) []graph.Node {
+	var nodes []graph.Node
 	for _, contribution := range contributions {
-		if len(contribution.UnresolvedReferences()) > 0 || len(contribution.SymbolReferences()) > 0 {
-			return true
-		}
+		nodes = append(nodes, contribution.Facts().Nodes...)
 	}
-	return false
+	return nodes
 }
 
-// declarations indexes a project's namespaces and types by full name. A
-// namespace is one logical target however many files declare it.
-type declarations struct {
+// projectSymbols indexes the namespaces, types, and methods of the projects it
+// holds by their C# name, which is the qualified name without its source-path
+// prefix. A namespace is one logical target however many files declare it.
+type projectSymbols struct {
 	seen       map[string]struct{}
 	namespaces map[string][]graph.Node
 	types      map[string][]graph.Node
+	methods    map[string][]graph.Node
 	files      map[string]graph.Node
 }
 
-func newDeclarations() *declarations {
-	return &declarations{seen: map[string]struct{}{}, namespaces: map[string][]graph.Node{}, types: map[string][]graph.Node{}, files: map[string]graph.Node{}}
+func newProjectSymbols() *projectSymbols {
+	return &projectSymbols{
+		seen:       make(map[string]struct{}),
+		namespaces: make(map[string][]graph.Node),
+		types:      make(map[string][]graph.Node),
+		methods:    make(map[string][]graph.Node),
+		files:      make(map[string]graph.Node),
+	}
 }
 
-func (index *declarations) add(nodes []graph.Node) {
+func (symbols *projectSymbols) addNodes(nodes []graph.Node) {
 	for _, node := range nodes {
-		if _, duplicate := index.seen[node.ID]; duplicate {
+		if _, duplicate := symbols.seen[node.ID]; duplicate {
 			continue
 		}
 		switch node.Kind {
 		case "file":
-			index.files[node.QualifiedName] = node
-			continue
+			symbols.files[node.QualifiedName] = node
 		case NamespaceNodeKind:
-			index.namespaces[fullName(node)] = append(index.namespaces[fullName(node)], node)
+			symbols.namespaces[fullName(node)] = append(symbols.namespaces[fullName(node)], node)
 		case ClassNodeKind, StructNodeKind, InterfaceNodeKind, RecordNodeKind, EnumNodeKind, DelegateNodeKind:
-			index.types[fullName(node)] = append(index.types[fullName(node)], node)
+			symbols.types[fullName(node)] = append(symbols.types[fullName(node)], node)
+		case MethodNodeKind:
+			symbols.methods[fullName(node)] = append(symbols.methods[fullName(node)], node)
 		default:
 			continue
 		}
-		index.seen[node.ID] = struct{}{}
+		symbols.seen[node.ID] = struct{}{}
 	}
 }
 
@@ -208,72 +228,103 @@ func fullName(node graph.Node) string {
 	return strings.TrimPrefix(node.QualifiedName, node.Evidence.Span.Path+"::")
 }
 
-func resolveWith(contributions []extractor.Contribution, declarations *declarations, symbols *projectSymbols) (Resolution, error) {
+// visibleSymbols is what one project can see: its own declarations, which win
+// for a name both declare, and the declarations of the projects it references.
+type visibleSymbols struct {
+	own        *projectSymbols
+	referenced *projectSymbols
+}
+
+func newVisibleSymbols() *visibleSymbols {
+	return &visibleSymbols{own: newProjectSymbols(), referenced: newProjectSymbols()}
+}
+
+func (visible *visibleSymbols) tiers() []*projectSymbols {
+	return []*projectSymbols{visible.own, visible.referenced}
+}
+
+func (visible *visibleSymbols) file(path string) (graph.Node, bool) {
+	for _, tier := range visible.tiers() {
+		if file, found := tier.files[path]; found {
+			return file, true
+		}
+	}
+	return graph.Node{}, false
+}
+
+func resolveWith(contributions []extractor.Contribution, visible *visibleSymbols) (Resolution, error) {
 	resolution := Resolution{}
-	files := map[string]graph.Node{}
+	imports := Resolution{}
 	links := map[[2]string]graph.FactEvidence{}
 	for _, contribution := range contributions {
-		facts := contribution.Facts()
-		for _, node := range facts.Nodes {
-			if node.Kind == "file" {
-				files[contribution.SourcePath()] = node
-			}
-		}
-		nodes := make(map[string]graph.Node, len(facts.Nodes))
-		for _, node := range facts.Nodes {
-			nodes[node.ID] = node
-		}
-		owners := make(map[string]string, len(facts.Edges))
-		for _, edge := range facts.Edges {
-			if edge.Relation == "defines" {
-				owners[edge.TargetID] = edge.SourceID
-			}
-		}
-		for _, reference := range contribution.UnresolvedReferences() {
-			if reference.Kind != extractor.ModuleReferenceImport {
-				continue
-			}
-			source, found := nodes[reference.SourceID]
-			if !found {
-				continue
-			}
-			scopes := enclosingNamespaces(nodes[owners[source.ID]])
-			targets, ambiguous := importTargets(reference, scopes, declarations)
-			if ambiguous {
-				resolution.diagnostics = append(resolution.diagnostics, extractor.Diagnostic{Severity: extractor.DiagnosticWarning, Message: fmt.Sprintf("C# import %q from %q is ambiguous", reference.Target, contribution.SourcePath())})
-			}
-			for _, target := range targets {
-				resolution.facts.Edges = append(resolution.facts.Edges, graph.Edge{SourceID: source.ID, TargetID: target.ID, Relation: ImportsFromRelation, Evidence: source.Evidence})
-				resolution.facts.Nodes = append(resolution.facts.Nodes, source, target)
-				targetFile, found := declarations.files[target.Evidence.Span.Path]
-				if sourceFile, ok := files[contribution.SourcePath()]; ok && found && targetFile.ID != sourceFile.ID {
-					links[[2]string{sourceFile.ID, targetFile.ID}] = sourceFile.Evidence
-					resolution.facts.Nodes = append(resolution.facts.Nodes, sourceFile, targetFile)
-				}
-			}
-		}
-	}
-	for _, contribution := range contributions {
-		resolveSymbols(contribution, symbols, &resolution)
+		resolveSymbols(contribution, visible, &resolution)
+		resolveImports(contribution, visible, &imports, links)
 	}
 	for link, evidence := range links {
-		resolution.facts.Edges = append(resolution.facts.Edges, graph.Edge{SourceID: link[0], TargetID: link[1], Relation: ImportsFromRelation, Evidence: evidence})
+		imports.facts.Edges = append(imports.facts.Edges, graph.Edge{SourceID: link[0], TargetID: link[1], Relation: ImportsFromRelation, Evidence: evidence})
 	}
-	sort.Slice(resolution.facts.Edges, func(left, right int) bool {
-		if resolution.facts.Edges[left].SourceID != resolution.facts.Edges[right].SourceID {
-			return resolution.facts.Edges[left].SourceID < resolution.facts.Edges[right].SourceID
-		}
-		return resolution.facts.Edges[left].TargetID < resolution.facts.Edges[right].TargetID
-	})
-	resolution.facts.Nodes = uniqueNodes(resolution.facts.Nodes)
+	imports.facts.Nodes = uniqueNodes(imports.facts.Nodes)
 	vocabulary, err := ResolverVocabulary()
 	if err != nil {
 		return Resolution{}, fmt.Errorf("get C# resolver vocabulary: %w", err)
 	}
-	if err := vocabulary.Validate(resolution.facts); err != nil {
+	if err := vocabulary.Validate(imports.facts); err != nil {
 		return Resolution{}, fmt.Errorf("validate C# resolution: %w", err)
 	}
+	resolution.facts.Nodes = imports.facts.Nodes
+	resolution.facts.Edges = append(resolution.facts.Edges, imports.facts.Edges...)
+	resolution.diagnostics = append(resolution.diagnostics, imports.diagnostics...)
+	sort.SliceStable(resolution.facts.Edges, func(left, right int) bool {
+		a, b := resolution.facts.Edges[left], resolution.facts.Edges[right]
+		if a.SourceID != b.SourceID {
+			return a.SourceID < b.SourceID
+		}
+		if a.TargetID != b.TargetID {
+			return a.TargetID < b.TargetID
+		}
+		return a.Relation < b.Relation
+	})
 	return resolution, nil
+}
+
+func resolveImports(contribution extractor.Contribution, visible *visibleSymbols, resolution *Resolution, links map[[2]string]graph.FactEvidence) {
+	facts := contribution.Facts()
+	var sourceFile graph.Node
+	haveFile := false
+	nodes := make(map[string]graph.Node, len(facts.Nodes))
+	for _, node := range facts.Nodes {
+		nodes[node.ID] = node
+		if node.Kind == "file" {
+			sourceFile, haveFile = node, true
+		}
+	}
+	owners := make(map[string]string, len(facts.Edges))
+	for _, edge := range facts.Edges {
+		if edge.Relation == "defines" {
+			owners[edge.TargetID] = edge.SourceID
+		}
+	}
+	for _, reference := range contribution.UnresolvedReferences() {
+		if reference.Kind != extractor.ModuleReferenceImport {
+			continue
+		}
+		source, found := nodes[reference.SourceID]
+		if !found {
+			continue
+		}
+		targets, ambiguous := importTargets(reference, enclosingNamespaces(nodes[owners[source.ID]]), visible)
+		if ambiguous {
+			resolution.diagnostics = append(resolution.diagnostics, extractor.Diagnostic{Severity: extractor.DiagnosticWarning, Message: fmt.Sprintf("C# import %q from %q is ambiguous", reference.Target, contribution.SourcePath())})
+		}
+		for _, target := range targets {
+			resolution.facts.Edges = append(resolution.facts.Edges, graph.Edge{SourceID: source.ID, TargetID: target.ID, Relation: ImportsFromRelation, Evidence: source.Evidence})
+			resolution.facts.Nodes = append(resolution.facts.Nodes, source, target)
+			if targetFile, found := visible.file(target.Evidence.Span.Path); haveFile && found && targetFile.ID != sourceFile.ID {
+				links[[2]string{sourceFile.ID, targetFile.ID}] = sourceFile.Evidence
+				resolution.facts.Nodes = append(resolution.facts.Nodes, sourceFile, targetFile)
+			}
+		}
+	}
 }
 
 // enclosingNamespaces lists the namespace names a directive's relative target
@@ -295,18 +346,16 @@ func enclosingNamespaces(owner graph.Node) []string {
 }
 
 // importTargets resolves a directive in the innermost scope that declares its
-// target. A namespace import names every declaration of the namespace; a static
-// or alias import names a type only when exactly one declares it.
-func importTargets(reference extractor.UnresolvedReference, scopes []string, declarations *declarations) ([]graph.Node, bool) {
+// target. A namespace import names every declaration of the namespace in the
+// project and the projects it references; a static or alias import names a
+// type only when exactly one declares it.
+func importTargets(reference extractor.UnresolvedReference, scopes []string, visible *visibleSymbols) ([]graph.Node, bool) {
 	static := len(reference.Bindings) == 1 && reference.Bindings[0].ExportedName == StaticBinding
 	alias := len(reference.Bindings) == 1 && reference.Bindings[0].LocalName != ""
 	for _, scope := range scopes {
-		name := reference.Target
-		if scope != "" {
-			name = scope + "." + name
-		}
-		types := declarations.types[name]
+		name := scoped(scope, reference.Target)
 		if static || alias {
+			types, _ := visible.types(name)
 			if len(types) > 1 {
 				return nil, true
 			}
@@ -317,67 +366,29 @@ func importTargets(reference extractor.UnresolvedReference, scopes []string, dec
 		if static {
 			continue
 		}
-		if namespaces := declarations.namespaces[name]; len(namespaces) > 0 {
+		var namespaces []graph.Node
+		for _, tier := range visible.tiers() {
+			namespaces = append(namespaces, tier.namespaces[name]...)
+		}
+		if len(namespaces) > 0 {
 			return namespaces, false
 		}
 	}
 	return nil, false
 }
 
-func uniqueNodes(nodes []graph.Node) []graph.Node {
-	seen := make(map[string]struct{}, len(nodes))
-	unique := make([]graph.Node, 0, len(nodes))
-	for _, node := range nodes {
-		if _, duplicate := seen[node.ID]; duplicate {
-			continue
-		}
-		seen[node.ID] = struct{}{}
-		unique = append(unique, node)
-	}
-	sort.Slice(unique, func(left, right int) bool { return unique[left].ID < unique[right].ID })
-	return unique
-}
-
-// projectSymbols indexes one project's types and methods by their C# name,
-// which is the qualified name without its source-path prefix.
-type projectSymbols struct {
-	seen    map[string]struct{}
-	types   map[string][]graph.Node
-	methods map[string][]graph.Node
-}
-
-func newProjectSymbols() *projectSymbols {
-	return &projectSymbols{
-		seen:    make(map[string]struct{}),
-		types:   make(map[string][]graph.Node),
-		methods: make(map[string][]graph.Node),
-	}
-}
-
-func (symbols *projectSymbols) addNodes(nodes []graph.Node) {
-	for _, node := range nodes {
-		if _, found := symbols.seen[node.ID]; found {
-			continue
-		}
-		symbols.seen[node.ID] = struct{}{}
-		switch node.Kind {
-		case ClassNodeKind, StructNodeKind, InterfaceNodeKind, RecordNodeKind, EnumNodeKind, DelegateNodeKind:
-			symbols.types[csharpName(node)] = append(symbols.types[csharpName(node)], node)
-		case MethodNodeKind:
-			symbols.methods[csharpName(node)] = append(symbols.methods[csharpName(node)], node)
+// types returns the declarations of a full type name: the project's own when it
+// declares any, otherwise those of the referenced projects.
+func (visible *visibleSymbols) types(full string) ([]graph.Node, *projectSymbols) {
+	for _, tier := range visible.tiers() {
+		if matches := tier.types[full]; len(matches) > 0 {
+			return matches, tier
 		}
 	}
+	return nil, nil
 }
 
-// csharpName drops the source-path prefix of a qualified name.
-func csharpName(node graph.Node) string {
-	if position := strings.LastIndex(node.QualifiedName, "::"); position >= 0 {
-		return node.QualifiedName[position+2:]
-	}
-	return node.QualifiedName
-}
-
-func resolveSymbols(contribution extractor.Contribution, symbols *projectSymbols, resolution *Resolution) {
+func resolveSymbols(contribution extractor.Contribution, visible *visibleSymbols, resolution *Resolution) {
 	references := contribution.SymbolReferences()
 	if len(references) == 0 {
 		return
@@ -391,13 +402,13 @@ func resolveSymbols(contribution extractor.Contribution, symbols *projectSymbols
 		if !found {
 			continue
 		}
-		scopes := lookupScopes(csharpName(source))
+		scopes := lookupScopes(fullName(source))
 		var matches []graph.Node
 		switch reference.Relation {
 		case ReferencesRelation:
-			matches, _ = lookupType(symbols, scopes, reference.Target)
+			matches, _, _ = lookupType(visible, scopes, reference.Target)
 		case CallsRelation:
-			matches = lookupMethod(symbols, scopes, reference.Target)
+			matches = lookupMethod(visible, scopes, reference.Target)
 		default:
 			continue
 		}
@@ -409,7 +420,6 @@ func resolveSymbols(contribution extractor.Contribution, symbols *projectSymbols
 			continue
 		}
 		if len(matches) == 1 {
-			resolution.facts.Nodes = append(resolution.facts.Nodes, source, matches[0])
 			resolution.facts.Edges = append(resolution.facts.Edges, graph.Edge{
 				SourceID: reference.SourceID,
 				TargetID: matches[0].ID,
@@ -449,34 +459,51 @@ func scoped(scope, name string) string {
 }
 
 // lookupType finds the declarations a type name denotes. The innermost scope
-// that declares the name wins; several declarations in that scope are ambiguous.
-func lookupType(symbols *projectSymbols, scopes []string, name string) ([]graph.Node, string) {
+// that declares the name wins; within it the project's own declarations win over
+// referenced ones, and several declarations are ambiguous. It also returns the
+// declarations' full name and the project set they were found in.
+func lookupType(visible *visibleSymbols, scopes []string, name string) ([]graph.Node, *projectSymbols, string) {
 	for _, scope := range scopes {
 		full := scoped(scope, name)
-		if matches := symbols.types[full]; len(matches) > 0 {
-			return matches, full
+		if matches, tier := visible.types(full); len(matches) > 0 {
+			return matches, tier, full
 		}
 	}
-	return nil, ""
+	return nil, nil, ""
 }
 
 // lookupMethod resolves a call target written as `Method` (a method of an
 // enclosing type) or `Receiver.Method` (a method of the named type).
-func lookupMethod(symbols *projectSymbols, scopes []string, target string) []graph.Node {
+func lookupMethod(visible *visibleSymbols, scopes []string, target string) []graph.Node {
 	if position := strings.LastIndex(target, "."); position >= 0 {
-		matches, full := lookupType(symbols, scopes, target[:position])
+		matches, tier, full := lookupType(visible, scopes, target[:position])
 		if len(matches) != 1 {
 			return matches
 		}
-		return symbols.methods[full+"."+target[position+1:]]
+		return tier.methods[full+"."+target[position+1:]]
 	}
 	for _, scope := range scopes {
-		if len(symbols.types[scope]) == 0 {
-			continue
-		}
-		if matches := symbols.methods[scope+"."+target]; len(matches) > 0 {
-			return matches
+		for _, tier := range visible.tiers() {
+			if len(tier.types[scope]) == 0 {
+				continue
+			}
+			// The first project declaring the enclosing type shadows later ones.
+			return tier.methods[scope+"."+target]
 		}
 	}
 	return nil
+}
+
+func uniqueNodes(nodes []graph.Node) []graph.Node {
+	seen := make(map[string]struct{}, len(nodes))
+	unique := make([]graph.Node, 0, len(nodes))
+	for _, node := range nodes {
+		if _, duplicate := seen[node.ID]; duplicate {
+			continue
+		}
+		seen[node.ID] = struct{}{}
+		unique = append(unique, node)
+	}
+	sort.Slice(unique, func(left, right int) bool { return unique[left].ID < unique[right].ID })
+	return unique
 }

@@ -454,3 +454,37 @@ func TestDiscoverCSharpSolutionProjectsAndExclusions(t *testing.T) {
 		t.Errorf("sources = %#v, want %#v", discovery.Sources, wantSources)
 	}
 }
+
+func TestCSharpReferencedProjectsFollowsLocalProjectReferencesOnly(t *testing.T) {
+	fixture := testkit.NewWorkspace(t, map[string]string{
+		"App.sln": "Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Other\", \"Other\\Other.csproj\", \"{1}\"\r\nEndProject\r\n",
+		"src/App/App.csproj": `<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Mid\Mid.csproj" />
+    <ProjectReference Include="../Missing/Missing.csproj" />
+    <ProjectReference Include="$(Shared)\Shared.csproj" />
+    <ProjectReference Include="..\*\Glob.csproj" />
+    <ProjectReference Include="..\..\..\Outside\Outside.csproj" />
+    <ProjectReference Include="..\Legacy\Legacy.vbproj" />
+  </ItemGroup>
+</Project>`,
+		"src/Mid/Mid.csproj":       `<Project><ItemGroup><ProjectReference Include="..\Lib\Lib.csproj"/></ItemGroup></Project>`,
+		"src/Lib/Lib.csproj":       `<Project><ItemGroup><projectreference include="..\Mid\Mid.csproj"/><ProjectReference Include="..\App\App.csproj"/></ItemGroup></Project>`,
+		"src/Legacy/Legacy.vbproj": "<Project />",
+		"Other/Other.csproj":       "<Project />",
+		"Broken/Broken.csproj":     "<Project><ItemGroup><ProjectReference Include=\"..\\src\\Lib\\Lib.csproj\"",
+	})
+
+	for projectID, want := range map[string][]string{
+		"project:src/App": {"project:src/Lib", "project:src/Mid"},
+		"project:src/Mid": {"project:src/App", "project:src/Lib"},
+		"project:src/Lib": {"project:src/App", "project:src/Mid"},
+		"project:Other":   nil,
+		"project:Broken":  nil,
+		"project:Absent":  nil,
+	} {
+		if got := workspace.CSharpReferencedProjects(fixture.Root, projectID); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s references = %v, want %v (transitive, cycle-safe, no solution-only links)", projectID, got, want)
+		}
+	}
+}

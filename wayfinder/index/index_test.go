@@ -2952,3 +2952,99 @@ func TestIndexCSharpIncrementalSymbolLinksMatchFreshIndex(t *testing.T) {
 		t.Errorf("fresh call edges = %d, want 1", calls)
 	}
 }
+
+func csharpProjectReferenceWorkspace(t *testing.T) testkit.Workspace {
+	t.Helper()
+	return testkit.NewWorkspace(t, map[string]string{
+		"All.sln": "Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"App\", \"src\\App\\App.csproj\", \"{1}\"\r\nEndProject\r\n" +
+			"Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Other\", \"src\\Other\\Other.csproj\", \"{2}\"\r\nEndProject\r\n",
+		"src/App/App.csproj":     "<Project><ItemGroup><ProjectReference Include=\"..\\Mid\\Mid.csproj\" /></ItemGroup></Project>\n",
+		"src/App/Program.cs":     "using Lib;\nusing Other;\nnamespace App;\npublic class Program\n{\n    Lib.Widget widget;\n    public void Run(Mid.Gadget gadget)\n    {\n        widget.Spin();\n        gadget.Run();\n        Other.Hidden.Go();\n    }\n}\n",
+		"src/Mid/Mid.csproj":     "<Project><ItemGroup><ProjectReference Include=\"..\\Lib\\Lib.csproj\" /></ItemGroup></Project>\n",
+		"src/Mid/Gadget.cs":      "namespace Mid;\npublic class Gadget { public void Run() {} }\n",
+		"src/Lib/Lib.csproj":     "<Project><ItemGroup><ProjectReference Include=\"..\\Mid\\Mid.csproj\" /></ItemGroup></Project>\n",
+		"src/Lib/Widget.cs":      "namespace Lib;\npublic class Widget { public void Spin() {} }\n",
+		"src/Other/Other.csproj": "<Project />\n",
+		"src/Other/Hidden.cs":    "namespace Other;\npublic class Hidden { public static void Go() {} }\n",
+	})
+}
+
+func csharpLinkedFacts(facts *factCollector) []string {
+	names := make(map[string]graph.Node, len(facts.nodes))
+	for _, node := range facts.nodes {
+		names[node.ID] = node
+	}
+	var links []string
+	for _, edge := range facts.edges {
+		switch edge.Relation {
+		case "csharp:calls", "references", "csharp:imports_from":
+			if names[edge.SourceID].Kind != "file" {
+				links = append(links, string(edge.Relation)+" "+names[edge.SourceID].QualifiedName+" -> "+names[edge.TargetID].QualifiedName)
+			}
+		}
+	}
+	slices.Sort(links)
+	return links
+}
+
+func TestIndexCSharpLinksAcrossLocalProjectReferencesAndMatchesIncrementalIndex(t *testing.T) {
+	workspace := csharpProjectReferenceWorkspace(t)
+	request := index.Request{Root: workspace.Root}
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, request)
+	if err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+	published := &factCollector{}
+	if err := store.Export(context.Background(), snapshot, storage.ExportRequest{}, published); err != nil {
+		t.Fatalf("export graph: %v", err)
+	}
+	want := []string{
+		"csharp:calls src/App/Program.cs::App.Program.Run -> src/Lib/Widget.cs::Lib.Widget.Spin",
+		"csharp:calls src/App/Program.cs::App.Program.Run -> src/Mid/Gadget.cs::Mid.Gadget.Run",
+		"csharp:imports_from src/App/Program.cs::using Lib -> src/Lib/Widget.cs::Lib",
+		"references src/App/Program.cs::App.Program -> src/Lib/Widget.cs::Lib.Widget",
+		"references src/App/Program.cs::App.Program.Run -> src/Mid/Gadget.cs::Mid.Gadget",
+	}
+	if got := csharpLinkedFacts(published); !slices.Equal(got, want) {
+		t.Errorf("links = %v, want %v (direct Mid and transitive Lib linked; unreferenced Other unlinked)", got, want)
+	}
+
+	// Only App changes; its targets live in unchanged referenced projects.
+	workspace.WriteFile(t, "src/App/Program.cs", "using Lib;\nnamespace App;\npublic class Program\n{\n    Lib.Widget widget;\n    public void Run() { widget.Spin(); widget.Spin(); }\n}\n")
+	batchSnapshot, err := index.PublishBatch(context.Background(), rejectingContributionReader{Store: store}, index.BatchRequest{Root: workspace.Root, ChangedPaths: []string{"src/App/Program.cs"}})
+	if err != nil {
+		t.Fatalf("publish C# batch: %v", err)
+	}
+	freshStore, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "fresh.db"))
+	if err != nil {
+		t.Fatalf("open fresh graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = freshStore.Close() })
+	freshSnapshot, err := index.Publish(context.Background(), freshStore, request)
+	if err != nil {
+		t.Fatalf("publish fresh C# workspace: %v", err)
+	}
+	batch, fresh := &factCollector{}, &factCollector{}
+	if err := store.Export(context.Background(), batchSnapshot, storage.ExportRequest{}, batch); err != nil {
+		t.Fatalf("export batch graph: %v", err)
+	}
+	if err := freshStore.Export(context.Background(), freshSnapshot, storage.ExportRequest{}, fresh); err != nil {
+		t.Fatalf("export fresh graph: %v", err)
+	}
+	if got, want := csharpLinkedFacts(batch), csharpLinkedFacts(fresh); !slices.Equal(got, want) {
+		t.Errorf("incremental links = %v, want fresh links %v", got, want)
+	}
+	wantFresh := []string{
+		"csharp:calls src/App/Program.cs::App.Program.Run -> src/Lib/Widget.cs::Lib.Widget.Spin",
+		"csharp:imports_from src/App/Program.cs::using Lib -> src/Lib/Widget.cs::Lib",
+		"references src/App/Program.cs::App.Program -> src/Lib/Widget.cs::Lib.Widget",
+	}
+	if got := csharpLinkedFacts(fresh); !slices.Equal(got, wantFresh) {
+		t.Errorf("fresh links = %v, want %v", got, wantFresh)
+	}
+}

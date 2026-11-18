@@ -664,8 +664,13 @@ type resolutionGroup struct {
 
 func resolveWorkspaceFacts(root string, sources []extractedSource) (graph.Facts, []extractor.Diagnostic, error) {
 	groups := make(map[string]resolutionGroup)
+	byLanguage := make(map[string]map[string][]extractor.Contribution)
 	diagnostics := make([]extractor.Diagnostic, 0)
 	for _, source := range sources {
+		if byLanguage[source.language] == nil {
+			byLanguage[source.language] = make(map[string][]extractor.Contribution)
+		}
+		byLanguage[source.language][source.projectID] = append(byLanguage[source.language][source.projectID], source.contribution)
 		key := source.projectID + "\x00" + source.language
 		group := groups[key]
 		group.projectID = source.projectID
@@ -688,7 +693,7 @@ func resolveWorkspaceFacts(root string, sources []extractedSource) (graph.Facts,
 		if !found || definition.resolveWorkspace == nil {
 			return graph.Facts{}, nil, fmt.Errorf("unsupported resolver %q", group.language)
 		}
-		groupFacts, groupDiagnostics, err := definition.resolveWorkspace(root, group.projectID, group.contributions)
+		groupFacts, groupDiagnostics, err := definition.resolveWorkspace(root, group.projectID, group.contributions, byLanguage[group.language])
 		if err != nil {
 			return graph.Facts{}, nil, err
 		}
@@ -777,14 +782,15 @@ func resolveJavaScriptProjectionPages(ctx context.Context, store resolverStore, 
 	return facts, diagnostics, nil
 }
 
-func resolveCSharpProjectionPages(ctx context.Context, store resolverStore, snapshot storage.Snapshot, projectID string, overrides map[string]extractedSource, deleted map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error) {
+func resolveCSharpProjectionPages(ctx context.Context, root string, store resolverStore, snapshot storage.Snapshot, projectID string, overrides map[string]extractedSource, deleted map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error) {
 	index := snapshotResolverIndex{store: store, snapshot: snapshot, overrides: overrides, deleted: deleted}
 	contributions := incrementalResolverContributions(projectID, "csharp", overrides, deleted)
+	referenced := workspace.CSharpReferencedProjects(root, projectID)
 	var facts graph.Facts
 	diagnostics := make([]extractor.Diagnostic, 0)
 	for len(contributions) > 0 {
 		pageSize := min(len(contributions), resolverProjectionPageSize)
-		resolution, err := csharp.ResolvePage(ctx, contributions[:pageSize], projectID, index)
+		resolution, err := csharp.ResolvePage(ctx, contributions[:pageSize], projectID, referenced, index)
 		if err != nil {
 			return graph.Facts{}, nil, err
 		}
