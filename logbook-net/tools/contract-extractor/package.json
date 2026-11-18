@@ -1,0 +1,11 @@
+{
+	"name": "contract-extractor",
+	"private": true,
+	"type": "module",
+	"description": "Extracts the TypeScript command and interface inventory that the .NET migration must match.",
+	"scripts": {
+		"extract": "bun run src/main.ts",
+		"check": "bun run src/main.ts --check",
+		"test": "bun test"
+	}
+}
