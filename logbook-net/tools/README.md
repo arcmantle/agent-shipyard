@@ -28,4 +28,4 @@ Object key order is ignored. Array order, JSON types, literal content hashes and
 
 ## Failures
 
-The recorder writes no golden file when a case fails: a failed setup step, an unexpected HTTP status or JSON-RPC error, an unresolved substitution, an unexpected exit code, or output that is not the declared kind. The tool exits with a non-zero code.
+The recorder writes no golden file when a case fails, and removes an older golden file for that case: a failed setup step, an unexpected HTTP status or JSON-RPC error, an unresolved substitution, an unexpected exit code, or output that is not the declared kind. The tool exits with a non-zero code.

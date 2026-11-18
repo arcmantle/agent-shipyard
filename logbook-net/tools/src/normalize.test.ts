@@ -27,3 +27,10 @@ test("differences that are not approved stay distinct", () => {
 	expect(normalize({ a: 1, b: 2 })).toBe(normalize({ b: 2, a: 1 }));
 	expect(normalize([REF, OTHER])).not.toBe(normalize([REF, REF]));
 });
+
+test("object keys are normalized and may not merge", () => {
+	const ref2 = "ISS_5B3MQT4H728DKSDBJC2H3ZQ96Y";
+	expect(createNormalizer()({ [REF]: 1 })).toEqual({ "<ref#1>": 1 });
+	expect(() => createNormalizer()({ "2026-01-01T00:00:00Z": 1, "2027-01-01T00:00:00Z": 2 })).toThrow(/merges/);
+	void ref2;
+});

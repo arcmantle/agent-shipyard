@@ -26,6 +26,7 @@ const server = Bun.serve({
 		calls.push({ method, params });
 		if (method === "bad") return Response.json({ jsonrpc: "2.0", id: 1, error: { code: -1, message: "nope" } }, { status: 200 });
 		if (method === "http500") return Response.json({}, { status: 500 });
+		if (method === "text401") return new Response("unauthorized", { status: 401 });
 		return Response.json({ jsonrpc: "2.0", id: 1, result: { id: "id-1", tenant: request.headers.get("authorization") } });
 	}
 });
@@ -75,4 +76,9 @@ test("case validation rejects bad cases", () => {
 	expect(() => validateCase({ id: "cli/x", surface: "rpc", steps: [{ method: "m" }] }, "f")).toThrow(CaseError);
 	expect(() => validateCase({ id: "cli/x", surface: "cli", workspace: { folder: "../x" }, argv: [], stdout: "json" }, "f")).toThrow(CaseError);
 	expect(() => validateCase({ id: "rpc/x", surface: "rpc", steps: [] }, "f")).toThrow(CaseError);
+});
+
+test("RPC recorder records an expected non-JSON error", async () => {
+	const result = (await recordRpc(rpc, rpcCase([{ method: "text401", expectError: true }]))) as { steps: { status: number; body: unknown }[] };
+	expect(result.steps[0]).toMatchObject({ status: 401, body: "unauthorized" });
 });

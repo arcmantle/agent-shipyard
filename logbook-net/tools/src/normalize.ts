@@ -38,7 +38,9 @@ export function createNormalizer(literals: Record<string, string> = {}) {
 		if (Array.isArray(value)) return value.map(normalize);
 		if (value && typeof value === "object") {
 			const sorted: Record<string, unknown> = {};
-			for (const key of Object.keys(value).sort()) sorted[key] = normalize((value as Record<string, unknown>)[key]);
+			const entries = Object.entries(value).map(([key, item]) => [normalizeString(key), item] as const);
+			if (new Set(entries.map(([key]) => key)).size !== entries.length) throw new Error("normalization merges two object keys");
+			for (const [key, item] of entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) sorted[key] = normalize(item);
 			return sorted;
 		}
 		return value;

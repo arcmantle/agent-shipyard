@@ -1,6 +1,6 @@
 // Records golden files from the TypeScript implementation.
 // Usage (from logbook-net/tools): bun src/record.ts [--out <dir>] [case-id-glob ...]
-import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadCases, type Case } from "./cases.ts";
@@ -64,6 +64,8 @@ try {
 			console.log(`recorded ${testCase.id}`);
 		} catch (error) {
 			failures++;
+			// A failed recording must not leave an older golden file that looks current.
+			rmSync(path.join(goldenRoot, `${testCase.id}.golden.json`), { force: true });
 			console.error(`FAILED ${testCase.id}: ${error instanceof RecordingError ? error.message : (error as Error).stack}`);
 		}
 	}

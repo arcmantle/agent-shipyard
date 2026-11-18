@@ -108,7 +108,12 @@ export async function recordRpc(target: RpcTarget, testCase: RpcCase): Promise<O
 				body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: step.method, params: substitute(step.params ?? {}, bindings) })
 			});
 			status = response.status;
-			body = await response.json();
+			const text = await response.text();
+			try {
+				body = JSON.parse(text);
+			} catch {
+				body = text;
+			}
 		} catch (error) {
 			if (error instanceof RecordingError) throw new RecordingError(`${label}: ${error.message}`);
 			throw new RecordingError(`${label}: request failed: ${(error as Error).message}`);
