@@ -229,3 +229,58 @@ func TestExtractReturnsLocalsInAccessorsAndPatterns(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractCatalogUnitsCoverDeclarationKinds(t *testing.T) {
+	source := "using Text = System.Text.StringBuilder;\nnamespace N;\n// Holds a widget.\npublic class Widget { public Widget() {} public int Size { get; set; } public void Run(int count) { var local = 1; } }\nstruct Point {}\ninterface IShape {}\nrecord Person(string Name);\nenum Color { Red }\ndelegate void Handler(int value);\n"
+	contribution, err := Extract(extractor.Source{ProjectID: "project:.", SourcePath: "A.cs", Contents: []byte(source)})
+	if err != nil {
+		t.Fatalf("extract C# source: %v", err)
+	}
+	units := map[string]extractor.CatalogUnit{}
+	for _, unit := range contribution.CatalogUnits() {
+		units[unit.Name+"/"+string(unit.Kind)] = unit
+	}
+	for _, key := range []string{"Widget/csharp:class", "Widget/csharp:constructor", "Run/csharp:method", "Point/csharp:struct", "IShape/csharp:interface", "Person/csharp:record", "Color/csharp:enum", "Handler/csharp:delegate"} {
+		unit, ok := units[key]
+		if !ok {
+			t.Errorf("catalog units = %+v, missing %s", units, key)
+			continue
+		}
+		if unit.Signature == "" || unit.DeclarationSource == "" {
+			t.Errorf("catalog unit %s = %+v, want signature and declaration source", key, unit)
+		}
+	}
+	for key, want := range map[string]string{"Color/csharp:enum": "enum Color", "Person/csharp:record": "record Person(string Name);", "Handler/csharp:delegate": "delegate void Handler(int value);", "Point/csharp:struct": "struct Point"} {
+		if got := units[key].Signature; got != want {
+			t.Errorf("%s signature = %q, want %q", key, got, want)
+		}
+	}
+	nodeSpans := map[string]int{}
+	for _, node := range contribution.Facts().Nodes {
+		nodeSpans[node.ID] = node.Evidence.Span.StartLine
+	}
+	if line := nodeSpans[units["Color/csharp:enum"].NodeID]; line != 8 {
+		t.Errorf("enum catalog node start line = %d, want 8", line)
+	}
+	for key := range units {
+		if strings.HasSuffix(key, "/csharp:namespace") || strings.HasSuffix(key, "/csharp:variable") || strings.HasSuffix(key, "/csharp:type_alias") {
+			t.Errorf("catalog unit %s present, want declarations only", key)
+		}
+	}
+	if got := units["Run/csharp:method"].Owner; got != "Widget" {
+		t.Errorf("method owner = %q, want Widget", got)
+	}
+	if got := units["Widget/csharp:constructor"].Owner; got != "Widget" {
+		t.Errorf("constructor owner = %q, want Widget", got)
+	}
+	if got := units["Widget/csharp:class"].Comments; len(got) != 1 || got[0] != "Holds a widget." {
+		t.Errorf("class comments = %v, want leading comment", got)
+	}
+	for _, name := range []string{"Size", "count", "Name", "local"} {
+		for key := range units {
+			if strings.HasPrefix(key, name+"/") {
+				t.Errorf("catalog unit %s present, want none for properties, parameters, or locals", key)
+			}
+		}
+	}
+}

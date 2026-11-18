@@ -2606,6 +2606,65 @@ func TestIndexCSharpDeclarationSetIsQueryable(t *testing.T) {
 	}
 }
 
+func TestIndexCSharpDeclarationsAreCatalogSearchable(t *testing.T) {
+	workspace := testkit.NewWorkspace(t, map[string]string{
+		"src/All.cs": "namespace Fixture;\n// Validates signed access tokens.\npublic class TokenValidator { public TokenValidator() {} public int Size { get; set; } public void Check(int count) {} }\nstruct TokenPoint {}\ninterface ITokenShape {}\nrecord TokenPerson(string Name);\nenum TokenColor { Red }\ndelegate void TokenHandler(int value);\n",
+	})
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, index.Request{Root: workspace.Root, ConfiguredRoots: []string{"."}, RetainCatalogUnits: true})
+	if err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+	if _, err := index.Catalog(context.Background(), store, index.CatalogRequest{Root: workspace.Root, Snapshot: snapshot}); err != nil {
+		t.Fatalf("build C# catalog: %v", err)
+	}
+	matches, err := store.SearchCatalog(context.Background(), snapshot, storage.CatalogSearchRequest{Text: "token", Limit: 20})
+	if err != nil {
+		t.Fatalf("search C# catalog: %v", err)
+	}
+	found := map[string]string{}
+	for _, match := range matches {
+		found[match.Node.Label] = string(match.Node.Kind)
+		if match.Node.Evidence.Span.Path != "src/All.cs" || match.Node.Evidence.Span.StartLine < 1 {
+			t.Errorf("catalog match %q span = %+v, want a location in src/All.cs", match.Node.Label, match.Node.Evidence.Span)
+		}
+	}
+	if line := catalogStartLine(matches, "TokenColor"); line != 7 {
+		t.Errorf("TokenColor start line = %d, want 7", line)
+	}
+	want := map[string]string{
+		"TokenValidator": "csharp:class",
+		"TokenPoint":     "csharp:struct",
+		"ITokenShape":    "csharp:interface",
+		"TokenPerson":    "csharp:record",
+		"TokenColor":     "csharp:enum",
+		"TokenHandler":   "csharp:delegate",
+	}
+	for name, kind := range want {
+		if found[name] != kind {
+			t.Errorf("catalog match %q kind = %q, want %q; matches = %+v", name, found[name], kind, found)
+		}
+	}
+	for _, name := range []string{"Size", "count", "Name"} {
+		if kind, ok := found[name]; ok {
+			t.Errorf("catalog contains %q (%s), want no property or parameter entry", name, kind)
+		}
+	}
+}
+
+func catalogStartLine(matches []storage.CatalogMatch, label string) int {
+	for _, match := range matches {
+		if match.Node.Label == label {
+			return match.Node.Evidence.Span.StartLine
+		}
+	}
+	return 0
+}
+
 func TestIndexCSharpVariableFactsAreQueryable(t *testing.T) {
 	workspace := testkit.NewWorkspace(t, map[string]string{
 		"src/Vars.cs": "namespace Fixture;\nclass Widget\n{\n    int size;\n    const int Limit = 3;\n    int Prop { get; set; }\n    void Run(int parameter) { var local = 1; }\n}\n",

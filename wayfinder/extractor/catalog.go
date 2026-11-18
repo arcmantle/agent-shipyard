@@ -49,7 +49,11 @@ func isCatalogKind(kind graph.NodeKind) bool {
 		strings.HasSuffix(string(kind), ":struct") ||
 		strings.HasSuffix(string(kind), ":class") ||
 		strings.HasSuffix(string(kind), ":interface") ||
-		strings.HasSuffix(string(kind), ":method")
+		strings.HasSuffix(string(kind), ":method") ||
+		strings.HasSuffix(string(kind), ":record") ||
+		strings.HasSuffix(string(kind), ":enum") ||
+		strings.HasSuffix(string(kind), ":delegate") ||
+		strings.HasSuffix(string(kind), ":constructor")
 }
 
 func (unit CatalogUnit) DeterministicSynopsis() string {
@@ -172,7 +176,7 @@ func identifierTokens(identifier string) []string {
 }
 
 func catalogUnitOwner(node graph.Node) string {
-	if !strings.HasSuffix(string(node.Kind), ":method") {
+	if !strings.HasSuffix(string(node.Kind), ":method") && !strings.HasSuffix(string(node.Kind), ":constructor") {
 		return ""
 	}
 	qualifiedName := node.QualifiedName
