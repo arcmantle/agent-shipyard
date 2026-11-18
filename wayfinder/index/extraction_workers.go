@@ -11,6 +11,7 @@ import (
 	ts_extractor "agent-wayfinder/extractors/typescript"
 	"agent-wayfinder/graph"
 	"agent-wayfinder/storage"
+	"agent-wayfinder/workspace"
 )
 
 type extractionWorker interface {
@@ -21,7 +22,11 @@ type extractionWorker interface {
 type extractionWorkerFactory func() (extractionWorker, error)
 type directExtractor func(extractor.Source) (extractor.Contribution, error)
 type vocabularyFactory func() (graph.Vocabulary, error)
-type workspaceResolver func(string, string, []extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error)
+
+// workspaceResolver resolves one project's contributions. The last argument
+// holds every contribution of the language by project ID, for languages whose
+// projects link to one another.
+type workspaceResolver func(string, string, []extractor.Contribution, map[string][]extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error)
 type projectionPageResolver func(context.Context, string, string, []extractor.Contribution, extractor.ResolverIndex) (graph.Facts, []extractor.Diagnostic, error)
 type incrementalProjectionResolver func(context.Context, string, resolverStore, storage.Snapshot, string, map[string]extractedSource, map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error)
 
@@ -42,16 +47,20 @@ var indexLanguages = map[string]indexLanguage{
 		},
 		extract:    cs_extractor.Extract,
 		vocabulary: func() (graph.Vocabulary, error) { return cs_extractor.New().Vocabulary() },
-		resolveWorkspace: func(_ string, _ string, contributions []extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
-			resolution, err := cs_extractor.Resolve(contributions)
+		resolveWorkspace: func(root, projectID string, contributions []extractor.Contribution, language map[string][]extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
+			var referenced []extractor.Contribution
+			for _, referencedID := range workspace.CSharpReferencedProjects(root, projectID) {
+				referenced = append(referenced, language[referencedID]...)
+			}
+			resolution, err := cs_extractor.Resolve(contributions, referenced)
 			return resolution.Facts(), resolution.Diagnostics(), err
 		},
-		resolveProjectionPage: func(ctx context.Context, _ string, projectID string, contributions []extractor.Contribution, index extractor.ResolverIndex) (graph.Facts, []extractor.Diagnostic, error) {
-			resolution, err := cs_extractor.ResolvePage(ctx, contributions, projectID, index)
+		resolveProjectionPage: func(ctx context.Context, root string, projectID string, contributions []extractor.Contribution, index extractor.ResolverIndex) (graph.Facts, []extractor.Diagnostic, error) {
+			resolution, err := cs_extractor.ResolvePage(ctx, contributions, projectID, workspace.CSharpReferencedProjects(root, projectID), index)
 			return resolution.Facts(), resolution.Diagnostics(), err
 		},
-		resolveIncrementalProjections: func(ctx context.Context, _ string, store resolverStore, snapshot storage.Snapshot, projectID string, overrides map[string]extractedSource, deleted map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error) {
-			return resolveCSharpProjectionPages(ctx, store, snapshot, projectID, overrides, deleted)
+		resolveIncrementalProjections: func(ctx context.Context, root string, store resolverStore, snapshot storage.Snapshot, projectID string, overrides map[string]extractedSource, deleted map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error) {
+			return resolveCSharpProjectionPages(ctx, root, store, snapshot, projectID, overrides, deleted)
 		},
 	},
 	"go": {
@@ -60,7 +69,7 @@ var indexLanguages = map[string]indexLanguage{
 		},
 		extract:    go_extractor.Extract,
 		vocabulary: func() (graph.Vocabulary, error) { return go_extractor.New().Vocabulary() },
-		resolveWorkspace: func(root, projectID string, contributions []extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
+		resolveWorkspace: func(root, projectID string, contributions []extractor.Contribution, _ map[string][]extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
 			view, err := goResolverFileView(root, projectID)
 			if err != nil {
 				return graph.Facts{}, nil, err
@@ -90,7 +99,7 @@ var indexLanguages = map[string]indexLanguage{
 		},
 		extract:    js_extractor.Extract,
 		vocabulary: func() (graph.Vocabulary, error) { return js_extractor.New().Vocabulary() },
-		resolveWorkspace: func(_ string, _ string, contributions []extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
+		resolveWorkspace: func(_ string, _ string, contributions []extractor.Contribution, _ map[string][]extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
 			resolution, err := js_extractor.Resolve(contributions)
 			return resolution.Facts(), resolution.Diagnostics(), err
 		},
@@ -108,7 +117,7 @@ var indexLanguages = map[string]indexLanguage{
 		},
 		extract:    ts_extractor.Extract,
 		vocabulary: func() (graph.Vocabulary, error) { return ts_extractor.New().Vocabulary() },
-		resolveWorkspace: func(_ string, _ string, contributions []extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
+		resolveWorkspace: func(_ string, _ string, contributions []extractor.Contribution, _ map[string][]extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
 			resolution, err := ts_extractor.Resolve(contributions)
 			return resolution.Facts(), resolution.Diagnostics(), err
 		},
