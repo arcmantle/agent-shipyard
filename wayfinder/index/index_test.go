@@ -2606,6 +2606,43 @@ func TestIndexCSharpDeclarationSetIsQueryable(t *testing.T) {
 	}
 }
 
+func TestIndexCSharpVariableFactsAreQueryable(t *testing.T) {
+	workspace := testkit.NewWorkspace(t, map[string]string{
+		"src/Vars.cs": "namespace Fixture;\nclass Widget\n{\n    int size;\n    const int Limit = 3;\n    int Prop { get; set; }\n    void Run(int parameter) { var local = 1; }\n}\n",
+	})
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, index.Request{Root: workspace.Root, ConfiguredRoots: []string{"."}})
+	if err != nil {
+		t.Fatalf("publish C# workspace: %v", err)
+	}
+	for name, qualifiedName := range map[string]string{
+		"size":  "src/Vars.cs::Fixture.Widget.size",
+		"Limit": "src/Vars.cs::Fixture.Widget.Limit",
+		"local": "src/Vars.cs::Fixture.Widget.Run.local",
+	} {
+		result, err := query.ExecuteGraphQuerySnapshot(context.Background(), store, snapshot, mustParseGraphQuery(t, fmt.Sprintf(`MATCH (node {name: %q}) RETURN node.qualifiedName, node.kind LIMIT 5`, name)), query.GraphQueryLimits{MaxDepth: 2, MaxNodes: 20}, query.GraphQueryOptions{})
+		if err != nil {
+			t.Fatalf("query C# variable %q: %v", name, err)
+		}
+		if !slices.ContainsFunc(result.Rows, func(row []any) bool { return row[0] == qualifiedName && row[1] == "csharp:variable" }) {
+			t.Errorf("query rows for %q = %+v, want csharp:variable %q", name, result.Rows, qualifiedName)
+		}
+	}
+	for _, name := range []string{"Prop", "parameter"} {
+		result, err := query.ExecuteGraphQuerySnapshot(context.Background(), store, snapshot, mustParseGraphQuery(t, fmt.Sprintf(`MATCH (node {name: %q}) RETURN node.qualifiedName LIMIT 5`, name)), query.GraphQueryLimits{MaxDepth: 2, MaxNodes: 20}, query.GraphQueryOptions{})
+		if err != nil {
+			t.Fatalf("query C# name %q: %v", name, err)
+		}
+		if len(result.Rows) != 0 {
+			t.Errorf("query rows for %q = %+v, want none", name, result.Rows)
+		}
+	}
+}
+
 const csharpDeclarationFixture = "using Text = System.Text.StringBuilder;\nnamespace Fixture;\npublic class Widget { public Widget() {} public int Size { get; set; } public void Run(int count) {} }\nstruct Point {}\ninterface IShape {}\nrecord Person(string Name);\nenum Color { Red }\ndelegate void Handler(int value);\n"
 
 func mustParseGraphQuery(t *testing.T, source string) query.GraphQuery {
