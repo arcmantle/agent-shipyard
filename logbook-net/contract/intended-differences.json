@@ -1,0 +1,19 @@
+[
+	{
+		"id": "command-name",
+		"cases": "cli/*-help",
+		"path": "/stdout",
+		"action": "rewrite",
+		"match": "agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases)."
+	},
+	{
+		"id": "no-sqlite-db-option",
+		"cases": "cli/*-help",
+		"path": "/stdout",
+		"action": "remove-line",
+		"match": "SQLite",
+		"reason": "The SQLite backend and the --db option are removed (Local backend without SQLite)."
+	}
+]

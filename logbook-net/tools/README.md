@@ -54,3 +54,29 @@ Object key order is ignored. Array order, JSON types, literal content hashes and
 ### Failures
 
 The recorder writes no golden file when a case fails, and removes an older golden file for that case: a failed setup step, an unexpected HTTP status or JSON-RPC error, an unresolved substitution, an unexpected exit code, or output that is not the declared kind. The tool exits with a non-zero code.
+
+## Differ
+
+Compares a candidate (.NET) implementation with the recorded TypeScript results. Both modes use one code path (`src/differ.ts`); only the source of the expectation differs.
+
+```sh
+cd logbook-net/tools
+bun src/parity.ts check --candidate-cli "<command>" --candidate-url <url> [case-id-glob ...]   # golden files; no TypeScript needed
+bun src/parity.ts diff  --candidate-cli "<command>" --candidate-url <url> [case-id-glob ...]   # live TypeScript run; local investigation
+```
+
+Options: `--candidate-token` (omit for no-auth mode), `--candidate-tenant` (default: a new tenant for each case), `--rules <file>`, `--fail-on-unused`. The candidate runs through the recorder, so it gets the same clean environment and normalization as the recording.
+
+- A case passes only when the candidate observation equals the expected one. Each difference is listed with its JSON Pointer. Array order, JSON type, literal content hashes, HTTP status, exit code, stdout, stderr, and `null` versus absent all count. Object key order does not.
+- A candidate that fails to run (exit code other than the case expects, output that is not the declared kind, timeout, no server) is reported as `ERROR` for that case. The other cases still run. The tool exits with a non-zero code when any case does not pass.
+- `diff` needs the same setup as the recorder (built `logbook/` packages and PostgreSQL).
+
+### Intended differences
+
+`contract/intended-differences.json` holds the approved differences. A rule has `id`, `cases` (glob), `path` (JSON Pointer to one string), `action` (`rewrite` or `remove-line`), `match` (regular expression), `replace` (rewrite only), and `reason`.
+
+- A rule changes the legacy expectation only. The candidate is never changed, so a rule cannot approve a candidate defect. Rules touch string values only, so they cannot hide a status, exit code, type, or `null` difference.
+- Rules must be narrow. The tool rejects a rule when the `cases` glob does not name a surface and part of a case name (`cli/*` is rejected, `cli/*-help` is allowed), the path is not a pointer to one value, or the `match` pattern matches common text such as an empty string, a space, or one letter.
+- The report lists the cases that each rule changed. A rule that changed no case is reported as `UNUSED` (only when all cases ran); `--fail-on-unused` makes that a failure.
+
+Limits: values are compared after `JSON.parse`, so `1` and `1.0` are equal and integers above 2^53 lose precision. `-0` and `0` differ. `--candidate-tenant` makes all cases share one tenant, so data can carry over between cases.
