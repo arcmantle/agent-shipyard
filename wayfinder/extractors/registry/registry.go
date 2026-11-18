@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"agent-wayfinder/extractor"
+	"agent-wayfinder/extractors/csharp"
 	goextractor "agent-wayfinder/extractors/go"
 	"agent-wayfinder/extractors/javascript"
 	"agent-wayfinder/extractors/typescript"
@@ -15,7 +16,7 @@ type Registry struct {
 }
 
 func Default() (Registry, error) {
-	return New(goextractor.New(), javascript.New(), typescript.New())
+	return New(goextractor.New(), javascript.New(), typescript.New(), csharp.New())
 }
 
 func New(extractors ...extractor.Extractor) (Registry, error) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"agent-wayfinder/extractor"
+	cs_extractor "agent-wayfinder/extractors/csharp"
 	go_extractor "agent-wayfinder/extractors/go"
 	js_extractor "agent-wayfinder/extractors/javascript"
 	ts_extractor "agent-wayfinder/extractors/typescript"
@@ -35,6 +36,24 @@ type indexLanguage struct {
 
 // indexLanguages is the single registration point for index language behavior.
 var indexLanguages = map[string]indexLanguage{
+	"csharp": {
+		newWorker: func() (extractionWorker, error) {
+			return cs_extractor.NewWorker()
+		},
+		extract:    cs_extractor.Extract,
+		vocabulary: func() (graph.Vocabulary, error) { return cs_extractor.New().Vocabulary() },
+		resolveWorkspace: func(_ string, _ string, contributions []extractor.Contribution) (graph.Facts, []extractor.Diagnostic, error) {
+			resolution, err := cs_extractor.Resolve(contributions)
+			return resolution.Facts(), resolution.Diagnostics(), err
+		},
+		resolveProjectionPage: func(ctx context.Context, _ string, projectID string, contributions []extractor.Contribution, index extractor.ResolverIndex) (graph.Facts, []extractor.Diagnostic, error) {
+			resolution, err := cs_extractor.ResolvePage(ctx, contributions, projectID, index)
+			return resolution.Facts(), resolution.Diagnostics(), err
+		},
+		resolveIncrementalProjections: func(ctx context.Context, _ string, store resolverStore, snapshot storage.Snapshot, projectID string, overrides map[string]extractedSource, deleted map[string]struct{}) (graph.Facts, []extractor.Diagnostic, error) {
+			return resolveCSharpProjectionPages(ctx, store, snapshot, projectID, overrides, deleted)
+		},
+	},
 	"go": {
 		newWorker: func() (extractionWorker, error) {
 			return go_extractor.NewWorker()

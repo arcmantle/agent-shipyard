@@ -351,7 +351,7 @@ func projectID(root string) string {
 
 func supportedSource(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".go", ".js", ".jsx", ".ts", ".tsx":
+	case ".cs", ".go", ".js", ".jsx", ".ts", ".tsx":
 		return true
 	default:
 		return false

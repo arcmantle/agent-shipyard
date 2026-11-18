@@ -388,3 +388,20 @@ func TestDiscoverNestedGitignoreRestoresFileIgnoredByAncestorPattern(t *testing.
 		t.Errorf("sources = %#v, want %#v", discovery.Sources, want)
 	}
 }
+
+func TestDiscoverIncludesCSharpSourcesUnderConfiguredRoots(t *testing.T) {
+	fixture := testkit.NewWorkspace(t, map[string]string{
+		"src/Widget.cs":  "class Widget {}\n",
+		"src/script.csx": "var x = 1;\n",
+	})
+
+	discovery, err := workspace.Discover(fixture.Root, workspace.DiscoverOptions{ConfiguredRoots: []string{"."}})
+	if err != nil {
+		t.Fatalf("discover workspace: %v", err)
+	}
+
+	want := []workspace.Source{{Path: "src/Widget.cs", ProjectID: "project:."}}
+	if !reflect.DeepEqual(discovery.Sources, want) {
+		t.Errorf("sources = %#v, want %#v", discovery.Sources, want)
+	}
+}
