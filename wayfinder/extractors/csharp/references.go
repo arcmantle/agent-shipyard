@@ -2,19 +2,22 @@ package csharp
 
 import (
 	"agent-wayfinder/extractor"
+	"agent-wayfinder/graph"
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 // collectReferences records the syntax-level type references and call sites in
-// a declaration's own code. Nested declarations own their code, and base lists
-// are left to type-relationship extraction.
+// a declaration's own code, and the base types its base list names. Nested
+// declarations own their code, and base lists are not scanned for ordinary
+// references.
 func collectReferences(source extractor.Source, declaration *sitter.Node, ownerID string, references *[]extractor.SymbolReference) {
 	switch declaration.Kind() {
 	case "class_declaration", "struct_declaration", "interface_declaration", "record_declaration", "record_struct_declaration", "delegate_declaration", "method_declaration", "constructor_declaration":
 	default:
 		return
 	}
+	collectBaseTypes(source, declaration, ownerID, references)
 	variables := variableTypes(source, declaration)
 	localFunctions := localFunctionNames(source, declaration)
 	var visit func(*sitter.Node)
@@ -274,4 +277,46 @@ func localFunctionNames(source extractor.Source, declaration *sitter.Node) map[s
 	}
 	visit(declaration)
 	return names
+}
+
+// collectBaseTypes records one fact per type a declaration's base list names.
+// Syntax alone tells only some relations apart. Interfaces inherit interfaces,
+// and structs implement them. For a class or record the first entry may be a
+// base type or an interface, so the fact is a BaseTypeRelation that resolution
+// turns into an extends or implements edge from the kind of the resolved target.
+// Qualified names with an alias qualifier and other unsupported forms are skipped.
+func collectBaseTypes(source extractor.Source, declaration *sitter.Node, ownerID string, references *[]extractor.SymbolReference) {
+	var relation graph.RelationKind
+	switch declaration.Kind() {
+	case "class_declaration", "record_declaration":
+		relation = BaseTypeRelation
+		if hasToken(declaration, "struct") {
+			// A `record struct` has no base type.
+			relation = ImplementsRelation
+		}
+	case "struct_declaration", "record_struct_declaration":
+		relation = ImplementsRelation
+	case "interface_declaration":
+		relation = ExtendsRelation
+	default:
+		return
+	}
+	for index := uint(0); index < declaration.NamedChildCount(); index++ {
+		list := declaration.NamedChild(index)
+		if list.Kind() != "base_list" {
+			continue
+		}
+		for entryIndex := uint(0); entryIndex < list.NamedChildCount(); entryIndex++ {
+			entry := list.NamedChild(entryIndex)
+			if entry.Kind() == "primary_constructor_base_type" {
+				entry = entry.NamedChild(0)
+			}
+			if entry == nil {
+				continue
+			}
+			if target, found := typeName(source, entry); found {
+				*references = append(*references, extractor.SymbolReference{SourceID: ownerID, Target: target, Relation: relation, Evidence: evidenceFor(source, entry)})
+			}
+		}
+	}
 }
