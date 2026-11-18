@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>AgentLogbook.Cli</AssemblyName>
+    <RootNamespace>AgentLogbook.Cli</RootNamespace>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>agent-logbook</ToolCommandName>
+    <PackageId>Arcmantle.AgentLogbook</PackageId>
+    <Authors>Arcmantle</Authors>
+    <Description>Agent Logbook command line tool.</Description>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/packages</PackageOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentLogbook.Cli.Tests" />
+  </ItemGroup>
+</Project>
