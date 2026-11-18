@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -103,6 +104,9 @@ func DiscoverStream(ctx context.Context, root string, options DiscoverOptions, e
 		if projectManifest(filepath.Base(path)) {
 			projectRoots = append(projectRoots, projectRoot(relativePath))
 		}
+		if strings.EqualFold(filepath.Ext(path), ".sln") {
+			projectRoots = append(projectRoots, solutionProjectRoots(workspaceRoot, relativePath, sourceRules)...)
+		}
 		return nil
 	}); err != nil {
 		return nil, 0, fmt.Errorf("walk workspace for projects: %w", err)
@@ -169,6 +173,10 @@ func sourceExcluded(sourcePath string, rules sourceRules) bool {
 		return true
 	}
 	if gitIgnored(sourcePath, rules.gitIgnores) {
+		return true
+	}
+
+	if csharpBuildOrGenerated(sourcePath) {
 		return true
 	}
 
@@ -300,8 +308,55 @@ func projectManifest(name string) bool {
 	case "go.mod", "package.json", "tsconfig.json", "jsconfig.json":
 		return true
 	default:
+		return strings.EqualFold(filepath.Ext(name), ".csproj")
+	}
+}
+
+var solutionProjectPattern = regexp.MustCompile(`(?m)^\s*Project\("[^"]*"\)\s*=\s*"[^"]*"\s*,\s*"([^"]+)"`)
+
+// solutionProjectRoots returns the directories of the local .csproj projects
+// listed in a .sln file. The solution directory is not itself a project root.
+func solutionProjectRoots(workspaceRoot, solutionPath string, rules sourceRules) []string {
+	contents, err := os.ReadFile(filepath.Join(workspaceRoot, filepath.FromSlash(solutionPath)))
+	if err != nil {
+		return nil
+	}
+	roots := make([]string, 0)
+	for _, match := range solutionProjectPattern.FindAllStringSubmatch(string(contents), -1) {
+		projectPath := path.Join(path.Dir(solutionPath), strings.ReplaceAll(match[1], `\`, "/"))
+		if !strings.EqualFold(path.Ext(projectPath), ".csproj") || projectPath == ".." || strings.HasPrefix(projectPath, "../") {
+			continue
+		}
+		if nonSourcePathExcluded(projectPath, rules) {
+			continue
+		}
+		if info, err := os.Stat(filepath.Join(workspaceRoot, filepath.FromSlash(projectPath))); err != nil || info.IsDir() {
+			continue
+		}
+		roots = append(roots, projectRoot(projectPath))
+	}
+	return roots
+}
+
+// csharpBuildOrGenerated reports whether a .cs path is build output (bin or
+// obj directories) or conventionally generated source.
+func csharpBuildOrGenerated(sourcePath string) bool {
+	if !strings.EqualFold(path.Ext(sourcePath), ".cs") {
 		return false
 	}
+	components := strings.Split(sourcePath, "/")
+	for _, component := range components[:len(components)-1] {
+		if strings.EqualFold(component, "bin") || strings.EqualFold(component, "obj") {
+			return true
+		}
+	}
+	name := strings.ToLower(components[len(components)-1])
+	for _, suffix := range []string{".g.cs", ".g.i.cs", ".generated.cs", ".designer.cs"} {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return strings.HasPrefix(name, "temporarygeneratedfile_")
 }
 
 func normalizeRoot(workspaceRoot, root string) (string, error) {

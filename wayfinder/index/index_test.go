@@ -2570,3 +2570,56 @@ func mustParseGraphQuery(t *testing.T, source string) query.GraphQuery {
 	}
 	return parsed
 }
+
+func TestIndexCSharpSolutionIndexesOnlyOwnedSourcesWithoutSymbolLinks(t *testing.T) {
+	workspace := testkit.NewWorkspace(t, map[string]string{
+		"App.sln": "Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"App\", \"src\\App\\App.csproj\", \"{1}\"\nEndProject\n" +
+			"Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Lib\", \"src\\Lib\\Lib.csproj\", \"{2}\"\nEndProject\n",
+		"src/App/App.csproj":        "<Project />\n",
+		"src/App/Program.cs":        "namespace App;\n\npublic class Program {}\n",
+		"src/App/Program.csx":       "class Script {}\n",
+		"src/App/Model.g.cs":        "class GeneratedModel {}\n",
+		"src/App/obj/Debug/Temp.cs": "class BuildOutput {}\n",
+		"src/Lib/Lib.csproj":        "<Project />\n",
+		"src/Lib/Service.cs":        "namespace Lib;\n\npublic class Service {}\n",
+	})
+	store, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatalf("open graph store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	snapshot, err := index.Publish(context.Background(), store, index.Request{Root: workspace.Root})
+	if err != nil {
+		t.Fatalf("publish C# solution: %v", err)
+	}
+
+	facts := &factCollector{}
+	if err := store.Export(context.Background(), snapshot, storage.ExportRequest{}, facts); err != nil {
+		t.Fatalf("export graph: %v", err)
+	}
+	labels := make([]string, 0)
+	for _, node := range facts.nodes {
+		labels = append(labels, node.Label)
+	}
+	for _, want := range []string{"Program", "Service"} {
+		if !slices.Contains(labels, want) {
+			t.Errorf("node labels = %v, want %s", labels, want)
+		}
+	}
+	for _, unwanted := range []string{"Script", "GeneratedModel", "BuildOutput"} {
+		if slices.Contains(labels, unwanted) {
+			t.Errorf("node labels = %v, want no %s", labels, unwanted)
+		}
+	}
+	ids := make(map[string]bool)
+	for _, node := range facts.nodes {
+		if node.Label == "Program" || node.Label == "Service" {
+			ids[node.ID] = true
+		}
+	}
+	for _, edge := range facts.edges {
+		if ids[edge.SourceID] && ids[edge.TargetID] {
+			t.Errorf("solution membership created a symbol link: %+v", edge)
+		}
+	}
+}
