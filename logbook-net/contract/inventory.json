@@ -1,0 +1,6858 @@
+{
+	"inventoryVersion": 1,
+	"cli": {
+		"commands": [
+			{
+				"id": "cli:(default)",
+				"path": [],
+				"class": "FallbackCommand",
+				"family": "fallback",
+				"source": "logbook/packages/cli/src/cli/commands/fallback.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "commandName",
+						"name": "command",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": false,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:agent init",
+				"path": [
+					"agent",
+					"init"
+				],
+				"class": "AgentInitCommand",
+				"family": "plugin",
+				"source": "logbook/packages/cli/src/cli/commands/plugin.ts",
+				"options": [
+					{
+						"property": "host",
+						"names": [
+							"--host"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:archive",
+				"path": [
+					"archive"
+				],
+				"class": "ArchiveCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:auth list",
+				"path": [
+					"auth",
+					"list"
+				],
+				"class": "AuthListCommand",
+				"family": "auth",
+				"source": "logbook/packages/cli/src/cli/commands/auth.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:auth login",
+				"path": [
+					"auth",
+					"login"
+				],
+				"class": "AuthLoginCommand",
+				"family": "auth",
+				"source": "logbook/packages/cli/src/cli/commands/auth.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "name",
+						"names": [
+							"--name"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "serviceUrl",
+						"names": [
+							"--url"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:auth logout",
+				"path": [
+					"auth",
+					"logout"
+				],
+				"class": "AuthLogoutCommand",
+				"family": "auth",
+				"source": "logbook/packages/cli/src/cli/commands/auth.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:auth status",
+				"path": [
+					"auth",
+					"status"
+				],
+				"class": "AuthStatusCommand",
+				"family": "auth",
+				"source": "logbook/packages/cli/src/cli/commands/auth.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:auth switch",
+				"path": [
+					"auth",
+					"switch"
+				],
+				"class": "AuthSwitchCommand",
+				"family": "auth",
+				"source": "logbook/packages/cli/src/cli/commands/auth.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:backfill-bodies",
+				"path": [
+					"backfill-bodies"
+				],
+				"class": "BackfillBodiesCommand",
+				"family": "backfill",
+				"source": "logbook/packages/cli/src/cli/commands/backfill.ts",
+				"options": [
+					{
+						"property": "allTenants",
+						"names": [
+							"--all-tenants"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dryRun",
+						"names": [
+							"--dry-run"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "force",
+						"names": [
+							"--force"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "kinds",
+						"names": [
+							"--kinds"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:capabilities",
+				"path": [
+					"capabilities"
+				],
+				"class": "CapabilitiesCommand",
+				"family": "meta",
+				"source": "logbook/packages/cli/src/cli/commands/meta.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:cloud migrate",
+				"path": [
+					"cloud",
+					"migrate"
+				],
+				"class": "CloudMigrateCommand",
+				"family": "cloud",
+				"source": "logbook/packages/cli/src/cli/commands/cloud-migrate.ts",
+				"options": [
+					{
+						"property": "dryRun",
+						"names": [
+							"--dry-run"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": false,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:comment",
+				"path": [
+					"comment"
+				],
+				"class": "IssueCommentCommand",
+				"family": "comments",
+				"source": "logbook/packages/cli/src/cli/commands/comments.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:comment add",
+				"path": [
+					"comment",
+					"add"
+				],
+				"class": "AddIssueCommentCommand",
+				"family": "comments",
+				"source": "logbook/packages/cli/src/cli/commands/comments.ts",
+				"options": [
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "references",
+						"names": [
+							"--reference"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:comment delete",
+				"path": [
+					"comment",
+					"delete"
+				],
+				"class": "DeleteIssueCommentCommand",
+				"family": "comments",
+				"source": "logbook/packages/cli/src/cli/commands/comments.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:comment edit",
+				"path": [
+					"comment",
+					"edit"
+				],
+				"class": "EditIssueCommentCommand",
+				"family": "comments",
+				"source": "logbook/packages/cli/src/cli/commands/comments.ts",
+				"options": [
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "references",
+						"names": [
+							"--reference"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:comment history",
+				"path": [
+					"comment",
+					"history"
+				],
+				"class": "IssueCommentHistoryCommand",
+				"family": "comments",
+				"source": "logbook/packages/cli/src/cli/commands/comments.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:comment list",
+				"path": [
+					"comment",
+					"list"
+				],
+				"class": "ListIssueCommentsCommand",
+				"family": "comments",
+				"source": "logbook/packages/cli/src/cli/commands/comments.ts",
+				"options": [
+					{
+						"property": "all",
+						"names": [
+							"--all"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "before",
+						"names": [
+							"--before"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:context",
+				"path": [
+					"context"
+				],
+				"class": "ContextCommand",
+				"family": "context",
+				"source": "logbook/packages/cli/src/cli/commands/context.ts",
+				"options": [
+					{
+						"property": "avoid",
+						"names": [
+							"--avoid"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "query",
+						"names": [
+							"--query"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "scope",
+						"names": [
+							"--scope"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "termsOnly",
+						"names": [
+							"--terms-only"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "title",
+						"names": [
+							"--title"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "view",
+						"names": [
+							"--view"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:create",
+				"path": [
+					"create"
+				],
+				"class": "CreateCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "category",
+						"names": [
+							"--category"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "links",
+						"names": [
+							"--link"
+						],
+						"arity": 2,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "parent",
+						"names": [
+							"--parent"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "priority",
+						"names": [
+							"--priority"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "statusValue",
+						"names": [
+							"--status"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "title",
+						"names": [
+							"--title"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "entityType",
+						"names": [
+							"--type"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:current-tenant",
+				"path": [
+					"current-tenant"
+				],
+				"class": "CurrentTenantCommand",
+				"family": "tenants",
+				"source": "logbook/packages/cli/src/cli/commands/tenants.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:daemon",
+				"path": [
+					"daemon"
+				],
+				"class": "DaemonCommand",
+				"family": "daemon",
+				"source": "logbook/packages/cli/src/cli/commands/daemon.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "restart",
+						"names": [
+							"--restart"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "stop",
+						"names": [
+							"--stop"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": false,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:delete",
+				"path": [
+					"delete"
+				],
+				"class": "DeleteCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:delete-tenant",
+				"path": [
+					"delete-tenant"
+				],
+				"class": "DeleteTenantCommand",
+				"family": "tenants",
+				"source": "logbook/packages/cli/src/cli/commands/tenants.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "force",
+						"names": [
+							"--force"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:edit",
+				"path": [
+					"edit"
+				],
+				"class": "EditCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "category",
+						"names": [
+							"--category"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "priority",
+						"names": [
+							"--priority"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "title",
+						"names": [
+							"--title"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "entityType",
+						"names": [
+							"--type"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:export",
+				"path": [
+					"export"
+				],
+				"class": "ExportCommand",
+				"family": "export",
+				"source": "logbook/packages/cli/src/cli/commands/export.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "force",
+						"names": [
+							"--force"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "includeInstructions",
+						"names": [
+							"--include-instructions"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "output",
+						"names": [
+							"--output"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "singleFile",
+						"names": [
+							"--single-file"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:help",
+				"path": [
+					"help"
+				],
+				"class": "HelpCommand",
+				"family": "meta",
+				"source": "logbook/packages/cli/src/cli/commands/meta.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:history",
+				"path": [
+					"history"
+				],
+				"class": "HistoryCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "contextScope",
+						"names": [
+							"--context"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "revisionValue",
+						"names": [
+							"--revision"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "term",
+						"names": [
+							"--term"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:import",
+				"path": [
+					"import"
+				],
+				"class": "ImportCommand",
+				"family": "export",
+				"source": "logbook/packages/cli/src/cli/commands/export.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "force",
+						"names": [
+							"--force"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "includeInstructions",
+						"names": [
+							"--include-instructions"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:init",
+				"path": [
+					"init"
+				],
+				"class": "InitCommand",
+				"family": "tenants",
+				"source": "logbook/packages/cli/src/cli/commands/tenants.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction commit",
+				"path": [
+					"instruction",
+					"commit"
+				],
+				"class": "CommitInstructionChangesCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "inputFile",
+						"names": [
+							"--input-file"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction compare",
+				"path": [
+					"instruction",
+					"compare"
+				],
+				"class": "CompareInstructionSourceCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction dependencies",
+				"path": [
+					"instruction",
+					"dependencies"
+				],
+				"class": "InspectInstructionDependenciesCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction fragment create",
+				"path": [
+					"instruction",
+					"fragment",
+					"create"
+				],
+				"class": "CreateInstructionFragmentCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction fragment remove",
+				"path": [
+					"instruction",
+					"fragment",
+					"remove"
+				],
+				"class": "RemoveInstructionFragmentCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "expectedRevision",
+						"names": [
+							"--expected-revision"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction history",
+				"path": [
+					"instruction",
+					"history"
+				],
+				"class": "ListInstructionHistoryCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction list",
+				"path": [
+					"instruction",
+					"list"
+				],
+				"class": "ListInstructionSourcesCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction preview",
+				"path": [
+					"instruction",
+					"preview"
+				],
+				"class": "PreviewInstructionCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "inputFile",
+						"names": [
+							"--input-file"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction read",
+				"path": [
+					"instruction",
+					"read"
+				],
+				"class": "ReadInstructionSourceCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction reset",
+				"path": [
+					"instruction",
+					"reset"
+				],
+				"class": "ResetInstructionSourceCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "expectedRevision",
+						"names": [
+							"--expected-revision"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "confirmed",
+						"names": [
+							"--yes"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction reset-all",
+				"path": [
+					"instruction",
+					"reset-all"
+				],
+				"class": "ResetInstructionAllCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "inputFile",
+						"names": [
+							"--input-file"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "confirmed",
+						"names": [
+							"--yes"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction reset-all-inspect",
+				"path": [
+					"instruction",
+					"reset-all-inspect"
+				],
+				"class": "InspectInstructionResetAllCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction reset-inspect",
+				"path": [
+					"instruction",
+					"reset-inspect"
+				],
+				"class": "InspectInstructionResetCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction restore",
+				"path": [
+					"instruction",
+					"restore"
+				],
+				"class": "RestoreInstructionRevisionCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "expectedRevision",
+						"names": [
+							"--expected-revision"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "revision",
+						"names": [
+							"--revision"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction retrieve",
+				"path": [
+					"instruction",
+					"retrieve"
+				],
+				"class": "RetrieveInstructionCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction revision",
+				"path": [
+					"instruction",
+					"revision"
+				],
+				"class": "ReadInstructionRevisionCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "revision",
+						"names": [
+							"--revision"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:instruction save",
+				"path": [
+					"instruction",
+					"save"
+				],
+				"class": "SaveInstructionSourceCommand",
+				"family": "instructions",
+				"source": "logbook/packages/cli/src/cli/commands/instructions.ts",
+				"options": [
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "expectedRevision",
+						"names": [
+							"--expected-revision"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [
+					{
+						"property": "key",
+						"name": "key",
+						"required": true
+					}
+				],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:issue-breakdown",
+				"path": [
+					"issue-breakdown"
+				],
+				"class": "IssueBreakdownCommand",
+				"family": "issue-breakdowns",
+				"source": "logbook/packages/cli/src/cli/commands/issue-breakdowns.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:issue-breakdown approve",
+				"path": [
+					"issue-breakdown",
+					"approve"
+				],
+				"class": "ApproveIssueBreakdownCommand",
+				"family": "issue-breakdowns",
+				"source": "logbook/packages/cli/src/cli/commands/issue-breakdowns.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "snapshotDigest",
+						"names": [
+							"--snapshot-digest"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:issue-breakdown create",
+				"path": [
+					"issue-breakdown",
+					"create"
+				],
+				"class": "CreateIssueBreakdownCommand",
+				"family": "issue-breakdowns",
+				"source": "logbook/packages/cli/src/cli/commands/issue-breakdowns.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "inputFile",
+						"names": [
+							"--input-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:issue-breakdown latest",
+				"path": [
+					"issue-breakdown",
+					"latest"
+				],
+				"class": "LatestIssueBreakdownCommand",
+				"family": "issue-breakdowns",
+				"source": "logbook/packages/cli/src/cli/commands/issue-breakdowns.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:issue-breakdown show",
+				"path": [
+					"issue-breakdown",
+					"show"
+				],
+				"class": "ShowIssueBreakdownCommand",
+				"family": "issue-breakdowns",
+				"source": "logbook/packages/cli/src/cli/commands/issue-breakdowns.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:kanban",
+				"path": [
+					"kanban"
+				],
+				"class": "KanbanCommand",
+				"family": "kanban",
+				"source": "logbook/packages/cli/src/cli/commands/kanban.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "portValue",
+						"names": [
+							"--port"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "serve",
+						"names": [
+							"--serve"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "stop",
+						"names": [
+							"--stop"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": false,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:link",
+				"path": [
+					"link"
+				],
+				"class": "LinkCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:list",
+				"path": [
+					"list"
+				],
+				"class": "ListCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "limit",
+						"names": [
+							"--limit"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "parent",
+						"names": [
+							"--parent"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "statusValues",
+						"names": [
+							"--status"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:list-tenants",
+				"path": [
+					"list-tenants"
+				],
+				"class": "ListTenantsCommand",
+				"family": "tenants",
+				"source": "logbook/packages/cli/src/cli/commands/tenants.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:move",
+				"path": [
+					"move"
+				],
+				"class": "MoveCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:next-work",
+				"path": [
+					"next-work"
+				],
+				"class": "NextWorkCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:orphans",
+				"path": [
+					"orphans"
+				],
+				"class": "OrphansCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:plan-entry add",
+				"path": [
+					"plan-entry",
+					"add"
+				],
+				"class": "AddPlanEntryCommand",
+				"family": "plan-entries",
+				"source": "logbook/packages/cli/src/cli/commands/plan-entries.ts",
+				"options": [
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "references",
+						"names": [
+							"--reference"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "role",
+						"names": [
+							"--role"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "scopeDirection",
+						"names": [
+							"--scope-direction"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "supersedes",
+						"names": [
+							"--supersedes"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:plan-entry delete",
+				"path": [
+					"plan-entry",
+					"delete"
+				],
+				"class": "DeletePlanEntryCommand",
+				"family": "plan-entries",
+				"source": "logbook/packages/cli/src/cli/commands/plan-entries.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:plan-entry edit",
+				"path": [
+					"plan-entry",
+					"edit"
+				],
+				"class": "EditPlanEntryCommand",
+				"family": "plan-entries",
+				"source": "logbook/packages/cli/src/cli/commands/plan-entries.ts",
+				"options": [
+					{
+						"property": "bodyFile",
+						"names": [
+							"--body-file"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:plan-entry history",
+				"path": [
+					"plan-entry",
+					"history"
+				],
+				"class": "PlanEntryHistoryCommand",
+				"family": "plan-entries",
+				"source": "logbook/packages/cli/src/cli/commands/plan-entries.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:plan-entry list",
+				"path": [
+					"plan-entry",
+					"list"
+				],
+				"class": "ListPlanEntriesCommand",
+				"family": "plan-entries",
+				"source": "logbook/packages/cli/src/cli/commands/plan-entries.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:project-identity",
+				"path": [
+					"project-identity"
+				],
+				"class": "ProjectIdentityCommand",
+				"family": "tenants",
+				"source": "logbook/packages/cli/src/cli/commands/tenants.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:relations",
+				"path": [
+					"relations"
+				],
+				"class": "RelationsCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "directionValue",
+						"names": [
+							"--direction"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "typeValues",
+						"names": [
+							"--type"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:rename-tenant",
+				"path": [
+					"rename-tenant"
+				],
+				"class": "RenameTenantCommand",
+				"family": "tenants",
+				"source": "logbook/packages/cli/src/cli/commands/tenants.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "force",
+						"names": [
+							"--force"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:restore",
+				"path": [
+					"restore"
+				],
+				"class": "RestoreCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "contextScope",
+						"names": [
+							"--context"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "revisionValue",
+						"names": [
+							"--revision"
+						],
+						"arity": 1,
+						"required": true,
+						"allowBinding": true
+					},
+					{
+						"property": "term",
+						"names": [
+							"--term"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "view",
+						"names": [
+							"--view"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:schema",
+				"path": [
+					"schema"
+				],
+				"class": "SchemaCommand",
+				"family": "meta",
+				"source": "logbook/packages/cli/src/cli/commands/meta.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:show",
+				"path": [
+					"show"
+				],
+				"class": "ShowCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:site",
+				"path": [
+					"site"
+				],
+				"class": "SiteCommand",
+				"family": "site",
+				"source": "logbook/packages/cli/src/cli/commands/site.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "foreground",
+						"names": [
+							"--foreground"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "portValue",
+						"names": [
+							"--port"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "stop",
+						"names": [
+							"--stop"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:sql",
+				"path": [
+					"sql"
+				],
+				"class": "SqlCommand",
+				"family": "sql",
+				"source": "logbook/packages/cli/src/cli/commands/sql.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:status",
+				"path": [
+					"status"
+				],
+				"class": "StatusCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:synchronize",
+				"path": [
+					"synchronize"
+				],
+				"class": "SynchronizeCommand",
+				"family": "synchronize",
+				"source": "logbook/packages/cli/src/cli/commands/synchronize.ts",
+				"options": [
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": null,
+				"inCapabilities": false,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			},
+			{
+				"id": "cli:unlink",
+				"path": [
+					"unlink"
+				],
+				"class": "UnlinkCommand",
+				"family": "entities",
+				"source": "logbook/packages/cli/src/cli/commands/entities.ts",
+				"options": [
+					{
+						"property": "dbPath",
+						"names": [
+							"--db"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					},
+					{
+						"property": "asJson",
+						"names": [
+							"--json"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "prettyJson",
+						"names": [
+							"--pretty"
+						],
+						"arity": 0,
+						"required": false,
+						"allowBinding": false
+					},
+					{
+						"property": "projectIdentity",
+						"names": [
+							"--project-identity"
+						],
+						"arity": 1,
+						"required": false,
+						"allowBinding": true
+					}
+				],
+				"positionals": [],
+				"rest": "positionals",
+				"inCapabilities": true,
+				"requirements": {
+					"help": true,
+					"jsonSuccess": true,
+					"error": true,
+					"humanOutput": true
+				}
+			}
+		],
+		"families": [
+			"auth",
+			"backfill",
+			"cloud",
+			"comments",
+			"context",
+			"daemon",
+			"entities",
+			"export",
+			"fallback",
+			"instructions",
+			"issue-breakdowns",
+			"kanban",
+			"meta",
+			"plan-entries",
+			"plugin",
+			"site",
+			"sql",
+			"synchronize",
+			"tenants"
+		]
+	},
+	"capabilities": {
+		"help": {
+			"name": "agent-issues",
+			"summary": "Structured workflow CLI for shared context, initiatives, PRDs, user stories, ADRs, and issues.",
+			"globalOptions": [
+				{
+					"name": "--db <path>",
+					"description": "Use a specific SQLite database path."
+				},
+				{
+					"name": "--json",
+					"description": "Print machine-readable JSON. Entity mutations return acknowledgements; list and relation reads return summaries."
+				},
+				{
+					"name": "--pretty",
+					"description": "Pretty-print JSON when used with --json."
+				},
+				{
+					"name": "--help, -h",
+					"description": "Show help for the whole CLI or the selected command."
+				}
+			],
+			"commands": [
+				{
+					"name": "instruction",
+					"summary": "Read and save personal instruction Markdown for the running CLI release.",
+					"usage": [
+						"agent-issues instruction retrieve <key> [--json]",
+						"agent-issues instruction preview <key> --input-file <path|-> [--json]",
+						"agent-issues instruction list [--json]",
+						"agent-issues instruction read <key> [--json]",
+						"agent-issues instruction compare <key> [--json]",
+						"agent-issues instruction dependencies <key> [--json]",
+						"agent-issues instruction save <key> --body-file <path|-> --expected-revision <revision> [--json]",
+						"agent-issues instruction history <key> [--json]",
+						"agent-issues instruction revision <key> --revision <revision> [--json]",
+						"agent-issues instruction restore <key> --revision <revision> --expected-revision <revision> [--json]",
+						"agent-issues instruction reset-inspect <key> [--json]",
+						"agent-issues instruction reset <key> --expected-revision <revision> --yes [--json]",
+						"agent-issues instruction reset-all-inspect [--json]",
+						"agent-issues instruction reset-all --input-file <path|-> --yes [--json]",
+						"agent-issues instruction commit --input-file <path|-> [--json]",
+						"agent-issues instruction fragment create <key> --body-file <path|-> [--json]",
+						"agent-issues instruction fragment remove <key> --expected-revision <revision> [--json]"
+					]
+				},
+				{
+					"name": "sql",
+					"summary": "Run a read-only SQL query against the active local SQLite database.",
+					"usage": [
+						"agent-issues sql <statement>"
+					]
+				},
+				{
+					"name": "context",
+					"summary": "Read and update shared, project-scoped, and initiative-scoped database-backed context.",
+					"usage": [
+						"agent-issues context",
+						"agent-issues context list",
+						"agent-issues context show",
+						"agent-issues context show --view initiatives --query <text>",
+						"agent-issues context show default",
+						"agent-issues context show <entityOrProjectOrInitiativeId>",
+						"agent-issues context search <query> [--view <all|global|initiatives>]",
+						"agent-issues context conflicts [<query>] [--view <all|initiatives>]",
+						"agent-issues context set [--scope <entityOrProjectOrInitiativeId|default>] --title <title> --body-file <path|-> [--view <compact|full>]",
+						"agent-issues context define <term> [--scope <entityOrProjectOrInitiativeId|default>] --body-file <path|-> [--avoid <comma-separated terms>] [--view <compact|full>]",
+						"agent-issues context forget <term> [--scope <entityOrProjectOrInitiativeId|default>] [--view <compact|full>]"
+					]
+				},
+				{
+					"name": "comment",
+					"summary": "Add, list, edit, delete, and inspect revision history for issue-owned comment records.",
+					"usage": [
+						"agent-issues comment",
+						"agent-issues comment add <issueId> --body-file <path|-> [--reference <issueId>]",
+						"agent-issues comment list <issueId> [--before <cursor>] [--all]",
+						"agent-issues comment edit <issueId> <commentId> --body-file <path|-> [--reference <issueId>]",
+						"agent-issues comment delete <issueId> <commentId>",
+						"agent-issues comment history <commentId>"
+					]
+				},
+				{
+					"name": "issue-breakdown",
+					"summary": "Create, read, and approve issue-breakdown drafts before issue creation.",
+					"usage": [
+						"agent-issues issue-breakdown",
+						"agent-issues issue-breakdown create <targetId> --input-file <path>",
+						"agent-issues issue-breakdown show <draftId>",
+						"agent-issues issue-breakdown latest <targetId>",
+						"agent-issues issue-breakdown approve <draftId> --snapshot-digest <digest>"
+					]
+				},
+				{
+					"name": "plan-entry",
+					"summary": "Add, list, edit, delete, and inspect revision history for Plan entries.",
+					"usage": [
+						"agent-issues plan-entry add <planId> --role <question|decision|scope|constraint|preference|consideration> --body-file <path|-> [--scope-direction <included|excluded>] [--reference <entityId>] [--supersedes <entryId>]",
+						"agent-issues plan-entry list <planId>",
+						"agent-issues plan-entry edit <planId> <entryId> --body-file <path|->",
+						"agent-issues plan-entry delete <planId> <entryId>",
+						"agent-issues plan-entry history <entryId>"
+					]
+				},
+				{
+					"name": "init",
+					"summary": "Initialize the local data store.",
+					"usage": [
+						"agent-issues init"
+					]
+				},
+				{
+					"name": "agent init",
+					"summary": "Install the Agent Issues plugin for Copilot CLI or Claude Code.",
+					"usage": [
+						"agent-issues agent init [--host <copilot|claude>]"
+					]
+				},
+				{
+					"name": "current-tenant",
+					"summary": "Show which tenant the CLI would use from the current workspace.",
+					"usage": [
+						"agent-issues current-tenant"
+					]
+				},
+				{
+					"name": "project-identity",
+					"summary": "Show the project identity resolved from the current workspace.",
+					"usage": [
+						"agent-issues project-identity"
+					]
+				},
+				{
+					"name": "list-tenants",
+					"summary": "List the tenants currently present in the selected database.",
+					"usage": [
+						"agent-issues list-tenants",
+						"agent-issues list-tenants --db <path> --json"
+					]
+				},
+				{
+					"name": "delete-tenant",
+					"summary": "Delete one tenant and all of its rows from the selected database.",
+					"usage": [
+						"agent-issues delete-tenant <tenantId> --force"
+					]
+				},
+				{
+					"name": "rename-tenant",
+					"summary": "Rename one tenant namespace across the selected database.",
+					"usage": [
+						"agent-issues rename-tenant <tenantId> <newTenantId> --force"
+					]
+				},
+				{
+					"name": "auth list",
+					"summary": "List saved logins in switching order and mark the active saved login.",
+					"usage": [
+						"agent-issues auth list"
+					]
+				},
+				{
+					"name": "auth login",
+					"summary": "Discover a remote service's Entra configuration and create or refresh a named saved login.",
+					"usage": [
+						"agent-issues auth login",
+						"agent-issues auth login --name <name> --url <url>"
+					]
+				},
+				{
+					"name": "auth logout",
+					"summary": "Remove a remote saved login.",
+					"usage": [
+						"agent-issues auth logout [name]"
+					]
+				},
+				{
+					"name": "auth status",
+					"summary": "Show the active saved login and its destination and identity details.",
+					"usage": [
+						"agent-issues auth status"
+					]
+				},
+				{
+					"name": "auth switch",
+					"summary": "Activate a named saved login or advance to the next saved login.",
+					"usage": [
+						"agent-issues auth switch [name]"
+					]
+				},
+				{
+					"name": "backfill-bodies",
+					"summary": "Generate metadata-derived bodies for initiatives, issues, PRDs, user stories, and ADRs when authored bodies are missing.",
+					"usage": [
+						"agent-issues backfill-bodies [--kinds <comma-separated kinds>] [--dry-run] [--force]",
+						"agent-issues backfill-bodies --all-tenants --json"
+					]
+				},
+				{
+					"name": "create",
+					"summary": "Create an entity, optionally under a structural parent.",
+					"usage": [
+						"agent-issues create <kind> --title <title> [--parent <id>] [--status <status>] [--body-file <path|->]"
+					]
+				},
+				{
+					"name": "archive",
+					"summary": "Move one entity to its archive status.",
+					"usage": [
+						"agent-issues archive <id>"
+					]
+				},
+				{
+					"name": "history",
+					"summary": "Read one entity or context revision.",
+					"usage": [
+						"agent-issues history <id> --revision <revision>",
+						"agent-issues history --context <scope> --revision <revision>",
+						"agent-issues history --context <scope> --term <term> --revision <revision>"
+					]
+				},
+				{
+					"name": "restore",
+					"summary": "Restore one entity or context revision after confirmation.",
+					"usage": [
+						"agent-issues restore <id> --revision <revision>",
+						"agent-issues restore --context <scope> --revision <revision> [--view <compact|full>]",
+						"agent-issues restore --context <scope> --term <term> --revision <revision> [--view <compact|full>]"
+					]
+				},
+				{
+					"name": "delete",
+					"summary": "Delete one leaf entity.",
+					"usage": [
+						"agent-issues delete <id>"
+					]
+				},
+				{
+					"name": "export",
+					"summary": "Export a project archive, or an initiative Markdown report.",
+					"usage": [
+						"agent-issues export <initiativeId> [--output <path>] [--force]",
+						"agent-issues export project [--output <path>] [--include-instructions] [--force]",
+						"agent-issues export <initiativeId|project> --single-file [--output <file>]"
+					]
+				},
+				{
+					"name": "import",
+					"summary": "Restore a project archive to an empty destination.",
+					"usage": [
+						"agent-issues import <archive-directory> [--db <path>] [--include-instructions]"
+					]
+				},
+				{
+					"name": "move",
+					"summary": "Move one entity under a new structural parent.",
+					"usage": [
+						"agent-issues move <id> <newParentId>"
+					]
+				},
+				{
+					"name": "relations",
+					"summary": "Show incoming and outgoing relations for one entity.",
+					"usage": [
+						"agent-issues relations <id> [--direction <incoming|outgoing|both>] [--type <comma-separated types>]"
+					]
+				},
+				{
+					"name": "next-work",
+					"summary": "List ready and blocked unfinished issues for an initiative scope.",
+					"usage": [
+						"agent-issues next-work <initiativeOrDescendantId>"
+					]
+				},
+				{
+					"name": "orphans",
+					"summary": "List entities not reachable from any initiative.",
+					"usage": [
+						"agent-issues orphans [kind]"
+					]
+				},
+				{
+					"name": "status",
+					"summary": "Update an entity status.",
+					"usage": [
+						"agent-issues status <id> <status>"
+					]
+				},
+				{
+					"name": "edit",
+					"summary": "Update an entity title and/or authored markdown body.",
+					"usage": [
+						"agent-issues edit <id> [--title <title>] [--body-file <path|->] [--category <category>] [--priority <priority>] [--type <type>]"
+					]
+				},
+				{
+					"name": "link",
+					"summary": "Create a relation between entities, or from a Plan entry to an issue.",
+					"usage": [
+						"agent-issues link <fromId> <relationType> <toId>"
+					]
+				},
+				{
+					"name": "unlink",
+					"summary": "Remove one relation between entities, or from a Plan entry to an issue.",
+					"usage": [
+						"agent-issues unlink <fromId> <relationType> <toId>"
+					]
+				},
+				{
+					"name": "show",
+					"summary": "Show one complete entity or initiative.",
+					"usage": [
+						"agent-issues show <id>"
+					]
+				},
+				{
+					"name": "list",
+					"summary": "List entities by kind.",
+					"usage": [
+						"agent-issues list <kind> [--status <comma-separated statuses>] [--parent <id>] [--limit <count>]"
+					]
+				},
+				{
+					"name": "site",
+					"summary": "Start the live site in the background and print its URL.",
+					"usage": [
+						"agent-issues site [--port <port>]",
+						"agent-issues site --stop [--port <port>]",
+						"agent-issues site --json"
+					]
+				},
+				{
+					"name": "help",
+					"summary": "Show general or command-specific help.",
+					"usage": [
+						"agent-issues help [command]",
+						"agent-issues <command> --help"
+					]
+				},
+				{
+					"name": "schema",
+					"summary": "Show machine-discoverable workflow schema and relation rules.",
+					"usage": [
+						"agent-issues schema",
+						"agent-issues schema --json"
+					]
+				},
+				{
+					"name": "capabilities",
+					"summary": "Show combined help and schema data in one discovery payload.",
+					"usage": [
+						"agent-issues capabilities",
+						"agent-issues capabilities --json"
+					]
+				}
+			],
+			"discovery": [
+				"Use `agent-issues context --json` to read the current project's shared glossary plus initiative-scoped discovery.",
+				"Use `agent-issues current-tenant --json` to see which workspace-derived tenant the CLI will use by default.",
+				"Use `agent-issues list-tenants --json` to inspect all tenant namespaces present in the selected database before switching or deleting one.",
+				"Use `agent-issues rename-tenant <tenantId> <newTenantId> --force --json` to normalize a tenant namespace without deleting and recreating it.",
+				"Use `agent-issues backfill-bodies --json` to fill missing issue, PRD, and user story bodies from existing tracker metadata.",
+				"Use `agent-issues context show default --json` to read only the shared glossary.",
+				"Use `agent-issues context show <entityOrProjectOrInitiativeId> --json` to read project or initiative context for active work.",
+				"Use `agent-issues context search <query> --view initiatives --json` to find initiative-local terminology without reading the full project directory.",
+				"Use `agent-issues context conflicts --json` to detect duplicate labels across scopes before you rely on a term.",
+				"Use `agent-issues context define <term> --scope <entityOrProjectOrInitiativeId> --body-file <path|-> [--avoid <comma-separated>] --json` to update the scoped glossary when a term is resolved.",
+				"Use `agent-issues create plan --parent <initiativeId> --title <title> --body-file <path|-> --json` to create an initiative-owned Plan, then use `agent-issues plan-entry add` to record its planning state and `agent-issues link <planEntryId> informs <issueId>` to connect implementation work.",
+				"Use `agent-issues help <command> --json` for command-specific guidance.",
+				"Use `agent-issues schema --json` for entity kinds, statuses, and relation rules.",
+				"Use `agent-issues site --json` to launch a detached local server with snapshot and event endpoints.",
+				"Use `agent-issues site --stop --json` to stop the local server on the default or selected port.",
+				"Use `agent-issues capabilities --json` to fetch help and schema data in one call."
+			]
+		},
+		"schema": {
+			"entityKinds": [
+				{
+					"kind": "project",
+					"idPrefix": "PROJ",
+					"initialStatus": "draft",
+					"statuses": [
+						"draft",
+						"active",
+						"paused",
+						"done"
+					],
+					"archiveStatus": "done"
+				},
+				{
+					"kind": "epic",
+					"idPrefix": "EPIC",
+					"initialStatus": "draft",
+					"statuses": [
+						"draft",
+						"active",
+						"paused",
+						"done"
+					],
+					"archiveStatus": "done"
+				},
+				{
+					"kind": "version",
+					"idPrefix": "VER",
+					"initialStatus": "draft",
+					"statuses": [
+						"draft",
+						"active",
+						"paused",
+						"done"
+					],
+					"archiveStatus": "done"
+				},
+				{
+					"kind": "initiative",
+					"idPrefix": "INIT",
+					"initialStatus": "draft",
+					"statuses": [
+						"draft",
+						"active",
+						"paused",
+						"done"
+					],
+					"archiveStatus": "done"
+				},
+				{
+					"kind": "prd",
+					"idPrefix": "PRD",
+					"initialStatus": "draft",
+					"statuses": [
+						"draft",
+						"in-progress",
+						"approved",
+						"superseded"
+					],
+					"archiveStatus": "approved"
+				},
+				{
+					"kind": "userStory",
+					"idPrefix": "US",
+					"initialStatus": "draft",
+					"statuses": [
+						"draft",
+						"ready",
+						"in-progress",
+						"done",
+						"superseded"
+					],
+					"archiveStatus": "done"
+				},
+				{
+					"kind": "adr",
+					"idPrefix": "ADR",
+					"initialStatus": "current",
+					"statuses": [
+						"current",
+						"superseded",
+						"archived"
+					],
+					"archiveStatus": "archived"
+				},
+				{
+					"kind": "issue",
+					"idPrefix": "ISS",
+					"initialStatus": "todo",
+					"statuses": [
+						"todo",
+						"in-progress",
+						"blocked",
+						"deferred",
+						"done"
+					],
+					"archiveStatus": "done"
+				},
+				{
+					"kind": "debt",
+					"idPrefix": "DEBT",
+					"initialStatus": "open",
+					"statuses": [
+						"open",
+						"resolved",
+						"archived"
+					],
+					"archiveStatus": "archived"
+				},
+				{
+					"kind": "handoff",
+					"idPrefix": "HO",
+					"initialStatus": "active",
+					"statuses": [
+						"active",
+						"done"
+					],
+					"archiveStatus": "done"
+				},
+				{
+					"kind": "plan",
+					"idPrefix": "PLAN",
+					"initialStatus": "draft",
+					"statuses": [
+						"draft",
+						"in-progress",
+						"ready",
+						"superseded"
+					],
+					"archiveStatus": "superseded"
+				}
+			],
+			"entityCategories": [
+				"technical",
+				"product",
+				"operational",
+				"security",
+				"process",
+				"other"
+			],
+			"entityPriorities": [
+				"low",
+				"medium",
+				"high",
+				"critical"
+			],
+			"relationTypes": [
+				"blocks",
+				"constrains",
+				"contains",
+				"creates",
+				"decomposes",
+				"fixes",
+				"handsOff",
+				"informs",
+				"owns",
+				"records",
+				"relatesTo",
+				"resolves",
+				"supersedes",
+				"taggedWith",
+				"tracks"
+			],
+			"allowedRelations": [
+				{
+					"fromKind": "project",
+					"toKind": "epic",
+					"type": "contains"
+				},
+				{
+					"fromKind": "epic",
+					"toKind": "initiative",
+					"type": "contains"
+				},
+				{
+					"fromKind": "project",
+					"toKind": "version",
+					"type": "owns"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "version",
+					"type": "taggedWith"
+				},
+				{
+					"fromKind": "issue",
+					"toKind": "version",
+					"type": "taggedWith"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "initiative",
+					"type": "supersedes"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "initiative",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "prd",
+					"type": "owns"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "plan",
+					"type": "owns"
+				},
+				{
+					"fromKind": "prd",
+					"toKind": "prd",
+					"type": "supersedes"
+				},
+				{
+					"fromKind": "plan",
+					"toKind": "prd",
+					"type": "informs"
+				},
+				{
+					"fromKind": "project",
+					"toKind": "adr",
+					"type": "records"
+				},
+				{
+					"fromKind": "epic",
+					"toKind": "adr",
+					"type": "records"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "adr",
+					"type": "records"
+				},
+				{
+					"fromKind": "project",
+					"toKind": "debt",
+					"type": "records"
+				},
+				{
+					"fromKind": "epic",
+					"toKind": "debt",
+					"type": "records"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "debt",
+					"type": "records"
+				},
+				{
+					"fromKind": "issue",
+					"toKind": "debt",
+					"type": "records"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "issue",
+					"type": "tracks"
+				},
+				{
+					"fromKind": "prd",
+					"toKind": "userStory",
+					"type": "creates"
+				},
+				{
+					"fromKind": "userStory",
+					"toKind": "userStory",
+					"type": "supersedes"
+				},
+				{
+					"fromKind": "issue",
+					"toKind": "issue",
+					"type": "decomposes"
+				},
+				{
+					"fromKind": "issue",
+					"toKind": "userStory",
+					"type": "fixes"
+				},
+				{
+					"fromKind": "adr",
+					"toKind": "issue",
+					"type": "constrains"
+				},
+				{
+					"fromKind": "epic",
+					"toKind": "debt",
+					"type": "resolves"
+				},
+				{
+					"fromKind": "initiative",
+					"toKind": "debt",
+					"type": "resolves"
+				},
+				{
+					"fromKind": "issue",
+					"toKind": "debt",
+					"type": "resolves"
+				},
+				{
+					"fromKind": "adr",
+					"toKind": "adr",
+					"type": "supersedes"
+				},
+				{
+					"fromKind": "issue",
+					"toKind": "issue",
+					"type": "blocks"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "project",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "epic",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "version",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "initiative",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "prd",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "userStory",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "adr",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "issue",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "debt",
+					"toKind": "debt",
+					"type": "relatesTo"
+				},
+				{
+					"fromKind": "handoff",
+					"toKind": "initiative",
+					"type": "handsOff"
+				},
+				{
+					"fromKind": "handoff",
+					"toKind": "prd",
+					"type": "handsOff"
+				},
+				{
+					"fromKind": "handoff",
+					"toKind": "userStory",
+					"type": "handsOff"
+				},
+				{
+					"fromKind": "handoff",
+					"toKind": "adr",
+					"type": "handsOff"
+				},
+				{
+					"fromKind": "handoff",
+					"toKind": "issue",
+					"type": "handsOff"
+				},
+				{
+					"fromKind": "handoff",
+					"toKind": "debt",
+					"type": "handsOff"
+				}
+			],
+			"structuralRelationTypes": [
+				"contains",
+				"owns",
+				"records",
+				"tracks",
+				"creates",
+				"decomposes"
+			],
+			"parentRules": [
+				{
+					"parentKind": "project",
+					"childKind": "epic",
+					"relationType": "contains"
+				},
+				{
+					"parentKind": "epic",
+					"childKind": "initiative",
+					"relationType": "contains"
+				},
+				{
+					"parentKind": "project",
+					"childKind": "version",
+					"relationType": "owns"
+				},
+				{
+					"parentKind": "initiative",
+					"childKind": "prd",
+					"relationType": "owns"
+				},
+				{
+					"parentKind": "initiative",
+					"childKind": "plan",
+					"relationType": "owns"
+				},
+				{
+					"parentKind": "project",
+					"childKind": "adr",
+					"relationType": "records"
+				},
+				{
+					"parentKind": "epic",
+					"childKind": "adr",
+					"relationType": "records"
+				},
+				{
+					"parentKind": "initiative",
+					"childKind": "adr",
+					"relationType": "records"
+				},
+				{
+					"parentKind": "project",
+					"childKind": "debt",
+					"relationType": "records"
+				},
+				{
+					"parentKind": "epic",
+					"childKind": "debt",
+					"relationType": "records"
+				},
+				{
+					"parentKind": "initiative",
+					"childKind": "debt",
+					"relationType": "records"
+				},
+				{
+					"parentKind": "issue",
+					"childKind": "debt",
+					"relationType": "records"
+				},
+				{
+					"parentKind": "initiative",
+					"childKind": "issue",
+					"relationType": "tracks"
+				},
+				{
+					"parentKind": "prd",
+					"childKind": "userStory",
+					"relationType": "creates"
+				},
+				{
+					"parentKind": "issue",
+					"childKind": "issue",
+					"relationType": "decomposes"
+				}
+			],
+			"context": {
+				"storage": "database",
+				"scopes": [
+					"default",
+					"project",
+					"initiative"
+				],
+				"defaultKey": "default",
+				"listCommand": "agent-issues context list --json",
+				"readCommand": "agent-issues context show [<entityOrProjectOrInitiativeId>|default] --json",
+				"searchCommand": "agent-issues context search <query> [--view <all|global|initiatives>] --json",
+				"conflictsCommand": "agent-issues context conflicts [<query>] [--view <all|initiatives>] --json",
+				"initializeCommand": "agent-issues context set --scope <entityOrProjectOrInitiativeId|default> --title <title> --body-file <path|-> --json",
+				"defineCommand": "agent-issues context define <term> --scope <entityOrProjectOrInitiativeId|default> --body-file <path|-> [--avoid <comma-separated terms>] --json",
+				"forgetCommand": "agent-issues context forget <term> --scope <entityOrProjectOrInitiativeId|default> --json",
+				"termFields": [
+					"term",
+					"definition",
+					"avoid",
+					"createdAt",
+					"updatedAt"
+				]
+			},
+			"issueComments": {
+				"storage": "database",
+				"parentKind": "issue",
+				"recordPrefix": "COM",
+				"addCommand": "agent-issues comment add <issueId> --body-file <path|-> [--reference <issueId>] --json",
+				"listCommand": "agent-issues comment list <issueId> [--before <cursor>] [--all] --json",
+				"editCommand": "agent-issues comment edit <issueId> <commentId> --body-file <path|-> [--reference <issueId>] --json",
+				"deleteCommand": "agent-issues comment delete <issueId> <commentId> --json",
+				"historyCommand": "agent-issues comment history <commentId> --json",
+				"fields": [
+					"id",
+					"reference",
+					"issueId",
+					"body",
+					"referencedIssueIds",
+					"revision",
+					"contentHash",
+					"tombstone",
+					"createdAt",
+					"updatedAt"
+				]
+			},
+			"planEntries": {
+				"storage": "database",
+				"parentKind": "plan",
+				"recordPrefix": "PLAN_ENTRY",
+				"linkRelationType": "informs",
+				"linkTargetKind": "entity",
+				"addCommand": "agent-issues plan-entry add <planId> --role <role> --body-file <path|-> [--reference <entityId>] --json",
+				"linkCommand": "agent-issues link <planEntryId> informs <targetId> --json",
+				"unlinkCommand": "agent-issues unlink <planEntryId> informs <targetId> --json",
+				"fields": [
+					"id",
+					"reference",
+					"planId",
+					"role",
+					"body",
+					"referencedEntityIds",
+					"supersededEntryIds",
+					"revision",
+					"contentHash",
+					"tombstone",
+					"createdAt",
+					"updatedAt"
+				]
+			}
+		}
+	},
+	"rpc": {
+		"methods": [
+			{
+				"name": "applyRelations",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "approveIssueBreakdownDraft",
+				"write": true,
+				"owner": "issue-breakdown-store"
+			},
+			{
+				"name": "archiveEntity",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "commitInstructionChanges",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "compareInstructionSource",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "confirmPlan",
+				"write": true,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "countMigrationRecords",
+				"write": false,
+				"owner": "synchronize-store"
+			},
+			{
+				"name": "createEntity",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "createInstructionFragment",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "createIssueBreakdownDraft",
+				"write": true,
+				"owner": "issue-breakdown-store"
+			},
+			{
+				"name": "createIssueComment",
+				"write": true,
+				"owner": "issue-comment-store"
+			},
+			{
+				"name": "createPlanEntry",
+				"write": true,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "defineContextTerm",
+				"write": true,
+				"owner": "context-store"
+			},
+			{
+				"name": "deleteEntity",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "deleteIssueComment",
+				"write": true,
+				"owner": "issue-comment-store"
+			},
+			{
+				"name": "deletePlanEntry",
+				"write": true,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "deleteTenant",
+				"write": true,
+				"owner": "storage-driver"
+			},
+			{
+				"name": "exportCanonicalChains",
+				"write": false,
+				"owner": "synchronize-store"
+			},
+			{
+				"name": "exportMigrationBundle",
+				"write": false,
+				"owner": "synchronize-store"
+			},
+			{
+				"name": "forgetContextTerm",
+				"write": true,
+				"owner": "context-store"
+			},
+			{
+				"name": "getContextDetails",
+				"write": false,
+				"owner": "context-store"
+			},
+			{
+				"name": "getContextDirectory",
+				"write": false,
+				"owner": "context-store"
+			},
+			{
+				"name": "getDatabaseSnapshot",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "getEntityDetails",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "getHistoryDiagnostics",
+				"write": false,
+				"owner": "storage-driver"
+			},
+			{
+				"name": "getInitiativeBundle",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "getInitiativeDetail",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "getInitiativeTab",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "getIssueBreakdownDraft",
+				"write": false,
+				"owner": "issue-breakdown-store"
+			},
+			{
+				"name": "getLatestIssueBreakdownDraft",
+				"write": false,
+				"owner": "issue-breakdown-store"
+			},
+			{
+				"name": "getPlanEntry",
+				"write": false,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "getProjectDiscovery",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "getProjectSummary",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "getProspectorSettings",
+				"write": false,
+				"owner": "project-settings-store"
+			},
+			{
+				"name": "getSearchCapability",
+				"write": false,
+				"owner": "search-store"
+			},
+			{
+				"name": "getSearchDiagnostics",
+				"write": false,
+				"owner": "search-store"
+			},
+			{
+				"name": "getSnapshotSignature",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "importCanonicalChains",
+				"write": true,
+				"owner": "synchronize-store"
+			},
+			{
+				"name": "importMigrationBundle",
+				"write": true,
+				"owner": "synchronize-store"
+			},
+			{
+				"name": "inspectInstructionDependencies",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "inspectInstructionReset",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "inspectInstructionResetAll",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "linkEntities",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "linkPlanEntryEntity",
+				"write": true,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "listAllRelations",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "listContexts",
+				"write": false,
+				"owner": "context-store"
+			},
+			{
+				"name": "listEntities",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "listEntityHistory",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "listInstructionHistory",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "listInstructionSources",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "listIssueCommentHistory",
+				"write": false,
+				"owner": "issue-comment-store"
+			},
+			{
+				"name": "listIssueComments",
+				"write": false,
+				"owner": "issue-comment-store"
+			},
+			{
+				"name": "listOrphans",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "listPlanEntries",
+				"write": false,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "listPlanEntryHistory",
+				"write": false,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "listPlanEntryPage",
+				"write": false,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "listProjectAdrs",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "listTenants",
+				"write": false,
+				"owner": "storage-driver"
+			},
+			{
+				"name": "listUsers",
+				"write": false,
+				"owner": "user-directory-store"
+			},
+			{
+				"name": "materializeContextRevision",
+				"write": false,
+				"owner": "context-store"
+			},
+			{
+				"name": "materializeContextTermRevision",
+				"write": false,
+				"owner": "context-store"
+			},
+			{
+				"name": "materializeEntityRevision",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "moveEntity",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "previewInstruction",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "queryContextDirectory",
+				"write": false,
+				"owner": "context-store"
+			},
+			{
+				"name": "queryEntities",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "queryEntityRelations",
+				"write": false,
+				"owner": "entity-store"
+			},
+			{
+				"name": "readInstructionRevision",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "readInstructionSource",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "removeInstructionFragment",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "renameTenant",
+				"write": true,
+				"owner": "storage-driver"
+			},
+			{
+				"name": "resetInstructionAll",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "resetInstructionSource",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "restoreContextRevision",
+				"write": true,
+				"owner": "context-store"
+			},
+			{
+				"name": "restoreContextTermRevision",
+				"write": true,
+				"owner": "context-store"
+			},
+			{
+				"name": "restoreEntityRevision",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "restoreInstructionRevision",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "restoreProjectBundle",
+				"write": true,
+				"owner": "synchronize-store"
+			},
+			{
+				"name": "retrieveInstruction",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "saveInstructionSource",
+				"write": false,
+				"owner": "instruction-store"
+			},
+			{
+				"name": "search",
+				"write": false,
+				"owner": "search-store"
+			},
+			{
+				"name": "setEntityBody",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "setProspectorSettings",
+				"write": true,
+				"owner": "project-settings-store"
+			},
+			{
+				"name": "unlinkEntities",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "unlinkPlanEntryEntity",
+				"write": true,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "updateEntity",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "updateEntityStatus",
+				"write": true,
+				"owner": "entity-store"
+			},
+			{
+				"name": "updateIssueComment",
+				"write": true,
+				"owner": "issue-comment-store"
+			},
+			{
+				"name": "updatePlanEntry",
+				"write": true,
+				"owner": "plan-entry-store"
+			},
+			{
+				"name": "upsertContext",
+				"write": true,
+				"owner": "context-store"
+			},
+			{
+				"name": "upsertUser",
+				"write": true,
+				"owner": "user-directory-store"
+			}
+		],
+		"endpoints": [
+			{
+				"path": "/events",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/rpc",
+				"methods": [
+					"POST"
+				]
+			}
+		]
+	},
+	"mcp": {
+		"toolList": {
+			"order": [
+				"instruction_retrieve",
+				"instruction_inspect",
+				"instruction_update",
+				"instruction_reset",
+				"project_identity",
+				"resource_create",
+				"resource_edit",
+				"entity_archive",
+				"resource_delete",
+				"entity_move",
+				"entity_status",
+				"resource_list",
+				"resource_body",
+				"resource_history",
+				"resource_show",
+				"plan_preview",
+				"issue_breakdown_create",
+				"issue_breakdown_preview",
+				"issue_breakdown_approve",
+				"plan_confirm",
+				"context_search",
+				"context_conflicts",
+				"context_term_define",
+				"plan_entry_entity_link",
+				"plan_entry_entity_unlink",
+				"tenant_rename",
+				"entity_restore_inspect",
+				"entity_restore",
+				"body_backfill_inspect",
+				"body_backfill",
+				"relation_link",
+				"relation_unlink",
+				"relation_query",
+				"initiative_bundle",
+				"entity_next_work"
+			]
+		},
+		"tools": [
+			{
+				"name": "body_backfill",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "body_backfill_inspect",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "context_conflicts",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "context_search",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "context_term_define",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "entity_archive",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "entity_move",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "entity_next_work",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "entity_restore",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "entity_restore_inspect",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "entity_status",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "initiative_bundle",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "instruction_inspect",
+				"registration": "registerTool",
+				"readOnly": true,
+				"uiResourceUri": null
+			},
+			{
+				"name": "instruction_reset",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "instruction_retrieve",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "instruction_update",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "issue_breakdown_approve",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "issue_breakdown_create",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "issue_breakdown_preview",
+				"registration": "registerAppTool",
+				"readOnly": false,
+				"uiResourceUri": "ui://agent-issues/issue-preview.html"
+			},
+			{
+				"name": "plan_confirm",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "plan_entry_entity_link",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "plan_entry_entity_unlink",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "plan_preview",
+				"registration": "registerAppTool",
+				"readOnly": false,
+				"uiResourceUri": "ui://agent-issues/plan-preview.html"
+			},
+			{
+				"name": "project_identity",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "relation_link",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "relation_query",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "relation_unlink",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "resource_body",
+				"registration": "registerTool",
+				"readOnly": true,
+				"uiResourceUri": null
+			},
+			{
+				"name": "resource_create",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "resource_delete",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "resource_edit",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			},
+			{
+				"name": "resource_history",
+				"registration": "registerTool",
+				"readOnly": true,
+				"uiResourceUri": null
+			},
+			{
+				"name": "resource_list",
+				"registration": "registerTool",
+				"readOnly": true,
+				"uiResourceUri": null
+			},
+			{
+				"name": "resource_show",
+				"registration": "registerTool",
+				"readOnly": true,
+				"uiResourceUri": null
+			},
+			{
+				"name": "tenant_rename",
+				"registration": "registerTool",
+				"readOnly": false,
+				"uiResourceUri": null
+			}
+		],
+		"resources": [
+			{
+				"name": "Issue Preview",
+				"uri": "ui://agent-issues/issue-preview.html"
+			},
+			{
+				"name": "Plan Preview",
+				"uri": "ui://agent-issues/plan-preview.html"
+			}
+		]
+	},
+	"website": {
+		"routes": [
+			{
+				"path": "/api/entity-detail",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/entity-relations",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/initiative-detail",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/initiative-tab",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/instructions/catalog",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/instructions/changes",
+				"methods": [
+					"POST"
+				]
+			},
+			{
+				"path": "/api/instructions/compare",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/instructions/dependencies",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/instructions/fragments/create",
+				"methods": [
+					"POST"
+				]
+			},
+			{
+				"path": "/api/instructions/fragments/remove",
+				"methods": [
+					"POST"
+				]
+			},
+			{
+				"path": "/api/instructions/history",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/instructions/preview",
+				"methods": [
+					"POST"
+				]
+			},
+			{
+				"path": "/api/instructions/reset",
+				"methods": [
+					"POST"
+				]
+			},
+			{
+				"path": "/api/instructions/reset-all",
+				"methods": [
+					"POST"
+				]
+			},
+			{
+				"path": "/api/instructions/reset-all/inspect",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/instructions/reset/inspect",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/instructions/restore",
+				"methods": [
+					"POST"
+				]
+			},
+			{
+				"path": "/api/instructions/revision",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/instructions/source",
+				"methods": [
+					"GET",
+					"POST"
+				]
+			},
+			{
+				"path": "/api/issue-comments",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/plan-entries",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/project-adrs",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/project-context",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/project-debt",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/project-graph",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/project-mutation",
+				"methods": [
+					"POST"
+				]
+			},
+			{
+				"path": "/api/project-summary",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/projects",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/search",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/search/capability",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/api/snapshot",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/events",
+				"methods": [
+					"GET"
+				]
+			},
+			{
+				"path": "/site-config.json",
+				"methods": [
+					"GET"
+				]
+			}
+		],
+		"projectMutationMethods": [
+			"applyRelations",
+			"archiveEntity",
+			"createEntity",
+			"createIssueComment",
+			"createPlanEntry",
+			"defineContextTerm",
+			"deleteEntity",
+			"deleteIssueComment",
+			"deletePlanEntry",
+			"forgetContextTerm",
+			"linkEntities",
+			"linkPlanEntryEntity",
+			"moveEntity",
+			"restoreContextRevision",
+			"restoreContextTermRevision",
+			"restoreEntityRevision",
+			"setEntityBody",
+			"unlinkEntities",
+			"unlinkPlanEntryEntity",
+			"updateEntity",
+			"updateEntityStatus",
+			"updateIssueComment",
+			"updatePlanEntry",
+			"upsertContext"
+		],
+		"liveSiteRoutes": [
+			{
+				"path": "/__agent_issues/stop",
+				"methods": [
+					"POST"
+				]
+			}
+		]
+	},
+	"hostRoutes": [
+		{
+			"path": "/.well-known/agent-issues",
+			"methods": [
+				"GET"
+			]
+		},
+		{
+			"path": "/daemon/stop",
+			"methods": [
+				"POST"
+			]
+		},
+		{
+			"path": "/health/live",
+			"methods": [
+				"GET"
+			]
+		},
+		{
+			"path": "/health/ready",
+			"methods": [
+				"GET"
+			]
+		}
+	],
+	"storageContract": {
+		"groups": [
+			"ADR lifecycle",
+			"Issue-breakdown drafts",
+			"Plan entry history",
+			"Plan entry lifecycle",
+			"Plan entry pagination",
+			"Plan entry references",
+			"Plan entry roles",
+			"Plan entry supersession",
+			"Plan lifecycle",
+			"Project Summary",
+			"Prospector settings",
+			"Search",
+			"Stable identity and Canonical reference",
+			"bulk relations",
+			"canonical revision patch hashes",
+			"canonical-chain import",
+			"context lifecycle",
+			"context revision history",
+			"deferred issues",
+			"entity lifecycle",
+			"entity revision and reverse-delta chain",
+			"history diagnostics",
+			"issue comments",
+			"lifecycle",
+			"migration bundle",
+			"project archive",
+			"project discovery",
+			"project identity",
+			"project-scoped snapshots",
+			"snapshot signature",
+			"user directory"
+		]
+	}
+}

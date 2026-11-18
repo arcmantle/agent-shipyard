@@ -1,0 +1,9 @@
+{
+	"name": "logbook-net-parity-tools",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"test": "bun test",
+		"record": "bun src/record.ts"
+	}
+}
