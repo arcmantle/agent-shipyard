@@ -1,0 +1,541 @@
+{
+	"allowedRelations": [
+		{
+			"fromKind": "project",
+			"toKind": "epic",
+			"type": "contains"
+		},
+		{
+			"fromKind": "epic",
+			"toKind": "initiative",
+			"type": "contains"
+		},
+		{
+			"fromKind": "project",
+			"toKind": "version",
+			"type": "owns"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "version",
+			"type": "taggedWith"
+		},
+		{
+			"fromKind": "issue",
+			"toKind": "version",
+			"type": "taggedWith"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "initiative",
+			"type": "supersedes"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "initiative",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "prd",
+			"type": "owns"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "plan",
+			"type": "owns"
+		},
+		{
+			"fromKind": "prd",
+			"toKind": "prd",
+			"type": "supersedes"
+		},
+		{
+			"fromKind": "plan",
+			"toKind": "prd",
+			"type": "informs"
+		},
+		{
+			"fromKind": "project",
+			"toKind": "adr",
+			"type": "records"
+		},
+		{
+			"fromKind": "epic",
+			"toKind": "adr",
+			"type": "records"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "adr",
+			"type": "records"
+		},
+		{
+			"fromKind": "project",
+			"toKind": "debt",
+			"type": "records"
+		},
+		{
+			"fromKind": "epic",
+			"toKind": "debt",
+			"type": "records"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "debt",
+			"type": "records"
+		},
+		{
+			"fromKind": "issue",
+			"toKind": "debt",
+			"type": "records"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "issue",
+			"type": "tracks"
+		},
+		{
+			"fromKind": "prd",
+			"toKind": "userStory",
+			"type": "creates"
+		},
+		{
+			"fromKind": "userStory",
+			"toKind": "userStory",
+			"type": "supersedes"
+		},
+		{
+			"fromKind": "issue",
+			"toKind": "issue",
+			"type": "decomposes"
+		},
+		{
+			"fromKind": "issue",
+			"toKind": "userStory",
+			"type": "fixes"
+		},
+		{
+			"fromKind": "adr",
+			"toKind": "issue",
+			"type": "constrains"
+		},
+		{
+			"fromKind": "epic",
+			"toKind": "debt",
+			"type": "resolves"
+		},
+		{
+			"fromKind": "initiative",
+			"toKind": "debt",
+			"type": "resolves"
+		},
+		{
+			"fromKind": "issue",
+			"toKind": "debt",
+			"type": "resolves"
+		},
+		{
+			"fromKind": "adr",
+			"toKind": "adr",
+			"type": "supersedes"
+		},
+		{
+			"fromKind": "issue",
+			"toKind": "issue",
+			"type": "blocks"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "project",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "epic",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "version",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "initiative",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "prd",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "userStory",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "adr",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "issue",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "debt",
+			"toKind": "debt",
+			"type": "relatesTo"
+		},
+		{
+			"fromKind": "handoff",
+			"toKind": "initiative",
+			"type": "handsOff"
+		},
+		{
+			"fromKind": "handoff",
+			"toKind": "prd",
+			"type": "handsOff"
+		},
+		{
+			"fromKind": "handoff",
+			"toKind": "userStory",
+			"type": "handsOff"
+		},
+		{
+			"fromKind": "handoff",
+			"toKind": "adr",
+			"type": "handsOff"
+		},
+		{
+			"fromKind": "handoff",
+			"toKind": "issue",
+			"type": "handsOff"
+		},
+		{
+			"fromKind": "handoff",
+			"toKind": "debt",
+			"type": "handsOff"
+		}
+	],
+	"context": {
+		"conflictsCommand": "agent-logbook context conflicts [<query>] [--view <all|initiatives>] --json",
+		"defaultKey": "default",
+		"defineCommand": "agent-logbook context define <term> --scope <entityOrProjectOrInitiativeId|default> --body-file <path|-> [--avoid <comma-separated terms>] --json",
+		"forgetCommand": "agent-logbook context forget <term> --scope <entityOrProjectOrInitiativeId|default> --json",
+		"initializeCommand": "agent-logbook context set --scope <entityOrProjectOrInitiativeId|default> --title <title> --body-file <path|-> --json",
+		"listCommand": "agent-logbook context list --json",
+		"readCommand": "agent-logbook context show [<entityOrProjectOrInitiativeId>|default] --json",
+		"scopes": [
+			"default",
+			"project",
+			"initiative"
+		],
+		"searchCommand": "agent-logbook context search <query> [--view <all|global|initiatives>] --json",
+		"storage": "database",
+		"termFields": [
+			"term",
+			"definition",
+			"avoid",
+			"createdAt",
+			"updatedAt"
+		]
+	},
+	"entityCategories": [
+		"technical",
+		"product",
+		"operational",
+		"security",
+		"process",
+		"other"
+	],
+	"entityKinds": [
+		{
+			"archiveStatus": "done",
+			"idPrefix": "PROJ",
+			"initialStatus": "draft",
+			"kind": "project",
+			"statuses": [
+				"draft",
+				"active",
+				"paused",
+				"done"
+			]
+		},
+		{
+			"archiveStatus": "done",
+			"idPrefix": "EPIC",
+			"initialStatus": "draft",
+			"kind": "epic",
+			"statuses": [
+				"draft",
+				"active",
+				"paused",
+				"done"
+			]
+		},
+		{
+			"archiveStatus": "done",
+			"idPrefix": "VER",
+			"initialStatus": "draft",
+			"kind": "version",
+			"statuses": [
+				"draft",
+				"active",
+				"paused",
+				"done"
+			]
+		},
+		{
+			"archiveStatus": "done",
+			"idPrefix": "INIT",
+			"initialStatus": "draft",
+			"kind": "initiative",
+			"statuses": [
+				"draft",
+				"active",
+				"paused",
+				"done"
+			]
+		},
+		{
+			"archiveStatus": "approved",
+			"idPrefix": "PRD",
+			"initialStatus": "draft",
+			"kind": "prd",
+			"statuses": [
+				"draft",
+				"in-progress",
+				"approved",
+				"superseded"
+			]
+		},
+		{
+			"archiveStatus": "done",
+			"idPrefix": "US",
+			"initialStatus": "draft",
+			"kind": "userStory",
+			"statuses": [
+				"draft",
+				"ready",
+				"in-progress",
+				"done",
+				"superseded"
+			]
+		},
+		{
+			"archiveStatus": "archived",
+			"idPrefix": "ADR",
+			"initialStatus": "current",
+			"kind": "adr",
+			"statuses": [
+				"current",
+				"superseded",
+				"archived"
+			]
+		},
+		{
+			"archiveStatus": "done",
+			"idPrefix": "ISS",
+			"initialStatus": "todo",
+			"kind": "issue",
+			"statuses": [
+				"todo",
+				"in-progress",
+				"blocked",
+				"deferred",
+				"done"
+			]
+		},
+		{
+			"archiveStatus": "archived",
+			"idPrefix": "DEBT",
+			"initialStatus": "open",
+			"kind": "debt",
+			"statuses": [
+				"open",
+				"resolved",
+				"archived"
+			]
+		},
+		{
+			"archiveStatus": "done",
+			"idPrefix": "HO",
+			"initialStatus": "active",
+			"kind": "handoff",
+			"statuses": [
+				"active",
+				"done"
+			]
+		},
+		{
+			"archiveStatus": "superseded",
+			"idPrefix": "PLAN",
+			"initialStatus": "draft",
+			"kind": "plan",
+			"statuses": [
+				"draft",
+				"in-progress",
+				"ready",
+				"superseded"
+			]
+		}
+	],
+	"entityPriorities": [
+		"low",
+		"medium",
+		"high",
+		"critical"
+	],
+	"issueComments": {
+		"addCommand": "agent-logbook comment add <issueId> --body-file <path|-> [--reference <issueId>] --json",
+		"deleteCommand": "agent-logbook comment delete <issueId> <commentId> --json",
+		"editCommand": "agent-logbook comment edit <issueId> <commentId> --body-file <path|-> [--reference <issueId>] --json",
+		"fields": [
+			"id",
+			"reference",
+			"issueId",
+			"body",
+			"referencedIssueIds",
+			"revision",
+			"contentHash",
+			"tombstone",
+			"createdAt",
+			"updatedAt"
+		],
+		"historyCommand": "agent-logbook comment history <commentId> --json",
+		"listCommand": "agent-logbook comment list <issueId> [--before <cursor>] [--all] --json",
+		"parentKind": "issue",
+		"recordPrefix": "COM",
+		"storage": "database"
+	},
+	"parentRules": [
+		{
+			"childKind": "epic",
+			"parentKind": "project",
+			"relationType": "contains"
+		},
+		{
+			"childKind": "initiative",
+			"parentKind": "epic",
+			"relationType": "contains"
+		},
+		{
+			"childKind": "version",
+			"parentKind": "project",
+			"relationType": "owns"
+		},
+		{
+			"childKind": "prd",
+			"parentKind": "initiative",
+			"relationType": "owns"
+		},
+		{
+			"childKind": "plan",
+			"parentKind": "initiative",
+			"relationType": "owns"
+		},
+		{
+			"childKind": "adr",
+			"parentKind": "project",
+			"relationType": "records"
+		},
+		{
+			"childKind": "adr",
+			"parentKind": "epic",
+			"relationType": "records"
+		},
+		{
+			"childKind": "adr",
+			"parentKind": "initiative",
+			"relationType": "records"
+		},
+		{
+			"childKind": "debt",
+			"parentKind": "project",
+			"relationType": "records"
+		},
+		{
+			"childKind": "debt",
+			"parentKind": "epic",
+			"relationType": "records"
+		},
+		{
+			"childKind": "debt",
+			"parentKind": "initiative",
+			"relationType": "records"
+		},
+		{
+			"childKind": "debt",
+			"parentKind": "issue",
+			"relationType": "records"
+		},
+		{
+			"childKind": "issue",
+			"parentKind": "initiative",
+			"relationType": "tracks"
+		},
+		{
+			"childKind": "userStory",
+			"parentKind": "prd",
+			"relationType": "creates"
+		},
+		{
+			"childKind": "issue",
+			"parentKind": "issue",
+			"relationType": "decomposes"
+		}
+	],
+	"planEntries": {
+		"addCommand": "agent-logbook plan-entry add <planId> --role <role> --body-file <path|-> [--reference <entityId>] --json",
+		"fields": [
+			"id",
+			"reference",
+			"planId",
+			"role",
+			"body",
+			"referencedEntityIds",
+			"supersededEntryIds",
+			"revision",
+			"contentHash",
+			"tombstone",
+			"createdAt",
+			"updatedAt"
+		],
+		"linkCommand": "agent-logbook link <planEntryId> informs <targetId> --json",
+		"linkRelationType": "informs",
+		"linkTargetKind": "entity",
+		"parentKind": "plan",
+		"recordPrefix": "PLAN_ENTRY",
+		"storage": "database",
+		"unlinkCommand": "agent-logbook unlink <planEntryId> informs <targetId> --json"
+	},
+	"relationTypes": [
+		"blocks",
+		"constrains",
+		"contains",
+		"creates",
+		"decomposes",
+		"fixes",
+		"handsOff",
+		"informs",
+		"owns",
+		"records",
+		"relatesTo",
+		"resolves",
+		"supersedes",
+		"taggedWith",
+		"tracks"
+	],
+	"structuralRelationTypes": [
+		"contains",
+		"owns",
+		"records",
+		"tracks",
+		"creates",
+		"decomposes"
+	]
+}

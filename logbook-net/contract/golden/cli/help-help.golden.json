@@ -1,0 +1,5 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": "help\n\nShow general or command-specific help.\n\nUsage:\n  agent-issues help [command]\n  agent-issues <command> --help\n\nArguments:\n  command | Optional command name.\n\nOptions:\n  --db <path> | Use a specific SQLite database path.\n  --json | Print machine-readable JSON. Entity mutations return acknowledgements; list and relation reads return summaries.\n  --pretty | Pretty-print JSON when used with --json.\n  --help, -h | Show help for the whole CLI or the selected command.\n\nExamples:\n  agent-issues help\n  agent-issues help create --json\n  agent-issues create --help\n"
+}

@@ -40,6 +40,27 @@ if "$tool_path/agent-logbook" --bogus >/dev/null 2>&1; then
 	echo "FAIL: unknown argument exited 0" >&2; exit 1
 fi
 
+# The metadata commands run from the packed tool: help, schema, and capabilities need no workspace, database, or API host.
+tool="$tool_path/agent-logbook"
+help_output="$("$tool" help project-identity)"
+[ "$(head -n 1 <<<"$help_output")" = "project-identity" ] \
+	|| { echo "FAIL: help project-identity did not print the command help" >&2; exit 1; }
+[ "$help_output" = "$("$tool" project-identity --help)" ] \
+	|| { echo "FAIL: help <command> differs from <command> --help" >&2; exit 1; }
+"$tool" schema --json | grep -q '"entityKinds"' || { echo "FAIL: schema --json has no entityKinds" >&2; exit 1; }
+capabilities="$("$tool" capabilities --json)"
+grep -q '"help":' <<<"$capabilities" && grep -q '"schema":' <<<"$capabilities" \
+	|| { echo "FAIL: capabilities --json lacks help or schema" >&2; exit 1; }
+for command in schema capabilities help; do
+	if stdout="$("$tool" "$command" --bogus 2>/dev/null)"; then
+		echo "FAIL: $command --bogus exited 0" >&2; exit 1
+	fi
+	[ -z "$stdout" ] || { echo "FAIL: $command --bogus printed to stdout" >&2; exit 1; }
+done
+if "$tool" help nosuch >/dev/null 2>&1; then
+	echo "FAIL: help for an unknown command exited 0" >&2; exit 1
+fi
+
 # project-identity reads the workspace only: no PostgreSQL and no Local API host run here.
 workspace="$work/workspace/My Project"
 mkdir -p "$workspace"

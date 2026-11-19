@@ -5,6 +5,9 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="WorkflowSchema/workflow-schema.json" LogicalName="AgentLogbook.Core.WorkflowSchema.workflow-schema.json" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="AgentLogbook.Core.Tests" />
   </ItemGroup>
 </Project>

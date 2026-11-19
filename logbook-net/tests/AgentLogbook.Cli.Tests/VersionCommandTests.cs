@@ -39,11 +39,13 @@ public class VersionCommandTests
 	}
 
 	[Test]
-	public async Task No_arguments_fails_and_exits_one()
+	public async Task No_arguments_prints_the_general_help_and_exits_zero()
 	{
-		var (exit, output, _) = Run();
+		var (exit, output, error) = Run();
 
-		await Assert.That(exit).IsEqualTo(1);
-		await Assert.That(output).IsEmpty();
+		await Assert.That(exit).IsEqualTo(0);
+		await Assert.That(output).StartsWith("agent-logbook\n\n");
+		await Assert.That(output).Contains("Commands:");
+		await Assert.That(error).IsEmpty();
 	}
 }

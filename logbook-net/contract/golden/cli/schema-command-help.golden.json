@@ -1,0 +1,5 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": "schema\n\nShow machine-discoverable workflow schema and relation rules.\n\nUsage:\n  agent-issues schema\n  agent-issues schema --json\n\nOptions:\n  --db <path> | Use a specific SQLite database path.\n  --json | Print machine-readable JSON. Entity mutations return acknowledgements; list and relation reads return summaries.\n  --pretty | Pretty-print JSON when used with --json.\n  --help, -h | Show help for the whole CLI or the selected command.\n\nExamples:\n  agent-issues schema\n  agent-issues schema --json\n\nNotes:\n  Use this command to discover entity kinds, status flows, allowed relations, structural relations, and archive mappings.\n\nOutput:\n  Human-readable:\n    Entity kinds section\n    Relation types line\n    Structural relation types line\n    Allowed relations section\n    Structural parent rules section\n  JSON fields:\n    entityKinds\n    relationTypes\n    allowedRelations\n    structuralRelationTypes\n    parentRules\n"
+}

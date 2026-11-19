@@ -1,0 +1,7 @@
+{
+	"id": "cli/schema-human",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["schema"],
+	"stdout": "text"
+}

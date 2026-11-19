@@ -1,0 +1,7 @@
+{
+	"id": "cli/capabilities-help",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["capabilities", "--help"],
+	"stdout": "text"
+}

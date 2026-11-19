@@ -4,12 +4,12 @@ import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadCases, type Case } from "./cases.ts";
-import { startLegacy } from "./legacy.ts";
+import { legacyRoot, startLegacy } from "./legacy.ts";
 import { recordCli, recordRpc, RecordingError, type Observation } from "./recorder.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const netRoot = path.resolve(here, "../..");
-const logbookRoot = path.resolve(netRoot, "../logbook");
+const logbookRoot = legacyRoot(netRoot);
 
 const args = process.argv.slice(2);
 let goldenRoot = path.join(netRoot, "contract/golden");
