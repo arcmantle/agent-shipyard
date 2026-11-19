@@ -2,3 +2,6 @@ bin/
 obj/
 artifacts/
 TestResults/
+
+# Repository-local Shipyard state of the Development API host (Aspire).
+.agent-shipyard/

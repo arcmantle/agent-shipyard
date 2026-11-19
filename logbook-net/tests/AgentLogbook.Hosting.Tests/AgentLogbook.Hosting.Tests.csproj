@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <!-- The consumer under test: the shared library only. The standalone AppHost is deliberately not referenced. -->
+    <ProjectReference Include="../../src/AgentLogbook.Hosting/AgentLogbook.Hosting.csproj" />
+    <ProjectReference Include="../../src/AgentLogbook.Client/AgentLogbook.Client.csproj" />
+  </ItemGroup>
+</Project>

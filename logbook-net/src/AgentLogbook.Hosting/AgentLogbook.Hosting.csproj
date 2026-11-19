@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>AgentLogbook.Hosting</AssemblyName>
+    <RootNamespace>AgentLogbook.Hosting</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <!-- Built before this library, so a consumer always finds the Development API host. It is run as a process, not referenced as code. -->
+    <ProjectReference Include="../AgentLogbook.DevelopmentApi/AgentLogbook.DevelopmentApi.csproj" ReferenceOutputAssembly="false" />
+    <AssemblyMetadata Include="LogbookNetRoot" Value="$([MSBuild]::EnsureTrailingSlash('$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))'))" />
+  </ItemGroup>
+</Project>
