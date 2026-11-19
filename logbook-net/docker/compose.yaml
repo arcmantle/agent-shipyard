@@ -1,0 +1,28 @@
+# Local PostgreSQL for the Agent Logbook Local API host.
+# The service matches LocalPostgresSelection.DefaultUrl:
+#   postgres://agent_logbook:agent_logbook_dev_only@127.0.0.1:5433/agent_logbook
+# Start it with: docker compose -f logbook-net/docker/compose.yaml up -d
+# For development only. The password is public. The port listens on 127.0.0.1 only.
+name: agent-logbook-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-logbook-local-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agent_logbook
+      POSTGRES_PASSWORD: agent_logbook_dev_only
+      POSTGRES_DB: agent_logbook
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - agent-logbook-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_logbook -d agent_logbook"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  agent-logbook-postgres-data:
