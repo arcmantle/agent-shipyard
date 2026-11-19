@@ -1,0 +1,7 @@
+{
+	"id": "cli/schema-command-help",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["help", "schema"],
+	"stdout": "text"
+}

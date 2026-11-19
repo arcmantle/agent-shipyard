@@ -1,0 +1,5 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": "capabilities\n\nShow combined help and schema data in one discovery payload.\n\nUsage:\n  agent-issues capabilities\n  agent-issues capabilities --json\n\nOptions:\n  --db <path> | Use a specific SQLite database path.\n  --json | Print machine-readable JSON. Entity mutations return acknowledgements; list and relation reads return summaries.\n  --pretty | Pretty-print JSON when used with --json.\n  --help, -h | Show help for the whole CLI or the selected command.\n\nExamples:\n  agent-issues capabilities\n  agent-issues capabilities --json\n\nNotes:\n  Use this command when an agent wants the command catalog and workflow schema in one round trip.\n\nOutput:\n  Human-readable:\n    General help text followed by the workflow schema summary\n  JSON fields:\n    help\n    schema\n"
+}

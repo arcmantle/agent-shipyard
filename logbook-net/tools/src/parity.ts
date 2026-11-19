@@ -69,7 +69,7 @@ const candidate = (testCase: Case): Promise<Observation> => {
 };
 
 let legacy: Awaited<ReturnType<typeof import("./legacy.ts").startLegacy>> | undefined;
-if (mode === "diff") legacy = await (await import("./legacy.ts")).startLegacy(path.resolve(netRoot, "../logbook"));
+if (mode === "diff") legacy = await (await import("./legacy.ts")).startLegacy((await import("./legacy.ts")).legacyRoot(netRoot));
 const goldenRoot = path.join(netRoot, "contract/golden");
 let report;
 try {

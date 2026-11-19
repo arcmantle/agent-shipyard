@@ -23,13 +23,17 @@ Limits:
 - Expected values come from the TypeScript source, so a comparison detects drift from that source, not a wrong original value. Only the four namespaces and the reference and short-reference literals of this tracker are checked independently.
 - Random `generate*` functions, `mergeUserDirectories`, `deriveEntityKindFromId`, and `archiveHeadContentHash` have no vectors yet.
 
+## Workflow schema exporter
+
+`export-workflow-schema.ts` writes the embedded `workflow-schema.json` that `agent-logbook schema` serves, from `contract/golden/cli/schema-json.golden.json`, with the product rename applied. `--check` fails when the resource differs from a fresh export. Record `cli/schema-json` again first when the TypeScript schema changes.
+
 ## Parity recorder
 
 A Bun and TypeScript tool that records repeatable results from the TypeScript Logbook implementation.
 
 ### Record golden files
 
-Build the TypeScript packages in `logbook/` first (`core`, `api-local`, `api-pg`, `site`, `agent-issues`).
+Build the TypeScript packages in `logbook/` first (or set `AGENT_LOGBOOK_TS_ROOT` to another checkout that has them) (`core`, `api-local`, `api-pg`, `site`, `agent-issues`).
 PostgreSQL must run on `127.0.0.1:5433`, or set `AGENT_ISSUES_TEST_PG_URL` and `AGENT_ISSUES_TEST_PG_APP_URL`.
 
 ```sh
