@@ -1,0 +1,5 @@
+{
+	"exitCode": 1,
+	"stderr": "Unknown Syntax Error: Unsupported option name (\"--bogus\").\n\n$ agent-issues init [--json] [--pretty] [--project-identity #0] [--db #0]\n",
+	"stdout": ""
+}

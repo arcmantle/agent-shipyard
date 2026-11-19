@@ -1,0 +1,8 @@
+{
+	"id": "cli/init-unknown-option",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["init", "--bogus"],
+	"stdout": "text",
+	"expectExitCode": 1
+}

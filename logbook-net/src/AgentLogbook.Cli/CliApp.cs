@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.Reflection;
 using AgentLogbook.Cli.Commands;
+using AgentLogbook.Cli.Init;
 using AgentLogbook.Cli.Metadata;
 using AgentLogbook.Cli.ProjectIdentity;
 using AgentLogbook.Cli.Serve;
@@ -20,6 +21,7 @@ public static class CliApp
 	public static CommandCatalog Catalog { get; } = new(
 	[
 		new ProjectIdentityCommand(),
+		new InitCommand(),
 		new HelpCommand(),
 		new SchemaCommand(),
 		new CapabilitiesCommand(),

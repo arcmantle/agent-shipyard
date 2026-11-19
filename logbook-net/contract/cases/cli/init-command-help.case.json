@@ -1,0 +1,7 @@
+{
+	"id": "cli/init-command-help",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["help", "init"],
+	"stdout": "text"
+}

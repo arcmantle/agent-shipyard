@@ -6,7 +6,7 @@ namespace AgentLogbook.Cli.Tests;
 
 public class MetadataCommandTests
 {
-	private static readonly string[] ImplementedCommands = ["project-identity", "help", "schema", "capabilities"];
+	private static readonly string[] ImplementedCommands = ["project-identity", "init", "help", "schema", "capabilities"];
 
 	private static (int Exit, string Out, string Err) Run(params string[] args) => Run(CliApp.Catalog, args);
 

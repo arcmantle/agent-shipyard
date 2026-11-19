@@ -1,4 +1,6 @@
 using System.Net;
+using AgentLogbook.Api.Rpc;
+using AgentLogbook.Core.Rpc;
 using AgentLogbook.Storage.Postgres;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -34,6 +36,7 @@ public static class ApiHost
 		builder.WebHost.UseKestrelCore().UseSockets().ConfigureKestrel(kestrel =>
 		{
 			kestrel.AddServerHeader = false;
+			kestrel.Limits.MaxRequestBodySize = RpcEndpoint.MaxBodyBytes;
 			kestrel.Listen(options.ListenAddress, options.ListenPort);
 		});
 		builder.Services.AddRoutingCore();
@@ -61,6 +64,10 @@ public static class ApiHost
 		endpoints.MapGet(DiscoveryPath, () => Results.Json(
 			new { auth = options.AuthProvider.Metadata, version = options.ToolVersion },
 			statusCode: StatusCodes.Status200OK));
+
+		var registry = options.Rpc ?? RpcMethodRegistry.CreateDefault();
+		endpoints.MapPost(RpcWire.Path, (HttpContext context, ILoggerFactory loggers) =>
+			RpcEndpoint.HandleAsync(context, options.AuthProvider, options.DataSource, registry, loggers.CreateLogger("AgentLogbook.Api.Rpc")));
 
 		endpoints.MapGet(LivePath, () => Results.Json(new { status = "live" }));
 
