@@ -2,12 +2,14 @@
   <Folder Name="/src/">
     <Project Path="src/AgentLogbook.Core/AgentLogbook.Core.csproj" />
     <Project Path="src/AgentLogbook.Api/AgentLogbook.Api.csproj" />
+    <Project Path="src/AgentLogbook.Client/AgentLogbook.Client.csproj" />
     <Project Path="src/AgentLogbook.Cli/AgentLogbook.Cli.csproj" />
     <Project Path="src/AgentLogbook.Storage.Postgres/AgentLogbook.Storage.Postgres.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AgentLogbook.Core.Tests/AgentLogbook.Core.Tests.csproj" />
     <Project Path="tests/AgentLogbook.Api.Tests/AgentLogbook.Api.Tests.csproj" />
+    <Project Path="tests/AgentLogbook.Client.Tests/AgentLogbook.Client.Tests.csproj" />
     <Project Path="tests/AgentLogbook.Cli.Tests/AgentLogbook.Cli.Tests.csproj" />
     <Project Path="tests/AgentLogbook.Storage.Postgres.Tests/AgentLogbook.Storage.Postgres.Tests.csproj" />
   </Folder>

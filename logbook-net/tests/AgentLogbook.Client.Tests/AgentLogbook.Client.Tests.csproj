@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <ProjectReference Include="../../src/AgentLogbook.Client/AgentLogbook.Client.csproj" />
+    <ProjectReference Include="../../src/AgentLogbook.Api/AgentLogbook.Api.csproj" />
+  </ItemGroup>
+</Project>
