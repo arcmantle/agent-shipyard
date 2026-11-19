@@ -35,17 +35,27 @@ public class LocalPostgresSelectionTests
 	}
 
 	[Test]
-	public async Task Settings_file_wins_over_the_default_when_the_variable_is_missing_or_blank()
+	public async Task Settings_file_wins_over_the_default_when_the_variable_is_missing()
 	{
 		var folder = FolderIn(NewShipyard());
 		WriteSettings(folder, $$"""{ "postgresUrl": "{{FromFile}}" }""");
 
 		var missing = LocalPostgresSelection.Select(Env(), folder);
-		var blank = LocalPostgresSelection.Select(Env((LocalPostgresSelection.UrlVariable, "  ")), folder);
 
 		await Assert.That(missing.Source).IsEqualTo(LocalPostgresSource.SettingsFile);
 		await Assert.That(missing.Connection.Host).IsEqualTo("file-host");
-		await Assert.That(blank.Source).IsEqualTo(LocalPostgresSource.SettingsFile);
+	}
+
+	[Test]
+	[Arguments("")]
+	[Arguments("   ")]
+	public async Task A_blank_environment_variable_is_an_error_and_not_a_fall_back(string value)
+	{
+		var folder = FolderIn(NewShipyard());
+		WriteSettings(folder, $$"""{ "postgresUrl": "{{FromFile}}" }""");
+
+		await Assert.That(() => LocalPostgresSelection.Select(Env((LocalPostgresSelection.UrlVariable, value)), folder))
+			.Throws<LocalPostgresSettingsException>();
 	}
 
 	[Test]

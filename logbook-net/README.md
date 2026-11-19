@@ -30,7 +30,7 @@ The new inputs win over the old ones without a warning. A file with a UTF-8 byte
 
 ## Local PostgreSQL
 
-The Local API host uses the PostgreSQL that the user supplies. `LocalPostgresSelection` picks the connection. The first place that has a value decides:
+The Local API host uses the PostgreSQL that the user supplies. `LocalPostgresSelection` picks the connection. The first place that is set decides. A variable that is set but blank is an error:
 
 1. the environment variable `AGENT_LOGBOOK_LOCAL_PG_URL`
 2. the setting `postgresUrl` in `local-api.settings.json` in the Shipyard Logbook data folder

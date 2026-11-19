@@ -15,7 +15,7 @@ public sealed record LocalPostgresSelection(LocalPostgresConnection Connection, 
 
 	/// <summary>
 	/// Selects the connection from <see cref="UrlVariable"/>, then <c>local-api.settings.json</c>, then <see cref="DefaultUrl"/>.
-	/// The first place that has a value decides. A value that is not usable is an error: the selection never
+	/// The first place that is set decides, and a set but blank variable is an error. A value that is not usable is an error: the selection never
 	/// continues with a later place. The production <c>DATABASE_URL</c> is never read.
 	/// </summary>
 	/// <exception cref="LocalPostgresSettingsException">The selected value or settings file is not usable.</exception>
@@ -25,7 +25,7 @@ public sealed record LocalPostgresSelection(LocalPostgresConnection Connection, 
 		ArgumentNullException.ThrowIfNull(folder);
 
 		var fromEnvironment = getEnvironmentVariable(UrlVariable);
-		if (!string.IsNullOrWhiteSpace(fromEnvironment))
+		if (fromEnvironment is not null)
 		{
 			return Create(fromEnvironment, LocalPostgresSource.Environment, $"the environment variable {UrlVariable}");
 		}
