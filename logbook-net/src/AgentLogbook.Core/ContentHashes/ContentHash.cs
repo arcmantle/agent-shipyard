@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using AgentLogbook.Core.Json;
 
 namespace AgentLogbook.Core.ContentHashes;
 
@@ -36,8 +37,8 @@ public static class ContentHash
 		ArgumentNullException.ThrowIfNull(avoid);
 
 		var json = new StringBuilder("{");
-		AppendString(json.Append("\"term\":"), term);
-		AppendString(json.Append(",\"definition\":"), definition);
+		JavaScriptJson.AppendString(json.Append("\"term\":"), term);
+		JavaScriptJson.AppendString(json.Append(",\"definition\":"), definition);
 		AppendStringArray(json.Append(",\"avoid\":"), avoid);
 		AppendBool(json.Append(",\"tombstone\":"), tombstone);
 		return Sha256Hex(json.Append('}').ToString());
@@ -50,7 +51,7 @@ public static class ContentHash
 		ArgumentNullException.ThrowIfNull(referencedIssueIds);
 
 		var json = new StringBuilder("{");
-		AppendString(json.Append("\"body\":"), body);
+		JavaScriptJson.AppendString(json.Append("\"body\":"), body);
 		AppendStringArray(json.Append(",\"referencedIssueIds\":"), referencedIssueIds);
 		AppendBool(json.Append(",\"tombstone\":"), tombstone);
 		return Sha256Hex(json.Append('}').ToString());
@@ -71,8 +72,8 @@ public static class ContentHash
 		ArgumentNullException.ThrowIfNull(supersededEntryIds);
 
 		var json = new StringBuilder("{");
-		AppendString(json.Append("\"role\":"), role);
-		AppendString(json.Append(",\"body\":"), body);
+		JavaScriptJson.AppendString(json.Append("\"role\":"), role);
+		JavaScriptJson.AppendString(json.Append(",\"body\":"), body);
 		json.Append(",\"scopeDirection\":");
 		if (scopeDirection is null)
 		{
@@ -80,7 +81,7 @@ public static class ContentHash
 		}
 		else
 		{
-			AppendString(json, scopeDirection);
+			JavaScriptJson.AppendString(json, scopeDirection);
 		}
 
 		AppendStringArray(json.Append(",\"referencedEntityIds\":"), referencedEntityIds);
@@ -104,52 +105,9 @@ public static class ContentHash
 				json.Append(',');
 			}
 
-			AppendString(json, values[i] ?? throw new ArgumentException("A list item is null.", nameof(values)));
+			JavaScriptJson.AppendString(json, values[i] ?? throw new ArgumentException("A list item is null.", nameof(values)));
 		}
 
 		json.Append(']');
 	}
-
-	// Same escapes as JSON.stringify: quote, backslash, the short control escapes, other control
-	// characters as lower-case \u00xx, and lone surrogates as lower-case \udxxx. Nothing else is escaped.
-	private static void AppendString(StringBuilder json, string value)
-	{
-		json.Append('"');
-		for (var i = 0; i < value.Length; i++)
-		{
-			var c = value[i];
-			switch (c)
-			{
-				case '"': json.Append("\\\""); break;
-				case '\\': json.Append("\\\\"); break;
-				case '\b': json.Append("\\b"); break;
-				case '\f': json.Append("\\f"); break;
-				case '\n': json.Append("\\n"); break;
-				case '\r': json.Append("\\r"); break;
-				case '\t': json.Append("\\t"); break;
-				case < ' ':
-					AppendUnicodeEscape(json, c);
-					break;
-				default:
-					if (char.IsHighSurrogate(c) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
-					{
-						json.Append(c).Append(value[++i]);
-					}
-					else if (char.IsSurrogate(c))
-					{
-						AppendUnicodeEscape(json, c);
-					}
-					else
-					{
-						json.Append(c);
-					}
-
-					break;
-			}
-		}
-
-		json.Append('"');
-	}
-
-	private static void AppendUnicodeEscape(StringBuilder json, char c) => json.Append("\\u").Append(((int)c).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
 }

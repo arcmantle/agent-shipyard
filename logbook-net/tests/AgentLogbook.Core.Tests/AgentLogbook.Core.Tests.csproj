@@ -9,6 +9,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="../../contract/test-vectors/record-keys.json" Link="test-vectors/record-keys.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../contract/test-vectors/reverse-patches.json" Link="test-vectors/reverse-patches.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../contract/test-vectors/content-hashes.json" Link="test-vectors/content-hashes.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../contract/test-vectors/stable-ids.json" Link="test-vectors/stable-ids.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../contract/test-vectors/references.json" Link="test-vectors/references.json" CopyToOutputDirectory="PreserveNewest" />
