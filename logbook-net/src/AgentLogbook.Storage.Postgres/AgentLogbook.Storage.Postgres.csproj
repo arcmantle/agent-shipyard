@@ -5,6 +5,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../AgentLogbook.Core/AgentLogbook.Core.csproj" />
     <PackageReference Include="Dapper" />
     <PackageReference Include="Npgsql" />
     <EmbeddedResource Include="Schema/baseline.sql" LogicalName="AgentLogbook.Storage.Postgres.Schema.baseline.sql" />

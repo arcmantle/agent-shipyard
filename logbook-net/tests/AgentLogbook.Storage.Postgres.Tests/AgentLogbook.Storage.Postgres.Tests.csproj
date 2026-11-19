@@ -8,4 +8,7 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <ProjectReference Include="../../src/AgentLogbook.Storage.Postgres/AgentLogbook.Storage.Postgres.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../docker/compose.yaml" Link="docker/compose.yaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
