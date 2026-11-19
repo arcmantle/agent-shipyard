@@ -17,7 +17,8 @@ const clone = <T>(value: T): T => structuredClone(value);
 function dotnetShape(id: string, observation: Observation): Observation {
 	const copy = clone(observation) as { stdout: unknown };
 	if (id.endsWith("-help")) {
-		copy.stdout = (copy.stdout as string).replace(/agent-issues(?= )/g, "agent-logbook").split("\n").filter((line) => !line.includes("SQLite")).join("\n");
+		copy.stdout = (copy.stdout as string).replace(/agent-issues(?= )/g, "agent-logbook").split("\n").filter((line) => !line.includes("SQLite")).join("\n")
+			.replace("override, ", "override, .agent-shipyard.json file, .agent-shipyard file, ").replace("file, Git remote", "file, old extensionless project file, Git remote");
 	}
 	return copy as Observation;
 }
@@ -34,7 +35,7 @@ test("project-identity cases pass with the approved differences, in any key orde
 	expect(byId(report, "cli/project-identity-json").status).toBe("pass");
 	expect(byId(report, "cli/project-identity-help").status).toBe("pass");
 	expect(report.unusedRules).toEqual([]);
-	expect(Object.keys(report.ruleUse).sort()).toEqual(["command-name", "no-sqlite-db-option"]);
+	expect(Object.keys(report.ruleUse).sort()).toEqual(["command-name", "no-sqlite-db-option", "project-identity-new-project-files", "project-identity-old-extensionless-file-note"]);
 });
 
 test("without the approved rules the same help differences fail", async () => {

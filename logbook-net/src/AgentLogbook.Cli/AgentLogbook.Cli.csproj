@@ -11,6 +11,7 @@
     <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/packages</PackageOutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../AgentLogbook.Core/AgentLogbook.Core.csproj" />
     <InternalsVisibleTo Include="AgentLogbook.Cli.Tests" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,7 @@
+{
+	"id": "cli/project-identity-package-name",
+	"surface": "cli",
+	"workspace": { "folder": "default-project", "files": { "package.json": "{\"name\":\"@acme/Widget\"}" } },
+	"argv": ["project-identity", "--json"],
+	"stdout": "json"
+}
