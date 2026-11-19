@@ -62,3 +62,19 @@ bun logbook-net/tools/export-workflow-schema.ts --check  # fail if it differs fr
 ```
 
 The schema records name some commands that are not ported yet (`context`, `comment`, `plan-entry`). They stay in the schema because they describe the workflow records, not the commands of this release.
+
+## Local PostgreSQL
+
+The Local API host uses the PostgreSQL that the user supplies. `LocalPostgresSelection` picks the connection. The first place that is set decides. A variable that is set but blank is an error:
+
+1. the environment variable `AGENT_LOGBOOK_LOCAL_PG_URL`
+2. the setting `postgresUrl` in `local-api.settings.json` in the Shipyard Logbook data folder
+3. the built-in default `postgres://agent_logbook:agent_logbook_dev_only@127.0.0.1:5433/agent_logbook`
+
+The value is a `postgres://` or `postgresql://` URL with a user, a host, an optional port, and one database name. The selection never reads the production `DATABASE_URL`. A value that is not usable, or a settings file that cannot be read, is an error. It never causes a fall back to a later place. If PostgreSQL does not answer, the connection fails with that error.
+
+`docker/compose.yaml` starts a PostgreSQL service that matches the default (development only, bound to 127.0.0.1):
+
+```sh
+docker compose -f docker/compose.yaml up -d
+```

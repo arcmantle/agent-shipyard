@@ -12,19 +12,24 @@ public enum PostgresSchemaInitialization
 
 	/// <summary>The schema was already the final schema. The initializer changed no schema object.</summary>
 	AlreadyCurrent,
+
+	/// <summary>The schema was a known earlier version. The initializer applied the pending migrations.</summary>
+	Upgraded,
 }
 
 /// <summary>
-/// Creates or validates the Logbook schema at API host startup. All work happens in one transaction
-/// under one advisory lock, so a failure changes nothing and two hosts that start together do not race.
+/// Creates, upgrades, or validates the Logbook schema at API host startup. All work happens in one transaction
+/// under one advisory lock for the database and schema, so a failure changes nothing and two hosts that
+/// start together do not race. Every migration runs once, in order, and the schema signature is checked
+/// before the sequence and after it.
 /// </summary>
 public static class PostgresSchemaInitializer
 {
 	/// <summary>The ledger entry of the final schema. It is not an ID of the TypeScript migration sequence.</summary>
 	public const string BaselineId = "agent-logbook-baseline-1";
 
-	/// <summary>Every ledger ID that this storage may write, in the order it applies them.</summary>
-	internal static readonly IReadOnlyList<string> KnownMigrationIds = [BaselineId];
+	/// <summary>The migrations of this storage in the order that it applies them. A later change adds one entry here.</summary>
+	internal static readonly PostgresMigrationChain Chain = new([new PostgresMigration(BaselineId, ReadBaselineScript(), BaselineSignature)]);
 
 	/// <summary>The signature of the schema that the baseline script creates. It equals the signature of the final schema of the TypeScript storage.</summary>
 	internal const string BaselineSignature = "22367ba1b048aa18db5ff505027e3bb8c6583111eb5d3d3c4367db95c07332e0";
@@ -44,12 +49,20 @@ public static class PostgresSchemaInitializer
 	/// gets the reviewed table privileges. Without roles, the connection user owns the schema.
 	/// </summary>
 	/// <exception cref="UnrecognizedSchemaException">The schema is not empty and is not the final schema.</exception>
-	public static async Task<PostgresSchemaInitialization> InitializeAsync(
+	public static Task<PostgresSchemaInitialization> InitializeAsync(
 		NpgsqlDataSource dataSource,
+		PostgresSchemaRoles? roles = null,
+		CancellationToken cancellationToken = default) =>
+		InitializeAsync(dataSource, Chain, roles, cancellationToken);
+
+	internal static async Task<PostgresSchemaInitialization> InitializeAsync(
+		NpgsqlDataSource dataSource,
+		PostgresMigrationChain chain,
 		PostgresSchemaRoles? roles = null,
 		CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(dataSource);
+		ArgumentNullException.ThrowIfNull(chain);
 
 		await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
 		await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -69,7 +82,7 @@ public static class PostgresSchemaInitializer
 				"SELECT pg_advisory_xact_lock(hashtext(current_database()), hashtext(current_schema()))",
 				transaction: transaction);
 
-			var result = await EnsureFinalSchemaAsync(connection, transaction);
+			var result = await EnsureFinalSchemaAsync(connection, transaction, chain);
 			if (roles is not null)
 			{
 				await RequireOwnerAsync(connection, transaction, roles);
@@ -96,19 +109,15 @@ public static class PostgresSchemaInitializer
 
 	private static async Task<PostgresSchemaInitialization> EnsureFinalSchemaAsync(
 		NpgsqlConnection connection,
-		NpgsqlTransaction transaction)
+		NpgsqlTransaction transaction,
+		PostgresMigrationChain chain)
 	{
-		var schema = await connection.ExecuteScalarAsync<string>("SELECT current_schema()", transaction: transaction);
+		var schema = (await connection.ExecuteScalarAsync<string>("SELECT current_schema()", transaction: transaction))!;
 
 		if (await PostgresSchemaCatalog.CountObjectsAsync(connection) == 0)
 		{
 			await connection.ExecuteAsync(CreateLedgerSql, transaction: transaction);
-			await connection.ExecuteAsync(ReadBaselineScript(), transaction: transaction);
-			await connection.ExecuteAsync(
-				$"INSERT INTO {LedgerTable} (id, applied_at) VALUES (@id, clock_timestamp())",
-				new { id = BaselineId },
-				transaction);
-			await RequireBaselineSignatureAsync(connection, schema!);
+			await ApplyAsync(connection, transaction, schema, chain.Migrations);
 			return PostgresSchemaInitialization.Created;
 		}
 
@@ -120,7 +129,8 @@ public static class PostgresSchemaInitializer
 				+ "Agent Logbook does not adopt a database that it did not create. Use an empty database.");
 		}
 
-		var typescriptIds = ledgerIds.Where(id => !KnownMigrationIds.Contains(id)).ToArray();
+		var knownIds = chain.Ids;
+		var typescriptIds = ledgerIds.Where(id => !knownIds.Contains(id)).ToArray();
 		if (typescriptIds.Length > 0)
 		{
 			var origin = typescriptIds.Contains("final-baseline", StringComparer.Ordinal)
@@ -131,30 +141,48 @@ public static class PostgresSchemaInitializer
 				+ $"{(typescriptIds.Length > 3 ? ", ..." : "")}). Agent Logbook does not adopt it. Use an empty database.");
 		}
 
-		if (!ledgerIds.SequenceEqual(KnownMigrationIds.Take(ledgerIds.Count)))
+		if (ledgerIds.Count == 0 || !ledgerIds.SequenceEqual(knownIds.Take(ledgerIds.Count)))
 		{
 			throw new UnrecognizedSchemaException(
 				$"The '{LedgerTable}' ledger does not list the Agent Logbook migrations in order.");
 		}
 
-		if (ledgerIds.Count != KnownMigrationIds.Count)
+		// The schema must be exactly the version that the ledger claims before any migration changes it.
+		await RequireSignatureAsync(connection, schema, chain.Migrations[ledgerIds.Count - 1].Signature);
+		if (ledgerIds.Count == chain.Migrations.Count)
 		{
-			throw new UnrecognizedSchemaException(
-				$"The '{LedgerTable}' ledger lists {ledgerIds.Count} of {KnownMigrationIds.Count} Agent Logbook migrations. "
-				+ "Later migrations are not available yet.");
+			return PostgresSchemaInitialization.AlreadyCurrent;
 		}
 
-		await RequireBaselineSignatureAsync(connection, schema!);
-		return PostgresSchemaInitialization.AlreadyCurrent;
+		await ApplyAsync(connection, transaction, schema, chain.Migrations.Skip(ledgerIds.Count));
+		return PostgresSchemaInitialization.Upgraded;
 	}
 
-	private static async Task RequireBaselineSignatureAsync(NpgsqlConnection connection, string schema)
+	private static async Task ApplyAsync(
+		NpgsqlConnection connection,
+		NpgsqlTransaction transaction,
+		string schema,
+		IEnumerable<PostgresMigration> migrations)
+	{
+		foreach (var migration in migrations)
+		{
+			await connection.ExecuteAsync(migration.Sql, transaction: transaction);
+			await connection.ExecuteAsync(
+				$"INSERT INTO {LedgerTable} (id, applied_at) VALUES (@id, clock_timestamp())",
+				new { id = migration.Id },
+				transaction);
+			// Each step must give the signature that the next start expects before it, not only the last step.
+			await RequireSignatureAsync(connection, schema, migration.Signature);
+		}
+	}
+
+	private static async Task RequireSignatureAsync(NpgsqlConnection connection, string schema, string expected)
 	{
 		var signature = await PostgresSchemaCatalog.ComputeSignatureAsync(connection);
-		if (signature != BaselineSignature)
+		if (signature != expected)
 		{
 			throw new UnrecognizedSchemaException(
-				$"The schema '{schema}' does not match the Agent Logbook final schema (signature {signature}).");
+				$"The schema '{schema}' does not match the expected Agent Logbook schema (signature {signature}, expected {expected}).");
 		}
 	}
 
