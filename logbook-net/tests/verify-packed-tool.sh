@@ -84,6 +84,20 @@ expect_identity new-file project-file
 	= '{"command":"project-identity","identity":"new-env","source":"environment"}' ] \
 	|| { echo "FAIL: new environment variable does not win" >&2; exit 1; }
 
+# The documented update flow: a newer local build replaces the installed tool. No public feed is used.
+IFS=. read -r major minor patch <<<"${version%%-*}"
+update_version="$major.$minor.$((patch + 1))"
+update_feed="$work/update-feed"
+mkdir -p "$update_feed"
+dotnet pack "$root/src/AgentLogbook.Cli/AgentLogbook.Cli.csproj" -c Release -o "$update_feed" --nologo -v quiet \
+	-p:Version="$update_version" -p:InformationalVersion="$update_version"
+dotnet tool update Arcmantle.AgentLogbook --tool-path "$tool_path" \
+	--add-source "$update_feed" --version "$update_version" --ignore-failed-sources >/dev/null
+output="$("$tool_path/agent-logbook" --version)"
+[ "$output" = "$update_version" ] || { echo "FAIL: after update --version printed '$output', expected '$update_version'" >&2; exit 1; }
+
+bash "$root/tests/verify-install-guide.sh"
+
 dotnet tool uninstall Arcmantle.AgentLogbook --tool-path "$tool_path" >/dev/null
 [ ! -e "$tool_path/agent-logbook" ] || { echo "FAIL: uninstall left the command" >&2; exit 1; }
 

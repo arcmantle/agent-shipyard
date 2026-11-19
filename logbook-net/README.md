@@ -10,6 +10,8 @@ tests/verify-packed-tool.sh                # required gate: pack, install in an 
 
 The package is one framework-dependent `any` tool. It has no RID-specific or Native AOT build and only the `agent-logbook` command.
 
+Install, update, and PATH instructions: [docs/installation.md](docs/installation.md). `tests/verify-install-guide.sh` checks that guide against the pack metadata.
+
 ## project-identity
 
 `agent-logbook project-identity [--json] [--pretty]` prints the project identity of the current workspace and the input that decided it. It reads files and environment variables only. It starts no API host and needs no database.
