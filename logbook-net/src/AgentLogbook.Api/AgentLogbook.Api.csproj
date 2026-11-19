@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>AgentLogbook.Api</AssemblyName>
+    <RootNamespace>AgentLogbook.Api</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../AgentLogbook.Core/AgentLogbook.Core.csproj" />
+    <ProjectReference Include="../AgentLogbook.Storage.Postgres/AgentLogbook.Storage.Postgres.csproj" />
+    <InternalsVisibleTo Include="AgentLogbook.Api.Tests" />
+  </ItemGroup>
+</Project>

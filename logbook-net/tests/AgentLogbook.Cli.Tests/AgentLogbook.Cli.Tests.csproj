@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
     <ProjectReference Include="../../src/AgentLogbook.Cli/AgentLogbook.Cli.csproj" />
   </ItemGroup>
 </Project>
