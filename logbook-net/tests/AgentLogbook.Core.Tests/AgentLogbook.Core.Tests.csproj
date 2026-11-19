@@ -7,4 +7,8 @@
     <PackageReference Include="TUnit" />
     <ProjectReference Include="../../src/AgentLogbook.Core/AgentLogbook.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../contract/test-vectors/record-keys.json" Link="test-vectors/record-keys.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../contract/test-vectors/content-hashes.json" Link="test-vectors/content-hashes.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
