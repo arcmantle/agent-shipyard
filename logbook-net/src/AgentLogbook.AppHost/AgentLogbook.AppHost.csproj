@@ -1,0 +1,12 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>AgentLogbook.AppHost</AssemblyName>
+    <RootNamespace>AgentLogbook.AppHost</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <UserSecretsId>agent-logbook-apphost</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AgentLogbook.Hosting/AgentLogbook.Hosting.csproj" IsAspireProjectResource="false" />
+  </ItemGroup>
+</Project>

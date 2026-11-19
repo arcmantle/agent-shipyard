@@ -5,6 +5,9 @@
     <Project Path="src/AgentLogbook.Client/AgentLogbook.Client.csproj" />
     <Project Path="src/AgentLogbook.Cli/AgentLogbook.Cli.csproj" />
     <Project Path="src/AgentLogbook.Storage.Postgres/AgentLogbook.Storage.Postgres.csproj" />
+    <Project Path="src/AgentLogbook.DevelopmentApi/AgentLogbook.DevelopmentApi.csproj" />
+    <Project Path="src/AgentLogbook.Hosting/AgentLogbook.Hosting.csproj" />
+    <Project Path="src/AgentLogbook.AppHost/AgentLogbook.AppHost.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AgentLogbook.Core.Tests/AgentLogbook.Core.Tests.csproj" />
@@ -12,5 +15,7 @@
     <Project Path="tests/AgentLogbook.Client.Tests/AgentLogbook.Client.Tests.csproj" />
     <Project Path="tests/AgentLogbook.Cli.Tests/AgentLogbook.Cli.Tests.csproj" />
     <Project Path="tests/AgentLogbook.Storage.Postgres.Tests/AgentLogbook.Storage.Postgres.Tests.csproj" />
+    <Project Path="tests/AgentLogbook.Hosting.Tests/AgentLogbook.Hosting.Tests.csproj" />
+    <Project Path="tests/AgentLogbook.AppHost.Tests/AgentLogbook.AppHost.Tests.csproj" />
   </Folder>
 </Solution>
