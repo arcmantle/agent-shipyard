@@ -99,3 +99,16 @@ A start that fails prints `agent-logbook serve: the Local API host did not start
 | `GET /health/ready` | `{"status":"ready"}`, or 503 `{"status":"not-ready"}` when the database does not answer |
 
 No-auth mode is not a setting. `LocalNoAuthProvider.Enable` is the only way to create it, and only the Local API host calls it. The API host refuses to listen on a non-loopback address while the provider is in use, and it reads no `ASPNETCORE_URLS` or Kestrel setting.
+
+## Client routing and HttpStore
+
+`AgentLogbook.Client` holds the one client of the API host. Storage requests of the CLI and the MCP server go through it; neither contains a database driver.
+
+- `HttpStore` sends every call as one JSON-RPC 2.0 `POST /rpc`. `params` is left out when absent, and JSON `null` values stay in `params` and in results. A JSON-RPC error becomes an `RpcException` (`AgentLogbook.Core.Rpc`): its subclass follows the shape of the error `data` (entity, issue comment, Plan entry, context and context term conflicts, entity and context revision errors, completion observation conflict), and every other error is an `RpcServerException`. `ErrorData` always holds the raw `data`.
+- Request headers: `Authorization: Bearer <token>` only when a token exists (the local login has none), `x-agent-logbook-project-identity`, `x-agent-logbook-workspace-root`, and `x-agent-logbook-correlation-id` when set. The build-hash and database-path headers are not ported with the removed daemon.
+- Failures are explicit: `HttpStoreTransportException` (no HTTP answer), `HttpStoreStatusException` (HTTP status that is not a success, even with an RPC body), `HttpStoreProtocolException` (body is not a JSON-RPC response).
+- `BackendRouter.ResolveAsync` chooses the backend of one process and only reads. `AGENT_LOGBOOK_API_URL` (absolute http or https URL) overrides the active backend for that process; it reads neither the discovery file nor saved state, and a bad value is an error, not a fall back to local. Without it, the permanent default `local login` uses the host of `local-api.discovery.json` when its process is alive and the host answers `/health/live`; otherwise `LocalApiUnavailableException` says that no host runs and to start `agent-logbook serve`. No route writes the saved login selection, credentials, or the discovery file.
+
+The override carries no token, so it serves the unauthenticated development and local hosts; an authenticated host needs the login support of the Auth slice. The synchronize conflict kind is not ported, because the synchronize feature is removed.
+
+Typed `HttpStore` methods and the instruction error kinds are added with the slices that port those RPC methods.

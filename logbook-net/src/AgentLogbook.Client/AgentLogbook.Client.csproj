@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>AgentLogbook.Client</AssemblyName>
+    <RootNamespace>AgentLogbook.Client</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AgentLogbook.Core/AgentLogbook.Core.csproj" />
+    <InternalsVisibleTo Include="AgentLogbook.Client.Tests" />
+  </ItemGroup>
+</Project>
