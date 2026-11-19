@@ -18,7 +18,7 @@
 	},
 	{
 		"id": "project-identity-new-project-files",
-		"cases": "cli/project-identity-help",
+		"cases": "cli/project-identity-*help",
 		"path": "/stdout",
 		"action": "rewrite",
 		"match": "override, ",
@@ -27,11 +27,173 @@
 	},
 	{
 		"id": "project-identity-old-extensionless-file-note",
-		"cases": "cli/project-identity-help",
+		"cases": "cli/project-identity-*help",
 		"path": "/stdout",
 		"action": "rewrite",
 		"match": "file, Git remote",
 		"replace": "file, old extensionless project file, Git remote",
 		"reason": "The help names the old extensionless project file without repeating its retained name. The .NET tool reads that file after the old JSON file (Project identity read order)."
+	},
+	{
+		"id": "help-example-names-implemented-command",
+		"cases": "cli/help-*help",
+		"path": "/stdout",
+		"action": "rewrite",
+		"match": "help create --json",
+		"replace": "help schema --json",
+		"reason": "The help examples name schema, an implemented command. The legacy examples name create, which this release does not port yet."
+	},
+	{
+		"id": "help-example-flag-names-implemented-command",
+		"cases": "cli/help-*help",
+		"path": "/stdout",
+		"action": "rewrite",
+		"match": "create --help",
+		"replace": "schema --help",
+		"reason": "The help examples name schema, an implemented command. The legacy examples name create, which this release does not port yet."
+	},
+	{
+		"id": "schema-human-command-name",
+		"cases": "cli/schema-human",
+		"path": "/stdout",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The rule skips .agent-issues, a retained project-identity input."
+	},
+	{
+		"id": "schema-json-context-list-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/context/listCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-context-read-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/context/readCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-context-search-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/context/searchCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-context-conflicts-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/context/conflictsCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-context-initialize-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/context/initializeCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-context-define-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/context/defineCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-context-forget-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/context/forgetCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-issueComments-add-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/issueComments/addCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-issueComments-list-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/issueComments/listCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-issueComments-edit-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/issueComments/editCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-issueComments-delete-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/issueComments/deleteCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-issueComments-history-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/issueComments/historyCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-planEntries-add-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/planEntries/addCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-planEntries-link-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/planEntries/linkCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "schema-json-planEntries-unlink-command",
+		"cases": "cli/schema-json",
+		"path": "/stdout/planEntries/unlinkCommand",
+		"action": "rewrite",
+		"match": "(?<![.\\w/-])agent-issues(?= )",
+		"replace": "agent-logbook",
+		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
 	}
 ]

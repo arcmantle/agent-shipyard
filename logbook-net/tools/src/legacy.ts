@@ -1,6 +1,11 @@
 import path from "node:path";
 import type { CliTarget, RpcTarget } from "./recorder.ts";
 
+/** The TypeScript checkout with built packages. `AGENT_LOGBOOK_TS_ROOT` points to another checkout (for example a worktree without a build). */
+export function legacyRoot(netRoot: string): string {
+	return path.resolve(process.env.AGENT_LOGBOOK_TS_ROOT ?? path.join(netRoot, "../logbook"));
+}
+
 export type Legacy = { cli: CliTarget; rpc: RpcTarget; close(): Promise<void> };
 
 const ADMIN_URL = process.env.AGENT_ISSUES_TEST_PG_URL ?? "postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues";

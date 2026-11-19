@@ -1,0 +1,5 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": "project-identity\n\nShow the project identity resolved from the current workspace.\n\nUsage:\n  agent-issues project-identity\n\nOptions:\n  --db <path> | Use a specific SQLite database path.\n  --json | Print machine-readable JSON. Entity mutations return acknowledgements; list and relation reads return summaries.\n  --pretty | Pretty-print JSON when used with --json.\n  --help, -h | Show help for the whole CLI or the selected command.\n\nExamples:\n  agent-issues project-identity\n  agent-issues project-identity --json\n\nNotes:\n  Resolution precedence is environment override, .agent-issues.json file, Git remote name, package.json name, then folder name.\n\nOutput:\n  Human-readable:\n    Resolved project identity and its source\n  JSON fields:\n    command\n    identity\n    source\n"
+}
