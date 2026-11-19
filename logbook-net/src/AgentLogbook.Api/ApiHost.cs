@@ -1,4 +1,5 @@
 using System.Net;
+using AgentLogbook.Api.Auth;
 using AgentLogbook.Storage.Postgres;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -61,6 +62,13 @@ public static class ApiHost
 		endpoints.MapGet(DiscoveryPath, () => Results.Json(
 			new { auth = options.AuthProvider.Metadata, version = options.ToolVersion },
 			statusCode: StatusCodes.Status200OK));
+
+		// Only the explicit local no-auth provider gets the direct query endpoint. A deployment has no such route,
+		// whatever role a user has, because the route does not exist.
+		if (options.AuthProvider is LocalNoAuthProvider)
+		{
+			DirectQuery.Map(endpoints, options.DataSource);
+		}
 
 		endpoints.MapGet(LivePath, () => Results.Json(new { status = "live" }));
 
