@@ -43,3 +43,22 @@ The value is a `postgres://` or `postgresql://` URL with a user, a host, an opti
 ```sh
 docker compose -f docker/compose.yaml up -d
 ```
+
+## serve
+
+`agent-logbook serve` runs the Local API host in the foreground. It takes no options. It runs the shared `AgentLogbook.Api` host with the PostgreSQL that is selected as described above.
+
+1. It resolves the Shipyard Logbook data folder and the PostgreSQL connection. A bad value is an error.
+2. It stops with an error when `local-api.discovery.json` names a live host. It removes the file of a host that no longer runs.
+3. It creates or validates the schema, then starts the API on `127.0.0.1` with a port that the OS assigns.
+4. Only then it writes `local-api.discovery.json` (`url`, `port`, `processId`, `toolVersion`, `startedAt`) and prints the URL.
+
+A start that fails prints `agent-logbook serve: the Local API host did not start. <reason>` on stderr, exits with 1, and leaves no discovery file. The host has no idle time limit. A termination signal (SIGINT, SIGTERM, SIGHUP) removes the discovery file, stops the API, and exits with 0. A host that is killed leaves its file, so a client must check `/health/ready` and the process.
+
+| Route | Answer |
+| --- | --- |
+| `GET /.well-known/agent-logbook` | `{"auth":{"provider":"none","tenant":"local-<OS user name>"},"version":"<tool version>"}` |
+| `GET /health/live` | `{"status":"live"}` |
+| `GET /health/ready` | `{"status":"ready"}`, or 503 `{"status":"not-ready"}` when the database does not answer |
+
+No-auth mode is not a setting. `LocalNoAuthProvider.Enable` is the only way to create it, and only the Local API host calls it. The API host refuses to listen on a non-loopback address while the provider is in use, and it reads no `ASPNETCORE_URLS` or Kestrel setting.

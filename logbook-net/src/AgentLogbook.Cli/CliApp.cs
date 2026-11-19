@@ -1,5 +1,6 @@
 using System.Reflection;
 using AgentLogbook.Cli.ProjectIdentity;
+using AgentLogbook.Cli.Serve;
 
 namespace AgentLogbook.Cli;
 
@@ -11,6 +12,18 @@ public static class CliApp
 	public static string Version { get; } =
 		typeof(CliApp).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
 		?? "0.0.0";
+
+	/// <summary>Runs the command line, including commands that run until <paramref name="shutdown"/> is cancelled.</summary>
+	public static Task<int> RunAsync(
+		string[] args,
+		TextWriter stdout,
+		TextWriter stderr,
+		CancellationToken shutdown,
+		string? workingDirectory = null,
+		Func<string, string?>? getEnvironmentVariable = null) =>
+		args is [ServeCommand.Name, ..]
+			? ServeCommand.RunAsync(args[1..], stdout, stderr, getEnvironmentVariable ?? Environment.GetEnvironmentVariable, shutdown)
+			: Task.FromResult(Run(args, stdout, stderr, workingDirectory, getEnvironmentVariable));
 
 	public static int Run(
 		string[] args,
@@ -36,7 +49,7 @@ public static class CliApp
 		}
 
 		stderr.WriteLine(args.Length == 0
-			? $"{CommandName}: no command given. Use --version or {ProjectIdentityCommand.Name}."
+			? $"{CommandName}: no command given. Use --version, {ProjectIdentityCommand.Name}, or {ServeCommand.Name}."
 			: $"{CommandName}: unknown argument '{args[0]}'.");
 		return 1;
 	}

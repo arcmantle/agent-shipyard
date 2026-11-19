@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../AgentLogbook.Core/AgentLogbook.Core.csproj" />
+    <ProjectReference Include="../AgentLogbook.Api/AgentLogbook.Api.csproj" />
     <InternalsVisibleTo Include="AgentLogbook.Cli.Tests" />
   </ItemGroup>
 </Project>
