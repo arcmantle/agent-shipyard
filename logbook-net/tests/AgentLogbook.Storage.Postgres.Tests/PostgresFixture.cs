@@ -80,15 +80,16 @@ internal sealed class TestDatabase(NpgsqlConnectionStringBuilder superuser)
 	/// <summary>A connection that bypasses every restriction. Tests use it only to prepare and inspect.</summary>
 	internal NpgsqlDataSource Admin() => NpgsqlDataSource.Create(superuser);
 
-	internal NpgsqlDataSource Login(string role) =>
+	internal NpgsqlDataSource Login(string role, string? schema = null) =>
 		NpgsqlDataSource.Create(new NpgsqlConnectionStringBuilder(superuser.ConnectionString)
 		{
 			Username = role,
 			Password = PostgresFixture.Password,
 			Pooling = false,
+			SearchPath = schema,
 		});
 
-	internal NpgsqlDataSource Migration() => Login(PostgresFixture.Roles.Migration);
+	internal NpgsqlDataSource Migration(string? schema = null) => Login(PostgresFixture.Roles.Migration, schema);
 
 	internal NpgsqlDataSource Runtime() => Login(PostgresFixture.Roles.Runtime);
 
@@ -96,6 +97,27 @@ internal sealed class TestDatabase(NpgsqlConnectionStringBuilder superuser)
 	{
 		await using var migration = Migration();
 		return await PostgresSchemaInitializer.InitializeAsync(migration, PostgresFixture.Roles);
+	}
+
+	internal async Task<PostgresSchemaInitialization> InitializeAsync(PostgresMigrationChain chain, string? schema = null)
+	{
+		await using var migration = Migration(schema);
+		return await PostgresSchemaInitializer.InitializeAsync(migration, chain, PostgresFixture.Roles);
+	}
+
+	/// <summary>The schema signature of the current database schema, read as the superuser.</summary>
+	internal async Task<string> SignatureAsync(string? schema = null)
+	{
+		await using var admin = Admin();
+		await using var connection = await admin.OpenConnectionAsync();
+		if (schema is not null)
+		{
+			await using var path = connection.CreateCommand();
+			path.CommandText = $"SET search_path TO {schema}";
+			await path.ExecuteNonQueryAsync();
+		}
+
+		return await PostgresSchemaCatalog.ComputeSignatureAsync(connection);
 	}
 
 	internal async Task<T> ScalarAsync<T>(string sql)
