@@ -134,3 +134,21 @@ Differences from the TypeScript implementation, on purpose:
 - `/rpc` answers a failure of a database or program with the fixed message `Internal error.`; only the messages of workspace errors reach the caller.
 
 The recorded cases are `cli/init-help`, `cli/init-command-help`, and `cli/init-unknown-option`. The recorder cannot record `init --json` or the human output: it runs the TypeScript CLI without a saved login, and that CLI only opens a store when a login or a daemon exists. The two outputs come from the TypeScript source and are checked by `InitCommandTests` against the real Local API host and PostgreSQL.
+
+## Development with Aspire
+
+`AgentLogbook.Hosting` holds the one Aspire composition of Logbook, `AddAgentLogbook()`. `src/AgentLogbook.AppHost` is the standalone AppHost; it only calls the library. A later Helm AppHost calls the same method on its own builder. No AppHost starts another AppHost, and the library does not reference the standalone AppHost.
+
+```sh
+dotnet run --project src/AgentLogbook.AppHost   # needs a container engine
+```
+
+`AddAgentLogbook()` adds the resources `logbook-postgres` (PostgreSQL `16-alpine`, the major version of `docker/compose.yaml`; the schema signature depends on it), the database `logbook`, and `logbook-api`. `logbook-api` is the **Development API host** (`src/AgentLogbook.DevelopmentApi`). It runs the same `AgentLogbook.Api` code as the Local API host, in no-auth mode on 127.0.0.1, with the Aspire PostgreSQL and a port that Aspire assigns. It differs from the Local API host in three ways:
+
+- It keeps its files in `logbook-net/.agent-shipyard/` (`AGENT_SHIPYARD_HOME`, ignored by Git). It refuses to start when that variable is not set, so it cannot use the user Shipyard data folder.
+- It never reads or writes `local-api.discovery.json`.
+- A CLI process reaches it only through `AGENT_LOGBOOK_API_URL`. `WithAgentLogbookApi(logbook)` sets that variable on a resource that runs a CLI; it is set in that process only. Saved logins, credentials, and the backend choice do not change.
+
+`AgentLogbookOptions` sets another logbook-net root or Shipyard folder. The Vite sites join this composition in a later issue.
+
+`tests/AgentLogbook.Hosting.Tests` checks the resource graph without starting anything, through a consumer that references the library only. `tests/AgentLogbook.AppHost.Tests` starts the real AppHost (PostgreSQL container, API process), resolves a route from `AGENT_LOGBOOK_API_URL` as the CLI does, calls the Development API, and compares the user Shipyard Logbook folder before and after. It skips when no container engine answers, and the application stops its resources at the end.

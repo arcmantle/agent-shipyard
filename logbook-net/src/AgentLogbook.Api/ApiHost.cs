@@ -1,6 +1,7 @@
 using System.Net;
 using AgentLogbook.Api.Rpc;
 using AgentLogbook.Core.Rpc;
+using AgentLogbook.Api.Auth;
 using AgentLogbook.Storage.Postgres;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -68,6 +69,13 @@ public static class ApiHost
 		var registry = options.Rpc ?? RpcMethodRegistry.CreateDefault();
 		endpoints.MapPost(RpcWire.Path, (HttpContext context, ILoggerFactory loggers) =>
 			RpcEndpoint.HandleAsync(context, options.AuthProvider, options.DataSource, registry, loggers.CreateLogger("AgentLogbook.Api.Rpc")));
+
+		// Only the explicit local no-auth provider gets the direct query endpoint. A deployment has no such route,
+		// whatever role a user has, because the route does not exist.
+		if (options.AuthProvider is LocalNoAuthProvider)
+		{
+			DirectQuery.Map(endpoints, options.DataSource);
+		}
 
 		endpoints.MapGet(LivePath, () => Results.Json(new { status = "live" }));
 
