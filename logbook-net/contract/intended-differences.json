@@ -204,5 +204,13 @@
 		"match": "^Unknown Syntax Error: Unsupported option name \\(\"--bogus\"\\)\\.\\n\\n\\$ agent-issues init [^\\n]*\\n$",
 		"replace": "agent-logbook: unknown option '--bogus' for init. Use agent-logbook init --help.\n",
 		"reason": "The .NET tool prints one line for a parse error and no clipanion usage text (Command name and aliases). The one line names the option, the command, and the help command."
+	},
+	{
+		"id": "create-help-no-link-option",
+		"cases": "cli/create-*help",
+		"path": "/stdout",
+		"action": "remove-line",
+		"match": "--link",
+		"reason": "Relations that are created together with an entity (--link) belong to the link feature slice (Port slice). This release has no --link option, so its option line, its example, and its notes are not in the help. The slice that ports link adds them and removes this rule."
 	}
 ]

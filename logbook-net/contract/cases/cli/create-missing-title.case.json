@@ -1,0 +1,14 @@
+{
+	"id": "cli/create-missing-title",
+	"surface": "cli",
+	"workspace": {
+		"folder": "create-missing-title-project"
+	},
+	"argv": [
+		"create",
+		"initiative",
+		"--json"
+	],
+	"stdout": "text",
+	"expectExitCode": 1
+}

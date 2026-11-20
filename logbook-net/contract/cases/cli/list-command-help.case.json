@@ -1,0 +1,12 @@
+{
+	"id": "cli/list-command-help",
+	"surface": "cli",
+	"workspace": {
+		"folder": "list-command-help-project"
+	},
+	"argv": [
+		"help",
+		"list"
+	],
+	"stdout": "text"
+}

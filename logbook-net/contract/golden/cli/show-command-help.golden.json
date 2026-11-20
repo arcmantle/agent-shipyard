@@ -1,0 +1,5 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": "show\n\nShow one complete entity or initiative.\n\nUsage:\n  agent-issues show <id>\n\nArguments:\n  id | Entity ID. | required\n\nOptions:\n  --db <path> | Use a specific SQLite database path.\n  --json | Print machine-readable JSON. Entity mutations return acknowledgements; list and relation reads return summaries.\n  --pretty | Pretty-print JSON when used with --json.\n  --help, -h | Show help for the whole CLI or the selected command.\n\nExamples:\n  agent-issues show INIT1\n  agent-issues show ISS1 --json\n\nNotes:\n  Show is the explicit complete read for authored body content and stored entity fields.\n  For initiatives, show returns the complete initiative-wide graph and authored records.\n\nOutput:\n  Human-readable:\n    For initiatives: InitiativeBundle with complete records\n    For other kinds: EntityDetails with a complete focused entity\n  JSON fields:\n    InitiativeBundle | EntityDetails\n"
+}

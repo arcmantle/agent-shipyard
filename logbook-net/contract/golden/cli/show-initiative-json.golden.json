@@ -1,0 +1,55 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"adrs": [],
+		"blockerLinks": [],
+		"constrainsLinks": [],
+		"entities": [
+			{
+				"body": "",
+				"bodySource": "authored",
+				"category": null,
+				"contentHash": "12efec0984d8a5247c429fa7e0b9413742f7dd5bfa906fc374dd0103b29b98a1",
+				"createdAt": "<timestamp>",
+				"createdBy": "<uuid#1>",
+				"id": "<uuid#2>",
+				"kind": "initiative",
+				"priority": null,
+				"reference": "<ref#1>",
+				"revision": 1,
+				"shortReference": "<sref#1>",
+				"status": "draft",
+				"title": "Parity initiative",
+				"type": null,
+				"updatedAt": "<timestamp>",
+				"updatedBy": "<uuid#1>"
+			}
+		],
+		"fixLinks": [],
+		"initiative": {
+			"body": "",
+			"bodySource": "authored",
+			"category": null,
+			"contentHash": "12efec0984d8a5247c429fa7e0b9413742f7dd5bfa906fc374dd0103b29b98a1",
+			"createdAt": "<timestamp>",
+			"createdBy": "<uuid#1>",
+			"id": "<uuid#2>",
+			"kind": "initiative",
+			"priority": null,
+			"reference": "<ref#1>",
+			"revision": 1,
+			"shortReference": "<sref#1>",
+			"status": "draft",
+			"title": "Parity initiative",
+			"type": null,
+			"updatedAt": "<timestamp>",
+			"updatedBy": "<uuid#1>"
+		},
+		"issues": [],
+		"prds": [],
+		"subIssueLinks": [],
+		"userStories": [],
+		"versionCoverage": []
+	}
+}

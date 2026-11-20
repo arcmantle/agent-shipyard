@@ -1,0 +1,78 @@
+{
+	"id": "rpc/query-entities",
+	"surface": "rpc",
+	"steps": [
+		{
+			"as": "initiative",
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Parity initiative"
+			}
+		},
+		{
+			"as": "blocker",
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "Blocker issue",
+				"parentId": "${initiative.id}"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "Parity issue",
+				"parentId": "${initiative.id}",
+				"status": "in-progress"
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "issue",
+				"statuses": [
+					"in-progress"
+				]
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "issue",
+				"parentId": "${initiative.reference}",
+				"limit": 1,
+				"statuses": [
+					"todo"
+				]
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "issue",
+				"parentId": "missing"
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "initiative"
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "prd"
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "bogus"
+			},
+			"expectError": true
+		}
+	]
+}

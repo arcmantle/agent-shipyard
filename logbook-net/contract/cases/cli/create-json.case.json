@@ -1,0 +1,15 @@
+{
+	"id": "cli/create-json",
+	"surface": "cli",
+	"workspace": {
+		"folder": "create-json-project"
+	},
+	"argv": [
+		"create",
+		"initiative",
+		"--title",
+		"Parity initiative",
+		"--json"
+	],
+	"stdout": "json"
+}

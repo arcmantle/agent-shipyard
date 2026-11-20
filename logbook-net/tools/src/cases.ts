@@ -5,6 +5,8 @@ export type CliCase = {
 	id: string;
 	surface: "cli";
 	workspace: { folder: string; files?: Record<string, string> };
+	/** Commands that run first in the same home and workspace. Each must exit 0 with JSON output; `as` binds it for `${name.field}` in later arguments. */
+	setup?: { argv: string[]; as?: string }[];
 	argv: string[];
 	stdout: "json" | "text";
 	expectExitCode?: number;
@@ -28,6 +30,13 @@ export function validateCase(value: unknown, source: string): Case {
 		const workspace = item.workspace as { folder?: unknown } | undefined;
 		if (typeof workspace?.folder !== "string" || /[\\/]/.test(workspace.folder) || workspace.folder.startsWith(".")) return fail("workspace.folder must be one plain folder name");
 		if (!Array.isArray(item.argv) || !item.argv.every((arg) => typeof arg === "string")) return fail("argv must be a string array");
+		if (item.setup !== undefined) {
+			if (!Array.isArray(item.setup)) return fail("setup must be an array");
+			for (const step of item.setup as Record<string, unknown>[]) {
+				if (!step || !Array.isArray(step.argv) || !step.argv.every((arg) => typeof arg === "string")) return fail("each setup step needs an argv string array");
+				if (step.as !== undefined && typeof step.as !== "string") return fail("setup as must be a string");
+			}
+		}
 		if (item.stdout !== "json" && item.stdout !== "text") return fail("stdout must be json or text");
 		if (item.expectExitCode !== undefined && !Number.isInteger(item.expectExitCode)) return fail("expectExitCode must be an integer");
 	} else {

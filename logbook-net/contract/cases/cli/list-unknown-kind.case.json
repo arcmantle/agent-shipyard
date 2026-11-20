@@ -1,0 +1,14 @@
+{
+	"id": "cli/list-unknown-kind",
+	"surface": "cli",
+	"workspace": {
+		"folder": "list-unknown-kind-project"
+	},
+	"argv": [
+		"list",
+		"bogus",
+		"--json"
+	],
+	"stdout": "text",
+	"expectExitCode": 1
+}

@@ -1,0 +1,24 @@
+{
+	"id": "cli/list-human",
+	"surface": "cli",
+	"workspace": {
+		"folder": "list-human-project"
+	},
+	"setup": [
+		{
+			"argv": [
+				"create",
+				"initiative",
+				"--title",
+				"Parity initiative",
+				"--json"
+			],
+			"as": "initiative"
+		}
+	],
+	"argv": [
+		"list",
+		"initiative"
+	],
+	"stdout": "text"
+}

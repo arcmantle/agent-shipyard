@@ -12,7 +12,8 @@ export class RecordingError extends Error {}
 export type CliTarget = { command: string[]; timeoutMs?: number };
 export type RpcTarget = { url: string; issueToken(tenantId: string): Promise<string>; newTenantId(): string };
 
-const PASSTHROUGH_ENV = ["PATH", "LANG", "TMPDIR", "SystemRoot"];
+// AGENT_LOGBOOK_API_URL points the .NET candidate at the API host that a parity check starts; the TypeScript CLI ignores it.
+const PASSTHROUGH_ENV = ["PATH", "LANG", "TMPDIR", "SystemRoot", "AGENT_LOGBOOK_API_URL"];
 
 export async function recordCli(target: CliTarget, testCase: CliCase): Promise<Observation> {
 	const root = mkdtempSync(path.join(tmpdir(), "parity-cli-"));
@@ -27,28 +28,27 @@ export async function recordCli(target: CliTarget, testCase: CliCase): Promise<O
 			mkdirSync(path.dirname(target), { recursive: true });
 			writeFileSync(target, content);
 		}
-		// A clean environment: no user settings reach the recording.
-		const env: Record<string, string> = { HOME: home, USERPROFILE: home, AGENT_ISSUES_NO_DAEMON: "1", NO_COLOR: "1" };
+		// A clean environment: no user settings reach the recording. The TypeScript CLI accepts AGENT_ISSUES_NO_DAEMON
+		// (a local store without the background daemon) only in a development build under VITEST=true; commands that open
+		// a store need that build (`pnpm --filter agent-issues build:dev`).
+		const env: Record<string, string> = { HOME: home, USERPROFILE: home, AGENT_ISSUES_NO_DAEMON: "1", NO_COLOR: "1", VITEST: "true" };
 		for (const key of PASSTHROUGH_ENV) if (process.env[key] !== undefined) env[key] = process.env[key]!;
 
-		let child: ReturnType<typeof Bun.spawn>;
-		try {
-			child = Bun.spawn([...target.command, ...testCase.argv], { cwd: workspace, env, stdout: "pipe", stderr: "pipe" });
-		} catch (error) {
-			throw new RecordingError(`${testCase.id}: cannot start ${target.command.join(" ")}: ${(error as Error).message}`);
+		// Setup commands run first in the same home and workspace. Their JSON output binds `${name.field}` for later arguments.
+		const bindings: Record<string, unknown> = {};
+		for (const [index, setup] of (testCase.setup ?? []).entries()) {
+			const ran = await runCli(target, `${testCase.id} setup ${index + 1}`, substituteArgv(setup.argv, bindings, testCase.id), workspace, env);
+			if (ran.exitCode !== 0) throw new RecordingError(`${testCase.id} setup ${index + 1}: exit code ${ran.exitCode}\nstderr: ${ran.stderr.trim()}`);
+			let output: unknown;
+			try {
+				output = JSON.parse(ran.stdout);
+			} catch {
+				throw new RecordingError(`${testCase.id} setup ${index + 1}: stdout is not JSON: ${ran.stdout.slice(0, 200)}`);
+			}
+			if (setup.as) bindings[setup.as] = output;
 		}
-		const timeoutMs = target.timeoutMs ?? 60_000;
-		let timedOut = false;
-		const timer = setTimeout(() => {
-			timedOut = true;
-			child.kill();
-		}, timeoutMs);
-		const [stdout, stderr, exitCode] = await Promise.all([
-			new Response(child.stdout as ReadableStream).text(),
-			new Response(child.stderr as ReadableStream).text(),
-			child.exited
-		]).finally(() => clearTimeout(timer));
-		if (timedOut) throw new RecordingError(`${testCase.id}: process did not finish within ${timeoutMs} ms`);
+
+		const { stdout, stderr, exitCode } = await runCli(target, testCase.id, substituteArgv(testCase.argv, bindings, testCase.id), workspace, env);
 		const expected = testCase.expectExitCode ?? 0;
 		if (exitCode !== expected) {
 			throw new RecordingError(`${testCase.id}: exit code ${exitCode}, expected ${expected}\nstderr: ${stderr.trim()}`);
@@ -70,6 +70,38 @@ export async function recordCli(target: CliTarget, testCase: CliCase): Promise<O
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}
+}
+
+
+function substituteArgv(argv: string[], bindings: Record<string, unknown>, id: string): string[] {
+	try {
+		return substitute(argv, bindings) as string[];
+	} catch (error) {
+		if (error instanceof RecordingError) throw new RecordingError(`${id}: ${error.message}`);
+		throw error;
+	}
+}
+
+async function runCli(target: CliTarget, label: string, argv: string[], cwd: string, env: Record<string, string>): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+	let child: ReturnType<typeof Bun.spawn>;
+	try {
+		child = Bun.spawn([...target.command, ...argv], { cwd, env, stdout: "pipe", stderr: "pipe" });
+	} catch (error) {
+		throw new RecordingError(`${label}: cannot start ${target.command.join(" ")}: ${(error as Error).message}`);
+	}
+	const timeoutMs = target.timeoutMs ?? 60_000;
+	let timedOut = false;
+	const timer = setTimeout(() => {
+		timedOut = true;
+		child.kill();
+	}, timeoutMs);
+	const [stdout, stderr, exitCode] = await Promise.all([
+		new Response(child.stdout as ReadableStream).text(),
+		new Response(child.stderr as ReadableStream).text(),
+		child.exited
+	]).finally(() => clearTimeout(timer));
+	if (timedOut) throw new RecordingError(`${label}: process did not finish within ${timeoutMs} ms`);
+	return { stdout, stderr, exitCode };
 }
 
 /** Replaces `${name.field}` with a value from an earlier named step. An unresolved name is a failure. */

@@ -1,0 +1,25 @@
+{
+	"id": "cli/list-json",
+	"surface": "cli",
+	"workspace": {
+		"folder": "list-json-project"
+	},
+	"setup": [
+		{
+			"argv": [
+				"create",
+				"initiative",
+				"--title",
+				"Parity initiative",
+				"--json"
+			],
+			"as": "initiative"
+		}
+	],
+	"argv": [
+		"list",
+		"initiative",
+		"--json"
+	],
+	"stdout": "json"
+}

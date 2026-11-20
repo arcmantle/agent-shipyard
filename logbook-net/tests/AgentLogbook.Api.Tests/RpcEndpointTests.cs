@@ -165,11 +165,16 @@ public class RpcEndpointTests
 	}
 
 	[Test]
-	public async Task The_default_registry_serves_initialize_workspace_and_nothing_else_yet()
+	public async Task The_default_registry_serves_the_workspace_and_entity_methods_and_nothing_else_yet()
 	{
 		var registry = RpcMethodRegistry.CreateDefault();
 
 		await Assert.That(registry.TryGet(WorkspaceRpc.InitializeMethod, out _)).IsTrue();
-		await Assert.That(registry.TryGet("createEntity", out _)).IsFalse();
+		foreach (var method in new[] { EntityRpc.CreateMethod, EntityRpc.GetDetailsMethod, EntityRpc.ListMethod, EntityRpc.QueryMethod, EntityRpc.GetInitiativeBundleMethod })
+		{
+			await Assert.That(registry.TryGet(method, out _)).IsTrue();
+		}
+
+		await Assert.That(registry.TryGet("updateEntity", out _)).IsFalse();
 	}
 }

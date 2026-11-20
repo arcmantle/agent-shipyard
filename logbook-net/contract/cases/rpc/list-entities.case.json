@@ -1,0 +1,48 @@
+{
+	"id": "rpc/list-entities",
+	"surface": "rpc",
+	"steps": [
+		{
+			"as": "initiative",
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Parity initiative"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "Parity issue",
+				"parentId": "${initiative.id}",
+				"status": "in-progress"
+			}
+		},
+		{
+			"method": "listEntities",
+			"params": {
+				"kind": "initiative"
+			}
+		},
+		{
+			"method": "listEntities",
+			"params": {
+				"kind": "issue"
+			}
+		},
+		{
+			"method": "listEntities",
+			"params": {
+				"kind": "prd"
+			}
+		},
+		{
+			"method": "listEntities",
+			"params": {
+				"kind": "bogus"
+			},
+			"expectError": true
+		}
+	]
+}

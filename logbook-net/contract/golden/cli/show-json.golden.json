@@ -1,0 +1,58 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"comments": {
+			"comments": [],
+			"nextBefore": null,
+			"total": 0,
+			"users": []
+		},
+		"completionObservations": [],
+		"currentCompletionObservation": null,
+		"entity": {
+			"body": "",
+			"bodySource": "authored",
+			"category": null,
+			"contentHash": "855e6615aa6fc0cb47e41a3fb11291fcee4d6a061c019abb3271d30767c1f414",
+			"createdAt": "<timestamp>",
+			"createdBy": "<uuid#1>",
+			"id": "<uuid#2>",
+			"kind": "issue",
+			"priority": null,
+			"reference": "<ref#1>",
+			"revision": 1,
+			"shortReference": "<sref#1>",
+			"status": "in-progress",
+			"title": "Parity issue",
+			"type": null,
+			"updatedAt": "<timestamp>",
+			"updatedBy": "<uuid#1>"
+		},
+		"incoming": [
+			{
+				"entity": {
+					"category": null,
+					"contentHash": "12efec0984d8a5247c429fa7e0b9413742f7dd5bfa906fc374dd0103b29b98a1",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#3>",
+					"kind": "initiative",
+					"priority": null,
+					"reference": "<ref#2>",
+					"revision": 1,
+					"shortReference": "<sref#2>",
+					"status": "active",
+					"title": "Parity initiative",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				},
+				"relationType": "tracks"
+			}
+		],
+		"outgoing": [],
+		"planEntries": [],
+		"versionCoverage": []
+	}
+}

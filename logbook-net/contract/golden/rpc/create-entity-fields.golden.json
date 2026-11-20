@@ -1,0 +1,179 @@
+{
+	"steps": [
+		{
+			"body": {
+				"id": 1,
+				"jsonrpc": "2.0",
+				"result": {
+					"category": null,
+					"contentHash": "aac4df233948f44e09d2f4e2f18163fc6bef76b178d0d5857edeb63dbed3efee",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#2>",
+					"kind": "project",
+					"priority": null,
+					"reference": "<ref#1>",
+					"revision": 1,
+					"shortReference": "<sref#1>",
+					"status": "draft",
+					"title": "Parity project",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				}
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"id": 1,
+				"jsonrpc": "2.0",
+				"result": {
+					"category": null,
+					"contentHash": "e7935330d4e037cc42a5fb53772b9e4686fd5b6513cc0e0f6d632d840cb8618d",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#3>",
+					"kind": "epic",
+					"priority": null,
+					"reference": "<ref#2>",
+					"revision": 1,
+					"shortReference": "<sref#2>",
+					"status": "draft",
+					"title": "Parity epic",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				}
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"id": 1,
+				"jsonrpc": "2.0",
+				"result": {
+					"category": null,
+					"contentHash": "12efec0984d8a5247c429fa7e0b9413742f7dd5bfa906fc374dd0103b29b98a1",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#4>",
+					"kind": "initiative",
+					"priority": null,
+					"reference": "<ref#3>",
+					"revision": 1,
+					"shortReference": "<sref#3>",
+					"status": "active",
+					"title": "Parity initiative",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				}
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"id": 1,
+				"jsonrpc": "2.0",
+				"result": {
+					"category": "technical",
+					"contentHash": "94c48bc328032815770d26a6b4a69e7be354150ddcba211a93ff8b1f4e517cf8",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#5>",
+					"kind": "issue",
+					"priority": "high",
+					"reference": "<ref#4>",
+					"revision": 1,
+					"shortReference": "<sref#4>",
+					"status": "in-progress",
+					"title": "Parity issue",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				}
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"id": 1,
+				"jsonrpc": "2.0",
+				"result": {
+					"category": null,
+					"contentHash": "d073c3d06c4b456fbcf52fcad557c280257742f9702a936e2b22c6751b0a963b",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#6>",
+					"kind": "issue",
+					"priority": null,
+					"reference": "<ref#5>",
+					"revision": 1,
+					"shortReference": "<sref#5>",
+					"status": "todo",
+					"title": "Pioneer map",
+					"type": "pioneer-map",
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				}
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"id": 1,
+				"jsonrpc": "2.0",
+				"result": {
+					"category": "technical",
+					"contentHash": "a1191a07ccbff0a703d7043bf1e60e5439292a1c7854fdf1369d031bb5a8ad58",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#7>",
+					"kind": "debt",
+					"priority": "high",
+					"reference": "<ref#6>",
+					"revision": 1,
+					"shortReference": "<sref#6>",
+					"status": "open",
+					"title": "Debt record",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				}
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"id": 1,
+				"jsonrpc": "2.0",
+				"result": {
+					"category": null,
+					"contentHash": "625217e36dc8da6cdefe30e9d57bf6f34786271044e7368b5f1cb935309f7241",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#8>",
+					"kind": "plan",
+					"priority": null,
+					"reference": "<ref#7>",
+					"revision": 1,
+					"shortReference": "<sref#7>",
+					"status": "draft",
+					"title": "Plan record",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				}
+			},
+			"method": "createEntity",
+			"status": 200
+		}
+	]
+}

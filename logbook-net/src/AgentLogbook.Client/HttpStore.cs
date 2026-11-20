@@ -47,6 +47,9 @@ public sealed class HttpStore : IDisposable
 		rpcUrl = new Uri(options.BaseUrl.GetLeftPart(UriPartial.Path).TrimEnd('/') + RpcWire.Path);
 	}
 
+	/// <summary>The API base URL of this store, as it was given.</summary>
+	public Uri BaseUrl => options.BaseUrl;
+
 	/// <summary>
 	/// Calls a method. <paramref name="parameters"/> null leaves out <c>params</c>; a JSON <c>null</c> element sends <c>"params":null</c>.
 	/// The result is the <c>result</c> member as it came, so a JSON <c>null</c> stays <see cref="JsonValueKind.Null"/>.
@@ -112,6 +115,31 @@ public sealed class HttpStore : IDisposable
 	public async Task<InitializedWorkspace> InitializeWorkspaceAsync(CancellationToken cancellationToken = default) =>
 		await CallAsync<InitializedWorkspace>(WorkspaceRpc.InitializeMethod, cancellationToken: cancellationToken)
 		?? throw new HttpStoreProtocolException(WorkspaceRpc.InitializeMethod, "the result is empty.");
+
+	/// <summary>Creates an entity, optionally under a structural parent. The result has the stored status, not the derived one.</summary>
+	public async Task<EntitySummary> CreateEntityAsync(CreateEntityRequest request, CancellationToken cancellationToken = default) =>
+		await CallAsync<EntitySummary>(EntityRpc.CreateMethod, request, cancellationToken)
+		?? throw new HttpStoreProtocolException(EntityRpc.CreateMethod, "the result is empty.");
+
+	/// <summary>Reads an entity by stable ID, reference or short reference, with the relations around it.</summary>
+	public async Task<EntityDetails> GetEntityDetailsAsync(string entityId, CancellationToken cancellationToken = default) =>
+		await CallAsync<EntityDetails>(EntityRpc.GetDetailsMethod, new GetEntityDetailsRequest(entityId), cancellationToken)
+		?? throw new HttpStoreProtocolException(EntityRpc.GetDetailsMethod, "the result is empty.");
+
+	/// <summary>Lists the entities of one kind in the workspace, by ID.</summary>
+	public async Task<IReadOnlyList<EntitySummary>> ListEntitiesAsync(string kind, CancellationToken cancellationToken = default) =>
+		await CallAsync<List<EntitySummary>>(EntityRpc.ListMethod, new ListEntitiesRequest(kind), cancellationToken)
+		?? throw new HttpStoreProtocolException(EntityRpc.ListMethod, "the result is empty.");
+
+	/// <summary>Lists the entities of one kind that match the filters, with the total before the limit.</summary>
+	public async Task<QueryEntitiesResult> QueryEntitiesAsync(QueryEntitiesRequest request, CancellationToken cancellationToken = default) =>
+		await CallAsync<QueryEntitiesResult>(EntityRpc.QueryMethod, request, cancellationToken)
+		?? throw new HttpStoreProtocolException(EntityRpc.QueryMethod, "the result is empty.");
+
+	/// <summary>Reads an initiative with everything it reaches through relations.</summary>
+	public async Task<InitiativeBundle> GetInitiativeBundleAsync(string initiativeId, CancellationToken cancellationToken = default) =>
+		await CallAsync<InitiativeBundle>(EntityRpc.GetInitiativeBundleMethod, new GetInitiativeBundleRequest(initiativeId), cancellationToken)
+		?? throw new HttpStoreProtocolException(EntityRpc.GetInitiativeBundleMethod, "the result is empty.");
 
 	public void Dispose()
 	{

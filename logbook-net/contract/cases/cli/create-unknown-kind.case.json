@@ -1,0 +1,16 @@
+{
+	"id": "cli/create-unknown-kind",
+	"surface": "cli",
+	"workspace": {
+		"folder": "create-unknown-kind-project"
+	},
+	"argv": [
+		"create",
+		"bogus",
+		"--title",
+		"x",
+		"--json"
+	],
+	"stdout": "text",
+	"expectExitCode": 1
+}

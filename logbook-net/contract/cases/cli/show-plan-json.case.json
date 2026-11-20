@@ -1,0 +1,37 @@
+{
+	"id": "cli/show-plan-json",
+	"surface": "cli",
+	"workspace": {
+		"folder": "show-plan-json-project"
+	},
+	"setup": [
+		{
+			"argv": [
+				"create",
+				"initiative",
+				"--title",
+				"Parity initiative",
+				"--json"
+			],
+			"as": "initiative"
+		},
+		{
+			"argv": [
+				"create",
+				"plan",
+				"--title",
+				"Parity plan",
+				"--parent",
+				"${initiative.reference}",
+				"--json"
+			],
+			"as": "plan"
+		}
+	],
+	"argv": [
+		"show",
+		"${plan.reference}",
+		"--json"
+	],
+	"stdout": "json"
+}

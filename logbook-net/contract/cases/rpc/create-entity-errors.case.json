@@ -1,0 +1,120 @@
+{
+	"id": "rpc/create-entity-errors",
+	"surface": "rpc",
+	"steps": [
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "bogus",
+				"title": "x"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "   "
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "x",
+				"status": "todo"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "x",
+				"category": "bogus"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "x",
+				"priority": "bogus"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "x",
+				"type": "pioneer-map"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "debt",
+				"title": "x",
+				"category": "technical"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "x",
+				"parentId": "missing"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "plan",
+				"title": "x"
+			},
+			"expectError": true
+		},
+		{
+			"as": "initiative",
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Parity initiative"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "prd",
+				"title": "x",
+				"parentId": "${initiative.id}",
+				"priority": "low"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "epic",
+				"title": "x",
+				"parentId": "${initiative.id}"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "x",
+				"parentId": "${initiative.id}",
+				"type": "pioneer-ticket"
+			},
+			"expectError": true
+		}
+	]
+}

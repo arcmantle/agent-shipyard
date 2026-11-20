@@ -10,13 +10,23 @@ public static class CliJson
 	private static readonly JsonSerializerOptions Compact = Create(indented: false);
 	private static readonly JsonSerializerOptions Pretty = Create(indented: true);
 
-	public static string Serialize<T>(T value, bool pretty) =>
-		JsonSerializer.Serialize(value, pretty ? Pretty : Compact).ReplaceLineEndings("\n");
+	private static readonly JsonSerializerOptions CompactWithNulls = Create(indented: false, keepNulls: true);
+	private static readonly JsonSerializerOptions PrettyWithNulls = Create(indented: true, keepNulls: true);
 
-	private static JsonSerializerOptions Create(bool indented) => new()
+	/// <summary>Writes <paramref name="value"/>. <paramref name="keepNulls"/> writes a null member as JSON <c>null</c> instead of leaving it out.</summary>
+	public static string Serialize<T>(T value, bool pretty, bool keepNulls = false) =>
+		JsonSerializer.Serialize(value, (pretty, keepNulls) switch
+		{
+			(false, false) => Compact,
+			(true, false) => Pretty,
+			(false, true) => CompactWithNulls,
+			(true, true) => PrettyWithNulls,
+		}).ReplaceLineEndings("\n");
+
+	private static JsonSerializerOptions Create(bool indented, bool keepNulls = false) => new()
 	{
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+		DefaultIgnoreCondition = keepNulls ? JsonIgnoreCondition.Never : JsonIgnoreCondition.WhenWritingNull,
 		Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 		WriteIndented = indented,
 	};

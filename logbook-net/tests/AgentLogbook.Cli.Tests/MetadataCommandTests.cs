@@ -6,7 +6,7 @@ namespace AgentLogbook.Cli.Tests;
 
 public class MetadataCommandTests
 {
-	private static readonly string[] ImplementedCommands = ["project-identity", "init", "help", "schema", "capabilities"];
+	private static readonly string[] ImplementedCommands = ["project-identity", "init", "create", "show", "list", "help", "schema", "capabilities"];
 
 	private static (int Exit, string Out, string Err) Run(params string[] args) => Run(CliApp.Catalog, args);
 
@@ -44,7 +44,7 @@ public class MetadataCommandTests
 			await Assert.That(output).Contains($"\n  {name}");
 		}
 
-		await Assert.That(output).DoesNotContain("\n  create ").And.DoesNotContain("\n  daemon").And.DoesNotContain("--db");
+		await Assert.That(output).DoesNotContain("\n  edit ").And.DoesNotContain("\n  daemon").And.DoesNotContain("--db");
 		await Assert.That(output).Contains("\n  --json").And.Contains("\n  --pretty").And.Contains("\n  --help, -h");
 	}
 
@@ -68,6 +68,9 @@ public class MetadataCommandTests
 
 	[Test]
 	[Arguments("project-identity")]
+	[Arguments("create")]
+	[Arguments("show")]
+	[Arguments("list")]
 	[Arguments("help")]
 	[Arguments("schema")]
 	[Arguments("capabilities")]
@@ -202,7 +205,7 @@ public class MetadataCommandTests
 
 	[Test]
 	[Arguments("nosuch")]
-	[Arguments("create")]
+	[Arguments("edit")]
 	[Arguments("daemon")]
 	public async Task An_unknown_or_unported_command_fails_instead_of_succeeding_as_a_stub(string command)
 	{

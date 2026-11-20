@@ -1,0 +1,5 @@
+{
+	"exitCode": 1,
+	"stderr": "{\"error\":\"Unknown entity kind: bogus\"}\n",
+	"stdout": ""
+}

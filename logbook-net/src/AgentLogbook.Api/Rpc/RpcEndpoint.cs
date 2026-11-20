@@ -1,7 +1,6 @@
 using System.Text.Json;
 using AgentLogbook.Api.Auth;
 using AgentLogbook.Core.Rpc;
-using AgentLogbook.Core.Workspaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -69,7 +68,7 @@ internal static partial class RpcEndpoint
 			{
 				return Result(id, await handler(call));
 			}
-			catch (WorkspaceException exception)
+			catch (RpcDomainException exception)
 			{
 				return Error(id, RpcWire.ServerErrorCode, exception.Message);
 			}
