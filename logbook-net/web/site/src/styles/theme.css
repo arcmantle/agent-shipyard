@@ -1,0 +1,95 @@
+:root {
+	color-scheme: light;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+	--page-bg: #f6f8fa;
+	--surface: #ffffff;
+	--surface-muted: #f6f8fa;
+	--rail-bg: #f6f8fa;
+	--border: #d0d7de;
+	--border-muted: #d8dee4;
+	--text: #1f2328;
+	--muted: #59636e;
+	--accent: #0969da;
+	--accent-soft: #ddf4ff;
+	--success: #1a7f37;
+	--success-bg: #dafbe1;
+	--warn: #9a6700;
+	--warn-bg: #fff8c5;
+	--danger: #cf222e;
+	--danger-bg: #ffebe9;
+	--done: #8250df;
+	--done-bg: #fbefff;
+	--focus-ring: rgba(9, 105, 218, 0.35);
+	--avatar-start: #0969da;
+	--avatar-end: #8250df;
+	--avatar-text: #ffffff;
+	--shadow: rgba(31, 35, 40, 0.18);
+	--graph-adr: #8250df;
+	--graph-debt: #bf3989;
+	--graph-epic: #9a6700;
+	--graph-initiative: #0969da;
+	--graph-issue: #0a7ea4;
+	--graph-project: #24292f;
+	--graph-story: #bf8700;
+	--graph-edge: #d0d7de;
+	--graph-edge-direct: #0969da;
+	--graph-edge-muted: rgba(89, 99, 110, 0.45);
+	--graph-edge-label-bg: rgba(255, 255, 255, 0.92);
+	--graph-canvas-grid: rgba(31, 35, 40, 0.08);
+	--graph-canvas-glow: rgba(9, 105, 218, 0.08);
+	--graph-overlay: rgba(246, 248, 250, 0.85);
+	background: var(--page-bg);
+	color: var(--text);
+}
+
+html[data-theme="dark"] {
+	color-scheme: dark;
+	--page-bg: #0d1117;
+	--surface: #161b22;
+	--surface-muted: #21262d;
+	--rail-bg: #0d1117;
+	--border: #30363d;
+	--border-muted: #21262d;
+	--text: #e6edf3;
+	--muted: #8b949e;
+	--accent: #58a6ff;
+	--accent-soft: #1f6feb33;
+	--success: #3fb950;
+	--success-bg: #12261e;
+	--warn: #d29922;
+	--warn-bg: #2d2208;
+	--danger: #f85149;
+	--danger-bg: #331c1e;
+	--done: #a371f7;
+	--done-bg: #2d1b4e;
+	--focus-ring: rgba(88, 166, 255, 0.55);
+	--avatar-start: #1f6feb;
+	--avatar-end: #a371f7;
+	--avatar-text: #ffffff;
+	--shadow: rgba(0, 0, 0, 0.45);
+	--graph-adr: #a371f7;
+	--graph-debt: #f778ba;
+	--graph-epic: #d29922;
+	--graph-initiative: #58a6ff;
+	--graph-issue: #39c5cf;
+	--graph-project: #e6edf3;
+	--graph-story: #e3b341;
+	--graph-edge: #484f58;
+	--graph-edge-direct: #58a6ff;
+	--graph-edge-muted: rgba(139, 148, 158, 0.52);
+	--graph-edge-label-bg: rgba(22, 27, 34, 0.92);
+	--graph-canvas-grid: rgba(230, 237, 243, 0.08);
+	--graph-canvas-glow: rgba(31, 111, 235, 0.18);
+	--graph-overlay: rgba(13, 17, 23, 0.86);
+}
+
+html,
+body {
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--page-bg);
+	color: var(--text);
+}

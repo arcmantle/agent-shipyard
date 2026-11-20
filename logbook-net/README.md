@@ -149,6 +149,13 @@ dotnet run --project src/AgentLogbook.AppHost   # needs a container engine
 - It never reads or writes `local-api.discovery.json`.
 - A CLI process reaches it only through `AGENT_LOGBOOK_API_URL`. `WithAgentLogbookApi(logbook)` sets that variable on a resource that runs a CLI; it is set in that process only. Saved logins, credentials, and the backend choice do not change.
 
-`AgentLogbookOptions` sets another logbook-net root or Shipyard folder. The Vite sites join this composition in a later issue.
+`AgentLogbookOptions` sets another logbook-net root or Shipyard folder.
 
 `tests/AgentLogbook.Hosting.Tests` checks the resource graph without starting anything, through a consumer that references the library only. `tests/AgentLogbook.AppHost.Tests` starts the real AppHost (PostgreSQL container, API process), resolves a route from `AGENT_LOGBOOK_API_URL` as the CLI does, calls the Development API, and compares the user Shipyard Logbook folder before and after. It skips when no container engine answers, and the application stops its resources at the end.
+
+## Websites in development
+
+`web/` is a pnpm workspace with the copied `site` and `kanban` clients. `AddAgentLogbook()` starts both with
+`pnpm` next to PostgreSQL and the Development API host, and gives each one the host URL in `AGENT_LOGBOOK_API_URL` for its Vite proxy.
+`web/core` holds only the instruction-store code that the copied site still imports. The generated Website contract, the instruction-editor
+changes, and the embedded assets belong to Website integration. The site typecheck waits for that work (it needs the generated types).

@@ -1,6 +1,7 @@
 using System.Reflection;
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
+using Aspire.Hosting.JavaScript;
 
 namespace AgentLogbook.Hosting;
 
@@ -22,6 +23,8 @@ public sealed record AgentLogbookResources(
 	IResourceBuilder<PostgresServerResource> Postgres,
 	IResourceBuilder<PostgresDatabaseResource> Database,
 	IResourceBuilder<ProjectResource> Api,
+	IResourceBuilder<ViteAppResource> Site,
+	IResourceBuilder<ViteAppResource> Kanban,
 	string ShipyardHome);
 
 /// <summary>
@@ -34,6 +37,8 @@ public static class AgentLogbookHosting
 	public const string DatabaseName = "logbook";
 	public const string ApiName = "logbook-api";
 	public const string ApiEndpointName = "http";
+	public const string SiteName = "logbook-site";
+	public const string KanbanName = "logbook-kanban";
 
 	/// <summary>The process-local override that routes a CLI process to the Development API host. It matches the client's variable.</summary>
 	public const string ApiUrlVariable = "AGENT_LOGBOOK_API_URL";
@@ -46,10 +51,12 @@ public static class AgentLogbookHosting
 
 	private const string ShipyardHomeVariable = "AGENT_SHIPYARD_HOME";
 	private const string PortVariable = "AGENT_LOGBOOK_DEV_API_PORT";
+	private const string WebFolder = "web";
 	private const string DevelopmentApiProject = "src/AgentLogbook.DevelopmentApi/AgentLogbook.DevelopmentApi.csproj";
 
 	/// <summary>
-	/// Adds the PostgreSQL server of Aspire, one database, and the Development API host. The host keeps its files in the
+	/// Adds the PostgreSQL server of Aspire, one database, the Development API host, and the copied site and Kanban Vite clients
+	/// (pnpm workspace <c>web</c>). Each client gets the Development API host URL for its proxy. The host keeps its files in the
 	/// repository-local Shipyard folder, so it does not read or change the user Local API discovery file, saved logins, or backend choice.
 	/// </summary>
 	public static AgentLogbookResources AddAgentLogbook(this IDistributedApplicationBuilder builder, AgentLogbookOptions? options = null)
@@ -70,8 +77,17 @@ public static class AgentLogbookHosting
 			.WithReference(database)
 			.WaitFor(database);
 
-		return new AgentLogbookResources(postgres, database, api, shipyardHome);
+		var site = AddWebClient(builder, root, SiteName, "site", api);
+		var kanban = AddWebClient(builder, root, KanbanName, "kanban", api);
+
+		return new AgentLogbookResources(postgres, database, api, site, kanban, shipyardHome);
 	}
+
+	// Each client is its own resource, so it has its own origin and its own browser state. Aspire gives the port, so two clients never collide.
+	private static IResourceBuilder<ViteAppResource> AddWebClient(IDistributedApplicationBuilder builder, string root, string name, string folder, IResourceBuilder<ProjectResource> api) =>
+		builder.AddViteApp(name, Path.Combine(root, WebFolder, folder))
+			.WithPnpm()
+			.WithAgentLogbookApi(api);
 
 	/// <summary>
 	/// Gives <paramref name="consumer"/> the Development API host URL in <c>AGENT_LOGBOOK_API_URL</c>. Use it for a development CLI
@@ -80,12 +96,19 @@ public static class AgentLogbookHosting
 	public static IResourceBuilder<T> WithAgentLogbookApi<T>(this IResourceBuilder<T> consumer, AgentLogbookResources logbook)
 		where T : IResourceWithEnvironment, IResourceWithWaitSupport
 	{
-		ArgumentNullException.ThrowIfNull(consumer);
 		ArgumentNullException.ThrowIfNull(logbook);
 
+		return consumer.WithAgentLogbookApi(logbook.Api);
+	}
+
+	private static IResourceBuilder<T> WithAgentLogbookApi<T>(this IResourceBuilder<T> consumer, IResourceBuilder<ProjectResource> api)
+		where T : IResourceWithEnvironment, IResourceWithWaitSupport
+	{
+		ArgumentNullException.ThrowIfNull(consumer);
+
 		return consumer
-			.WithEnvironment(ApiUrlVariable, logbook.Api.GetEndpoint(ApiEndpointName))
-			.WaitFor(logbook.Api);
+			.WithEnvironment(ApiUrlVariable, api.GetEndpoint(ApiEndpointName))
+			.WaitFor(api);
 	}
 
 	private static string BuiltRoot() =>
