@@ -128,6 +128,8 @@ internal sealed partial class EntitySession(
 
 		var stableId = Guid.NewGuid().ToString("D");
 		var reference = CanonicalReference.Encode(ReferenceKinds.FromWireName(kind)!.Value, stableId);
+		// Short references are unique in a tenant and the allocation checks before it inserts, so creates of one tenant take turns here.
+		await Execute("SELECT pg_advisory_xact_lock(hashtext(@tenantId), hashtext('short-reference'))", new { tenantId });
 		var shortReference = await workspace.AllocateShortReferenceAsync(kind, stableId);
 
 		// A project owns itself. Any other entity joins the project of its parent, or else the project of the request.
@@ -315,6 +317,58 @@ internal sealed partial class EntitySession(
 		return details with { Comments = new IssueCommentPage([], [], 0, null) };
 	}
 
+	public async Task<InitiativeBundle> GetInitiativeBundleAsync(string initiativeId)
+	{
+		var initiative = await GetEntityOrThrowAsync(initiativeId);
+		if (initiative.Kind != "initiative")
+		{
+			throw new EntityException($"{initiativeId} is not an initiative.");
+		}
+
+		// Everything that the initiative reaches along relations, and the handoffs that point at what it reaches.
+		var reachable = await Query<string>(
+			"""
+			WITH RECURSIVE reachable(id) AS (
+				SELECT @initiativeId::uuid
+				UNION
+				SELECT CASE WHEN relations.from_id = reachable.id THEN relations.to_id ELSE relations.from_id END
+				FROM reachable
+				JOIN relations ON (relations.from_id = reachable.id OR (relations.type = 'handsOff' AND relations.to_id = reachable.id))
+				JOIN entities AS next_entity ON next_entity.tenant_id = relations.tenant_id
+					AND next_entity.id = CASE WHEN relations.from_id = reachable.id THEN relations.to_id ELSE relations.from_id END
+				WHERE relations.tenant_id = @tenantId AND next_entity.tombstone = false
+			)
+			SELECT id::text FROM reachable
+			""",
+			new { tenantId, initiativeId = initiative.Id });
+		var rows = await Query<EntityRow>(
+			$"SELECT {EntityColumns} FROM entities WHERE entities.tenant_id = @tenantId AND entities.tombstone = false AND entities.id = ANY(@ids::uuid[]) ORDER BY entities.id",
+			new { tenantId, ids = reachable.ToArray() });
+		var relations = await Query<RelationRow>(
+			"SELECT from_id::text AS FromId, to_id::text AS ToId, type AS Type FROM relations WHERE tenant_id = @tenantId ORDER BY from_id, to_id, type",
+			new { tenantId });
+
+		var statuses = await GetDerivedStatusesAsync();
+		var entities = rows.Select(row => row.ToRecord(StatusOf(statuses, row.Id, row.Status))).ToList();
+		var byId = entities.ToDictionary(entity => entity.Id);
+		var selected = relations.Where(relation => byId.ContainsKey(relation.FromId) && byId.ContainsKey(relation.ToId)).ToList();
+		List<T> Links<T>(string type, Func<EntityRecord, EntityRecord, T> link) =>
+			[.. selected.Where(relation => relation.Type == type).Select(relation => link(byId[relation.FromId], byId[relation.ToId]))];
+
+		return new InitiativeBundle(
+			initiative.ToRecord(StatusOf(statuses, initiative.Id, initiative.Status)),
+			entities,
+			[.. entities.Where(entity => entity.Kind == "prd")],
+			[.. entities.Where(entity => entity.Kind == "userStory")],
+			[.. entities.Where(entity => entity.Kind == "adr")],
+			[.. entities.Where(entity => entity.Kind == "issue")],
+			Links("fixes", (issue, story) => new InitiativeFixLink(issue, story)),
+			Links("decomposes", (parent, issue) => new InitiativeSubIssueLink(parent, issue)),
+			Links("blocks", (source, target) => new InitiativeBlockerLink(source, target)),
+			Links("constrains", (adr, issue) => new InitiativeConstrainsLink(adr, issue)),
+			VersionCoverage: []);
+	}
+
 	public async Task<IReadOnlyList<EntitySummary>> ListAsync(string? kind)
 	{
 		if (!EntityRules.IsKind(kind))
@@ -374,7 +428,7 @@ internal sealed partial class EntitySession(
 			? selectedIds.Where(id => request.Statuses.Contains(StatusOf(statuses, id, string.Empty))).ToList()
 			: [.. selectedIds];
 		var total = selected.Count;
-		var limited = request.Limit is { } limit ? selected.Take(limit).ToList() : selected;
+		var limited = request.Limit is { } limit ? selected.Take(SliceEnd(limit, selected.Count)).ToList() : selected;
 		if (limited.Count == 0)
 		{
 			return new QueryEntitiesResult([], total) { OpenBlockers = NoBlockers() };
@@ -386,6 +440,15 @@ internal sealed partial class EntitySession(
 		var entities = limited.Select(id => rows[id].ToSummary(StatusOf(statuses, id, rows[id].Status))).ToList();
 
 		return new QueryEntitiesResult(entities, total) { OpenBlockers = isIssue ? await GetOpenBlockersAsync(entities, statuses) : null };
+	}
+
+	/// <summary>
+	/// The end of <c>slice(0, limit)</c> in JavaScript: a fraction is cut off, and a negative limit counts back from the end of the list.
+	/// </summary>
+	private static int SliceEnd(double limit, int count)
+	{
+		var end = double.IsNaN(limit) ? 0 : Math.Truncate(limit);
+		return (int)Math.Clamp(end < 0 ? count + end : end, 0, count);
 	}
 
 	/// <summary>Maps the reference of each issue to the references of its open (not done) blocking issues.</summary>

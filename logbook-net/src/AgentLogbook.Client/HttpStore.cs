@@ -136,6 +136,11 @@ public sealed class HttpStore : IDisposable
 		await CallAsync<QueryEntitiesResult>(EntityRpc.QueryMethod, request, cancellationToken)
 		?? throw new HttpStoreProtocolException(EntityRpc.QueryMethod, "the result is empty.");
 
+	/// <summary>Reads an initiative with everything it reaches through relations.</summary>
+	public async Task<InitiativeBundle> GetInitiativeBundleAsync(string initiativeId, CancellationToken cancellationToken = default) =>
+		await CallAsync<InitiativeBundle>(EntityRpc.GetInitiativeBundleMethod, new GetInitiativeBundleRequest(initiativeId), cancellationToken)
+		?? throw new HttpStoreProtocolException(EntityRpc.GetInitiativeBundleMethod, "the result is empty.");
+
 	public void Dispose()
 	{
 		closed = true;

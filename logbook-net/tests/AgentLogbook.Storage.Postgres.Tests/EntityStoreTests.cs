@@ -447,4 +447,86 @@ public class EntityStoreTests
 		await Assert.That(queried.Total).IsEqualTo(0);
 		await Assert.That(initiativeDetails.Outgoing).IsEmpty();
 	}
+
+	[Test]
+	public async Task Parallel_creates_in_one_tenant_all_succeed_with_distinct_short_references()
+	{
+		var (database, runtime) = await NewDatabaseAsync();
+		await using var _ = runtime;
+		var initiative = await CreateAsync(runtime, Entity("initiative", "Initiative"));
+
+		var created = await Task.WhenAll(Enumerable.Range(0, 24).Select(index => CreateAsync(runtime, Entity("issue", $"Parallel {index}", initiative.Id))));
+
+		await Assert.That(created.Select(entity => entity.ShortReference).Distinct().Count()).IsEqualTo(24);
+		await Assert.That(await database.ScalarAsync<long>("SELECT count(*) FROM entities WHERE kind = 'issue'")).IsEqualTo(24L);
+		await Assert.That(await database.ScalarAsync<long>("SELECT count(*) FROM revision_entries WHERE record_kind = 'entity'")).IsEqualTo(25L);
+	}
+
+	[Test]
+	public async Task An_entity_created_under_a_parent_of_another_project_joins_the_project_of_the_parent()
+	{
+		var (database, runtime) = await NewDatabaseAsync();
+		await using var _ = runtime;
+		var inDefault = await CreateAsync(runtime, Entity("initiative", "Default initiative"));
+
+		var child = await CreateAsync(runtime, Entity("issue", "Child", inDefault.Id), identity: "my-repo");
+
+		await Assert.That(await database.ScalarAsync<long>($"SELECT count(*) FROM entities WHERE id = '{child.Id}' AND project_id = '{DefaultWorkspace.Project.StableId}'")).IsEqualTo(1L);
+	}
+
+	[Test]
+	public async Task An_initiative_bundle_holds_what_the_initiative_reaches_with_the_links_between_them()
+	{
+		var (database, runtime) = await NewDatabaseAsync();
+		await using var _ = runtime;
+		var initiative = await CreateAsync(runtime, Entity("initiative", "Initiative"));
+		var prd = await CreateAsync(runtime, Entity("prd", "PRD", initiative.Id));
+		var story = await CreateAsync(runtime, Entity("userStory", "Story", prd.Id));
+		var adr = await CreateAsync(runtime, Entity("adr", "ADR", initiative.Id));
+		var issue = await CreateAsync(runtime, Entity("issue", "Issue", initiative.Id));
+		var sub = await CreateAsync(runtime, new CreateEntityRequest { Kind = "issue", Title = "Sub", ParentId = issue.Id, Status = "done" });
+		var other = await CreateAsync(runtime, Entity("initiative", "Other initiative"));
+		var unrelated = await CreateAsync(runtime, Entity("issue", "Unrelated", other.Id));
+		await using (var admin = database.Admin())
+		{
+			foreach (var (from, to, type) in new[] { (issue.Id, story.Id, "fixes"), (sub.Id, issue.Id, "blocks"), (adr.Id, issue.Id, "constrains") })
+			{
+				await using var command = admin.CreateCommand(
+					$"INSERT INTO relations (tenant_id, from_id, to_id, type, created_at) VALUES ('{Tenant}', '{from}', '{to}', '{type}', '2026-01-01T00:00:00.000Z')");
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+
+		var bundle = await EntityStore.GetInitiativeBundleAsync(runtime, Tenant, null, initiative.Reference);
+
+		await Assert.That(bundle.Initiative.Id).IsEqualTo(initiative.Id);
+		await Assert.That(bundle.Initiative.Status).IsEqualTo("active");
+		await Assert.That(bundle.Initiative.Body).IsEmpty();
+		await Assert.That(bundle.Entities.Select(entity => entity.Id)).IsEquivalentTo(
+			new[] { initiative.Id, prd.Id, story.Id, adr.Id, issue.Id, sub.Id }.Order(StringComparer.Ordinal));
+		await Assert.That(bundle.Prds.Select(entity => entity.Id)).IsEquivalentTo([prd.Id]);
+		await Assert.That(bundle.UserStories.Select(entity => (entity.Id, entity.Status))).IsEquivalentTo([(story.Id, "in-progress")]);
+		await Assert.That(bundle.Adrs.Select(entity => entity.Id)).IsEquivalentTo([adr.Id]);
+		await Assert.That(bundle.Issues.Select(entity => entity.Id)).IsEquivalentTo(new[] { issue.Id, sub.Id }.Order(StringComparer.Ordinal));
+		await Assert.That(bundle.FixLinks.Select(link => (link.Issue.Id, link.UserStory.Id))).IsEquivalentTo([(issue.Id, story.Id)]);
+		await Assert.That(bundle.SubIssueLinks.Select(link => (link.Parent.Id, link.Issue.Id))).IsEquivalentTo([(issue.Id, sub.Id)]);
+		await Assert.That(bundle.BlockerLinks.Select(link => (link.Source.Id, link.Target.Id))).IsEquivalentTo([(sub.Id, issue.Id)]);
+		await Assert.That(bundle.ConstrainsLinks.Select(link => (link.Adr.Id, link.Issue.Id))).IsEquivalentTo([(adr.Id, issue.Id)]);
+		await Assert.That(bundle.VersionCoverage).IsEmpty();
+		await Assert.That(bundle.Entities.Select(entity => entity.Id)).DoesNotContain(unrelated.Id);
+	}
+
+	[Test]
+	public async Task An_initiative_bundle_of_something_else_or_of_nothing_fails()
+	{
+		var (_, runtime) = await NewDatabaseAsync();
+		await using var _ = runtime;
+		var project = await CreateAsync(runtime, Entity("project", "Project"));
+
+		var notInitiative = await ExpectFailureAsync(() => EntityStore.GetInitiativeBundleAsync(runtime, Tenant, null, project.Id));
+		var missing = await ExpectFailureAsync(() => EntityStore.GetInitiativeBundleAsync(runtime, Tenant, null, "missing"));
+
+		await Assert.That(notInitiative.Message).IsEqualTo($"{project.Id} is not an initiative.");
+		await Assert.That(missing.Message).IsEqualTo("Entity not found: missing");
+	}
 }

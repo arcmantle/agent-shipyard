@@ -129,10 +129,17 @@ internal sealed class ShowCommand : EntityCommand
 		using var store = await CliStore.OpenAsync(invocation.Runtime, cancellationToken);
 		var details = await store.GetEntityDetailsAsync(entityId, cancellationToken);
 
-		// The initiative graph and the Plan projection belong to later slices. A plain details print would not be what show prints for them.
-		if (details.Entity.Kind is "initiative" or "plan")
+		if (details.Entity.Kind == "initiative")
 		{
-			throw new CommandInputException($"Showing {details.Entity.Kind} entities is not available in this release.");
+			var bundle = await store.GetInitiativeBundleAsync(entityId, cancellationToken);
+			Print(invocation, bundle, EntityOutput.RenderBundle(bundle), keepNulls: true);
+			return 0;
+		}
+
+		if (details.Entity.Kind == "plan")
+		{
+			Print(invocation, EntityOutput.PlanDetails(details), EntityOutput.RenderPlanDetails(details), keepNulls: true);
+			return 0;
 		}
 
 		Print(invocation, details, EntityOutput.RenderDetails(details), keepNulls: true);

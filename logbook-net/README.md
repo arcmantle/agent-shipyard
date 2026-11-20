@@ -137,12 +137,13 @@ The recorded cases are `cli/init-help`, `cli/init-command-help`, and `cli/init-u
 
 ## create, show, list
 
-The minimum entity records of the walking skeleton. Four RPC methods and three commands, all through `HttpStore`:
+The minimum entity records of the walking skeleton. Five RPC methods and three commands, all through `HttpStore`:
 
 | RPC method | CLI | What it does |
 | --- | --- | --- |
 | `createEntity` | `create <kind> --title <title> [--parent <id>] [--status <status>] [--category <c>] [--priority <p>] [--type <t>] [--body-file <path\|->]` | Creates an entity under an optional structural parent. Prints `<reference> <kind> <status> <title>`, or `{operation, id, reference, status, revision}` with `--json`. |
 | `getEntityDetails` | `show <id>` | Reads an entity by stable ID, reference or short reference, with its incoming and outgoing relations, its derived status, and for an issue its (empty) comment page. |
+| `getInitiativeBundle` | `show <initiative>` | An initiative with everything it reaches through relations (PRDs, user stories, ADRs, issues) and the fix, sub-issue, blocker and constrains links. `show` of a plan prints its details with the Plan projection (seven empty groups, empty history). |
 | `listEntities` | none | The entities of one kind in the current project, by ID. |
 | `queryEntities` | `list <kind> [--status a,b] [--parent <id>] [--limit <n>]` | The same with filters. Prints `{items, total}`; for issues also `openBlockers`. |
 
@@ -156,16 +157,16 @@ The minimum entity records of the walking skeleton. Four RPC methods and three c
 Differences from the TypeScript implementation, on purpose:
 
 - `createEntity` refuses `links` (`Relations cannot be created together with an entity in this release.`) and `create` has no `--link` option. Creating relations belongs to the link feature slice; the approved difference is `create-help-no-link-option` in `contract/intended-differences.json`.
-- `show` refuses initiatives and plans (`Showing initiative entities is not available in this release.`). The TypeScript command prints the initiative graph or the Plan projection for them. Their help text is still the TypeScript text, so the help names both.
+- `getInitiativeBundle` has empty version coverage and `show` of a plan has an empty projection, for the same reason: no ported feature records completions or Plan entries. `queryEntities` takes `limit` as JavaScript `slice(0, limit)` does (a fraction is cut off, a negative limit counts back from the end), and a JSON `null` for `category` or `priority` of `createEntity` is refused as a value.
 - `getEntityDetails` returns no plan entries and no version coverage, and an issue has an empty comment page: no ported feature creates them. The slices that port them extend `EntitySession.GetDetailsAsync`.
 - A short reference is unique in a tenant (unique index), so `queryEntities` never returns `parentGroups` and a selector never names two entities.
 - An error prints one line (`agent-logbook <command>: <message>`, or `{"error":"<message>"}` with `--json`) on stderr and exits 1. The TypeScript command prints a stack trace for a human run. `--title` and `<kind>` are checked when the command runs, with the TypeScript messages, not by the parser.
 - A body file is read once, without the retries of the TypeScript command.
 - There is no role check on the entity methods (`ApiIdentity` has no roles and the host is local no-auth only). A hosted auth slice must add it before it serves these methods.
-- Short-reference allocation checks then inserts, as the TypeScript code does; two concurrent creates with the same 32-bit short reference make the second fail with `Internal error.`.
+- Creates of one tenant take a transaction-scoped advisory lock before they allocate a short reference, so two concurrent creates cannot collide on it (the TypeScript code has that race).
 - `queryEntities` has no `retrievalContext` (no workspace observation is ported).
 
-The recorded cases are `rpc/create-entity-fields`, `rpc/create-entity-errors`, `rpc/get-entity-details`, `rpc/get-entity-details-issue`, `rpc/list-entities`, `rpc/query-entities`, and the `cli/create-*`, `cli/show-*` and `cli/list-*` cases. They pass against the .NET implementation (see tools/README.md). The routes `GET /api/entity-detail` and `GET /api/entity-relations` of the website belong to the Website integration slices, not to the skeleton.
+The recorded cases are `rpc/create-entity-fields`, `rpc/create-entity-errors`, `rpc/get-entity-details`, `rpc/get-entity-details-issue`, `rpc/get-initiative-bundle`, `rpc/create-entity-null-fields`, `rpc/list-entities`, `rpc/query-entities`, `rpc/query-entities-limits`, and the `cli/create-*`, `cli/show-*` and `cli/list-*` cases. They pass against the .NET implementation (see tools/README.md). The routes `GET /api/entity-detail` and `GET /api/entity-relations` of the website belong to the Website integration slices, not to the skeleton.
 
 ## Development with Aspire
 

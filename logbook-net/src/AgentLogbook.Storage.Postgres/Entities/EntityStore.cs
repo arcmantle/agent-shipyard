@@ -62,6 +62,19 @@ public static class EntityStore
 		return RunAsync(dataSource, tenantId, projectIdentity, session => session.QueryAsync(request), cancellationToken);
 	}
 
+	/// <summary>An initiative with everything it reaches through relations, and the links between those records.</summary>
+	/// <exception cref="EntityException">The selector names no entity, or an entity that is not an initiative.</exception>
+	public static Task<InitiativeBundle> GetInitiativeBundleAsync(
+		NpgsqlDataSource dataSource,
+		string tenantId,
+		string? projectIdentity,
+		string initiativeId,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(initiativeId);
+		return RunAsync(dataSource, tenantId, projectIdentity, session => session.GetInitiativeBundleAsync(initiativeId), cancellationToken);
+	}
+
 	private static Task<T> RunAsync<T>(
 		NpgsqlDataSource dataSource,
 		string tenantId,

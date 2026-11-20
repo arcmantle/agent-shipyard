@@ -170,7 +170,7 @@ public class RpcEndpointTests
 		var registry = RpcMethodRegistry.CreateDefault();
 
 		await Assert.That(registry.TryGet(WorkspaceRpc.InitializeMethod, out _)).IsTrue();
-		foreach (var method in new[] { EntityRpc.CreateMethod, EntityRpc.GetDetailsMethod, EntityRpc.ListMethod, EntityRpc.QueryMethod })
+		foreach (var method in new[] { EntityRpc.CreateMethod, EntityRpc.GetDetailsMethod, EntityRpc.ListMethod, EntityRpc.QueryMethod, EntityRpc.GetInitiativeBundleMethod })
 		{
 			await Assert.That(registry.TryGet(method, out _)).IsTrue();
 		}

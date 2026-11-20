@@ -20,11 +20,26 @@ internal static class EntityRpcHandlers
 			ReadParameters<ListEntitiesRequest>(call, EntityRpc.ListMethod).Kind, call.CancellationToken))
 		.Add(EntityRpc.QueryMethod, async call => await EntityStore.QueryAsync(
 			call.DataSource, call.Identity.TenantId, call.ProjectIdentity,
-			ReadParameters<QueryEntitiesRequest>(call, EntityRpc.QueryMethod), call.CancellationToken));
+			ReadParameters<QueryEntitiesRequest>(call, EntityRpc.QueryMethod), call.CancellationToken))
+		.Add(EntityRpc.GetInitiativeBundleMethod, async call => await EntityStore.GetInitiativeBundleAsync(
+			call.DataSource, call.Identity.TenantId, call.ProjectIdentity,
+			ReadParameters<GetInitiativeBundleRequest>(call, EntityRpc.GetInitiativeBundleMethod).InitiativeId ?? "undefined", call.CancellationToken));
 
 	/// <summary>The parameters of a call. A call without <c>params</c> has all fields unset.</summary>
 	private static T ReadParameters<T>(RpcCall call, string method)
 	{
+		// A JSON null for these is not "not set": the TypeScript host refuses it as a value, so this one does too.
+		if (method == EntityRpc.CreateMethod && call.Params is { ValueKind: JsonValueKind.Object } raw)
+		{
+			foreach (var field in new[] { "category", "priority" })
+			{
+				if (raw.TryGetProperty(field, out var value) && value.ValueKind == JsonValueKind.Null)
+				{
+					throw new EntityException($"Invalid entity {field}: null");
+				}
+			}
+		}
+
 		try
 		{
 			return (call.Params is { ValueKind: not JsonValueKind.Null } parameters

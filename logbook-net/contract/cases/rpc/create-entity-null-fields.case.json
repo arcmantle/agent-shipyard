@@ -1,0 +1,45 @@
+{
+	"id": "rpc/create-entity-null-fields",
+	"surface": "rpc",
+	"steps": [
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Null category",
+				"category": null
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Null priority",
+				"priority": null
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "debt",
+				"title": "Null debt category",
+				"category": null,
+				"priority": "high"
+			},
+			"expectError": true
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Null others",
+				"parentId": null,
+				"status": null,
+				"body": null,
+				"type": null
+			}
+		}
+	]
+}

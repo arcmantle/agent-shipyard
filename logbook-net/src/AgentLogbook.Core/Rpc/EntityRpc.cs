@@ -134,7 +134,7 @@ public sealed record QueryEntitiesRequest
 	public string? ParentId { get; init; }
 
 	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-	public int? Limit { get; init; }
+	public double? Limit { get; init; }
 }
 
 /// <summary>
@@ -148,6 +148,34 @@ public sealed record QueryEntitiesResult(IReadOnlyList<EntitySummary> Entities, 
 	public IReadOnlyDictionary<string, IReadOnlyList<string>>? OpenBlockers { get; init; }
 }
 
+public sealed record InitiativeFixLink(EntityRecord Issue, EntityRecord UserStory);
+
+public sealed record InitiativeSubIssueLink(EntityRecord Parent, EntityRecord Issue);
+
+public sealed record InitiativeBlockerLink(EntityRecord Source, EntityRecord Target);
+
+public sealed record InitiativeConstrainsLink(EntityRecord Adr, EntityRecord Issue);
+
+/// <summary>
+/// Everything that an initiative reaches through relations, with derived statuses: its PRDs, user stories, ADRs and issues and the links
+/// between them. Version coverage is always empty in this release, because no feature that records completions is ported yet.
+/// </summary>
+public sealed record InitiativeBundle(
+	EntityRecord Initiative,
+	IReadOnlyList<EntityRecord> Entities,
+	IReadOnlyList<EntityRecord> Prds,
+	IReadOnlyList<EntityRecord> UserStories,
+	IReadOnlyList<EntityRecord> Adrs,
+	IReadOnlyList<EntityRecord> Issues,
+	IReadOnlyList<InitiativeFixLink> FixLinks,
+	IReadOnlyList<InitiativeSubIssueLink> SubIssueLinks,
+	IReadOnlyList<InitiativeBlockerLink> BlockerLinks,
+	IReadOnlyList<InitiativeConstrainsLink> ConstrainsLinks,
+	IReadOnlyList<JsonElement> VersionCoverage);
+
+/// <summary>The parameters of <see cref="EntityRpc.GetInitiativeBundleMethod"/>.</summary>
+public sealed record GetInitiativeBundleRequest(string? InitiativeId);
+
 /// <summary>The wire contract of the entity feature.</summary>
 public static class EntityRpc
 {
@@ -155,4 +183,5 @@ public static class EntityRpc
 	public const string GetDetailsMethod = "getEntityDetails";
 	public const string ListMethod = "listEntities";
 	public const string QueryMethod = "queryEntities";
+	public const string GetInitiativeBundleMethod = "getInitiativeBundle";
 }

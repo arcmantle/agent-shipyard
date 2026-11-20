@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using AgentLogbook.Core.Rpc;
 
 namespace AgentLogbook.Cli.Entities;
@@ -57,4 +59,58 @@ internal static class EntityOutput
 			.Append("Related Plan entries:\nnone")
 			.ToString();
 	}
+
+	public static string RenderBundle(InitiativeBundle bundle)
+	{
+		static string Compact(IReadOnlyList<EntityRecord> entities) =>
+			entities.Count == 0 ? "none" : string.Join(", ", entities.Select(entity => $"{entity.Reference}:{entity.Status}"));
+
+		static string Links<T>(IReadOnlyList<T> links, Func<T, string> render) => links.Count == 0 ? "none" : string.Join(", ", links.Select(render));
+
+		return string.Join("\n",
+			$"{bundle.Initiative.Reference} {bundle.Initiative.Status} {bundle.Initiative.Title}",
+			$"PRDs: {Compact(bundle.Prds)}",
+			$"User Stories: {Compact(bundle.UserStories)}",
+			$"ADRs: {Compact(bundle.Adrs)}",
+			$"Issues: {Compact(bundle.Issues)}",
+			$"Fixes: {Links(bundle.FixLinks, link => $"{link.Issue.Reference} -> {link.UserStory.Reference}")}",
+			$"Sub-issues: {Links(bundle.SubIssueLinks, link => $"{link.Parent.Reference} -> {link.Issue.Reference}")}",
+			$"Blockers: {Links(bundle.BlockerLinks, link => $"{link.Source.Reference} -> {link.Target.Reference}")}",
+			$"Constrains: {Links(bundle.ConstrainsLinks, link => $"{link.Adr.Reference} -> {link.Issue.Reference}")}");
+	}
+
+	/// <summary>The groups of the current Plan, in the order of the TypeScript Plan projection.</summary>
+	private static readonly (string Key, string Title)[] PlanGroups =
+	[
+		("questions", "Questions"),
+		("decisions", "Decisions"),
+		("includedScope", "Included scope"),
+		("excludedScope", "Excluded scope"),
+		("constraints", "Constraints"),
+		("preferences", "Preferences"),
+		("considerations", "Considerations"),
+	];
+
+	/// <summary>
+	/// The details of a Plan with its projection. No ported feature creates Plan entries, so every group is empty and the history is empty.
+	/// </summary>
+	public static JsonObject PlanDetails(EntityDetails details)
+	{
+		var result = (JsonObject)JsonSerializer.SerializeToNode(details, RpcWire.JsonOptions)!;
+		result["current"] = new JsonArray([.. PlanGroups.Select(group => (JsonNode)new JsonObject
+		{
+			["key"] = group.Key,
+			["title"] = group.Title,
+			["entries"] = new JsonArray(),
+		})]);
+		result["history"] = new JsonArray();
+		return result;
+	}
+
+	public static string RenderPlanDetails(EntityDetails details) => string.Join("\n",
+		RenderDetails(details),
+		"Current Plan:",
+		string.Join("\n", PlanGroups.Select(group => $"{group.Title}: none")),
+		"History:",
+		"none");
 }

@@ -123,4 +123,22 @@ public class EntityMethodTests
 
 		await Assert.That(failure!.Message).IsEqualTo("Unknown entity kind: bogus");
 	}
+
+	[Test]
+	public async Task The_initiative_bundle_sends_the_initiative_id_and_reads_the_links()
+	{
+		await using var server = await RpcTestServer.StartAsync();
+		var record = SummaryJson[..^1] + ",\"body\":\"\",\"bodySource\":\"authored\"}";
+		server.Answer = _ => (200, Reply(
+			"{\"initiative\":" + record + ",\"entities\":[" + record + "],\"prds\":[],\"userStories\":[],\"adrs\":[],\"issues\":[" + record
+			+ "],\"fixLinks\":[],\"subIssueLinks\":[{\"parent\":" + record + ",\"issue\":" + record + "}],\"blockerLinks\":[],\"constrainsLinks\":[],\"versionCoverage\":[]}"));
+		using var store = Store(server);
+
+		var bundle = await store.GetInitiativeBundleAsync("INIT_1");
+
+		await Assert.That((await ParamsOfAsync(server)).GetRawText()).IsEqualTo("""{"initiativeId":"INIT_1"}""");
+		await Assert.That(bundle.Issues).HasSingleItem();
+		await Assert.That(bundle.SubIssueLinks.Single().Parent.Reference).IsEqualTo("ISS_1");
+		await Assert.That(bundle.FixLinks).IsEmpty();
+	}
 }

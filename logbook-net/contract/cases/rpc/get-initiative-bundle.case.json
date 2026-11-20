@@ -1,0 +1,48 @@
+{
+	"id": "rpc/get-initiative-bundle",
+	"surface": "rpc",
+	"steps": [
+		{
+			"as": "initiative",
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Parity initiative"
+			}
+		},
+		{
+			"as": "project",
+			"method": "createEntity",
+			"params": {
+				"kind": "project",
+				"title": "Not an initiative"
+			}
+		},
+		{
+			"method": "getInitiativeBundle",
+			"params": {
+				"initiativeId": "${initiative.id}"
+			}
+		},
+		{
+			"method": "getInitiativeBundle",
+			"params": {
+				"initiativeId": "${initiative.reference}"
+			}
+		},
+		{
+			"method": "getInitiativeBundle",
+			"params": {
+				"initiativeId": "${project.id}"
+			},
+			"expectError": true
+		},
+		{
+			"method": "getInitiativeBundle",
+			"params": {
+				"initiativeId": "missing"
+			},
+			"expectError": true
+		}
+	]
+}

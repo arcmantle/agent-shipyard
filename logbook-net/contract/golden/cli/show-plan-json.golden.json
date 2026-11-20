@@ -1,0 +1,90 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"completionObservations": [],
+		"current": [
+			{
+				"entries": [],
+				"key": "questions",
+				"title": "Questions"
+			},
+			{
+				"entries": [],
+				"key": "decisions",
+				"title": "Decisions"
+			},
+			{
+				"entries": [],
+				"key": "includedScope",
+				"title": "Included scope"
+			},
+			{
+				"entries": [],
+				"key": "excludedScope",
+				"title": "Excluded scope"
+			},
+			{
+				"entries": [],
+				"key": "constraints",
+				"title": "Constraints"
+			},
+			{
+				"entries": [],
+				"key": "preferences",
+				"title": "Preferences"
+			},
+			{
+				"entries": [],
+				"key": "considerations",
+				"title": "Considerations"
+			}
+		],
+		"currentCompletionObservation": null,
+		"entity": {
+			"body": "",
+			"bodySource": "authored",
+			"category": null,
+			"contentHash": "77c8bb53acae11ad67a48589c604c132f821cad218fae40681813c7e60155331",
+			"createdAt": "<timestamp>",
+			"createdBy": "<uuid#1>",
+			"id": "<uuid#2>",
+			"kind": "plan",
+			"priority": null,
+			"reference": "<ref#1>",
+			"revision": 1,
+			"shortReference": "<sref#1>",
+			"status": "draft",
+			"title": "Parity plan",
+			"type": null,
+			"updatedAt": "<timestamp>",
+			"updatedBy": "<uuid#1>"
+		},
+		"history": [],
+		"incoming": [
+			{
+				"entity": {
+					"category": null,
+					"contentHash": "12efec0984d8a5247c429fa7e0b9413742f7dd5bfa906fc374dd0103b29b98a1",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#3>",
+					"kind": "initiative",
+					"priority": null,
+					"reference": "<ref#2>",
+					"revision": 1,
+					"shortReference": "<sref#2>",
+					"status": "draft",
+					"title": "Parity initiative",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				},
+				"relationType": "owns"
+			}
+		],
+		"outgoing": [],
+		"planEntries": [],
+		"versionCoverage": []
+	}
+}

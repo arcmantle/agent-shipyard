@@ -1,0 +1,5 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": "<ref#1> plan draft Parity plan\nIncoming:\n<ref#2> initiative --owns--> <ref#1>\nOutgoing:\nnone\nRelated Plan entries:\nnone\nCurrent Plan:\nQuestions: none\nDecisions: none\nIncluded scope: none\nExcluded scope: none\nConstraints: none\nPreferences: none\nConsiderations: none\nHistory:\nnone\n"
+}

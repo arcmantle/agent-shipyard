@@ -1,6 +1,6 @@
 export default {
 	test: {
-		include: ["*.test.ts"],
+		include: ["*.contract.ts"],
 		testTimeout: 60_000,
 		fileParallelism: false
 	}

@@ -1,0 +1,50 @@
+{
+	"id": "rpc/query-entities-limits",
+	"surface": "rpc",
+	"steps": [
+		{
+			"as": "initiative",
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Parity initiative"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "Parity issue",
+				"parentId": "${initiative.id}"
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "issue",
+				"limit": -1
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "issue",
+				"limit": 0
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "issue",
+				"limit": 1.5
+			}
+		},
+		{
+			"method": "queryEntities",
+			"params": {
+				"kind": "issue",
+				"limit": 5
+			}
+		}
+	]
+}

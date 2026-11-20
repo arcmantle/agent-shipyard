@@ -1,0 +1,24 @@
+{
+	"id": "cli/show-initiative-human",
+	"surface": "cli",
+	"workspace": {
+		"folder": "show-initiative-human-project"
+	},
+	"setup": [
+		{
+			"argv": [
+				"create",
+				"initiative",
+				"--title",
+				"Parity initiative",
+				"--json"
+			],
+			"as": "initiative"
+		}
+	],
+	"argv": [
+		"show",
+		"${initiative.reference}"
+	],
+	"stdout": "text"
+}

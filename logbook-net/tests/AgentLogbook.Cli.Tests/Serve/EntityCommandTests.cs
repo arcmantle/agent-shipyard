@@ -174,21 +174,29 @@ public class EntityCommandTests
 	}
 
 	[Test]
-	public async Task Show_refuses_initiatives_and_plans_until_their_projections_are_ported()
+	public async Task Show_prints_the_graph_of_an_initiative_and_the_projection_of_a_plan()
 	{
 		await using var host = await StartHostAsync();
 		var workspace = NewWorkspace("projections");
 		var initiative = Printed(Run(workspace, host, "create", "initiative", "--title", "Initiative", "--json")).GetProperty("reference").GetString()!;
+		var issue = Printed(Run(workspace, host, "create", "issue", "--title", "Tracked", "--parent", initiative, "--json")).GetProperty("reference").GetString()!;
 		var plan = Printed(Run(workspace, host, "create", "plan", "--title", "Plan", "--parent", initiative, "--json")).GetProperty("reference").GetString()!;
 
-		var showInitiative = Run(workspace, host, "show", initiative);
-		var showPlan = Run(workspace, host, "show", plan, "--json");
+		var bundle = Run(workspace, host, "show", initiative);
+		var bundleJson = Printed(Run(workspace, host, "show", initiative, "--json"));
+		var planHuman = Run(workspace, host, "show", plan);
+		var planJson = Printed(Run(workspace, host, "show", plan, "--json"));
 
-		await Assert.That(showInitiative.Exit).IsEqualTo(1);
-		await Assert.That(showInitiative.Out).IsEmpty();
-		await Assert.That(showInitiative.Err).IsEqualTo("agent-logbook show: Showing initiative entities is not available in this release.\n");
-		await Assert.That(showPlan.Exit).IsEqualTo(1);
-		await Assert.That(Json(showPlan.Err).GetProperty("error").GetString()).IsEqualTo("Showing plan entities is not available in this release.");
+		await Assert.That(bundle.Out).IsEqualTo(
+			$"{initiative} draft Initiative\nPRDs: none\nUser Stories: none\nADRs: none\nIssues: {issue}:todo\nFixes: none\nSub-issues: none\nBlockers: none\nConstrains: none\n");
+		await Assert.That(bundleJson.GetProperty("initiative").GetProperty("reference").GetString()).IsEqualTo(initiative);
+		await Assert.That(bundleJson.GetProperty("issues").GetArrayLength()).IsEqualTo(1);
+		await Assert.That(bundleJson.GetProperty("versionCoverage").GetArrayLength()).IsEqualTo(0);
+		await Assert.That(planHuman.Out).EndsWith("Related Plan entries:\nnone\nCurrent Plan:\nQuestions: none\nDecisions: none\nIncluded scope: none\nExcluded scope: none\nConstraints: none\nPreferences: none\nConsiderations: none\nHistory:\nnone\n");
+		await Assert.That(planJson.GetProperty("current").GetArrayLength()).IsEqualTo(7);
+		await Assert.That(planJson.GetProperty("current")[0].GetProperty("title").GetString()).IsEqualTo("Questions");
+		await Assert.That(planJson.GetProperty("history").GetArrayLength()).IsEqualTo(0);
+		await Assert.That(planJson.GetProperty("entity").GetProperty("kind").GetString()).IsEqualTo("plan");
 	}
 
 	[Test]

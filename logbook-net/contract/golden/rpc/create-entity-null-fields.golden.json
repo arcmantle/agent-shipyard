@@ -1,0 +1,65 @@
+{
+	"steps": [
+		{
+			"body": {
+				"error": {
+					"code": -32000,
+					"message": "Invalid entity category: null"
+				},
+				"id": 1,
+				"jsonrpc": "2.0"
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"error": {
+					"code": -32000,
+					"message": "Invalid entity priority: null"
+				},
+				"id": 1,
+				"jsonrpc": "2.0"
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"error": {
+					"code": -32000,
+					"message": "Invalid entity category: null"
+				},
+				"id": 1,
+				"jsonrpc": "2.0"
+			},
+			"method": "createEntity",
+			"status": 200
+		},
+		{
+			"body": {
+				"id": 1,
+				"jsonrpc": "2.0",
+				"result": {
+					"category": null,
+					"contentHash": "4da0a50fd0cd0cc64a5619387489d121c44b8790c58ec08cd8b8a3ee8ae9b4d1",
+					"createdAt": "<timestamp>",
+					"createdBy": "<uuid#1>",
+					"id": "<uuid#2>",
+					"kind": "initiative",
+					"priority": null,
+					"reference": "<ref#1>",
+					"revision": 1,
+					"shortReference": "<sref#1>",
+					"status": "draft",
+					"title": "Null others",
+					"type": null,
+					"updatedAt": "<timestamp>",
+					"updatedBy": "<uuid#1>"
+				}
+			},
+			"method": "createEntity",
+			"status": 200
+		}
+	]
+}
