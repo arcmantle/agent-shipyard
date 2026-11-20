@@ -168,6 +168,31 @@ Differences from the TypeScript implementation, on purpose:
 
 The recorded cases are `rpc/create-entity-fields`, `rpc/create-entity-errors`, `rpc/get-entity-details`, `rpc/get-entity-details-issue`, `rpc/get-initiative-bundle`, `rpc/create-entity-null-fields`, `rpc/list-entities`, `rpc/query-entities`, `rpc/query-entities-limits`, and the `cli/create-*`, `cli/show-*` and `cli/list-*` cases. They pass against the .NET implementation (see tools/README.md). The routes `GET /api/entity-detail` and `GET /api/entity-relations` of the website belong to the Website integration slices, not to the skeleton.
 
+## MCP server
+
+`agent-logbook --mcp [--project-identity <identity>]` runs the MCP server on standard input and output. Hosts start this installed command through plugin configuration or by hand; there is no `dnx` launch path, no `mcp` subcommand and no proxy. `--mcp` is special only as the first argument: the entry point starts the server before the command parser is built, and `agent-logbook schema --mcp` is an unknown option like any other. Another argument after `--mcp` prints `agent-logbook: Usage: --mcp [--project-identity <projectIdentity>]` on stderr and exits 1.
+
+`AgentLogbook.Mcp` uses ModelContextProtocol 2.x over the stdio transport. The server reports `agent-logbook` and the tool version as its server info, and lists the tools that this release implements. A tool that is not ported has no stub, so the tool list is shorter than the TypeScript list.
+
+| Tool | Result |
+| --- | --- |
+| `project_identity` | `{projectIdentity, workspaceRoot}` of the session |
+| `resource_show` | `{entity, reads}` for `request: {resource: "entity", reference}`: the entity metadata without `body` and `bodySource`, and the follow-up reads |
+
+- **Session workspace.** The first `file:` root that the host lists is the workspace. Without the roots capability, a failed roots request or no file root, the folder of the process is the workspace. The project identity is `--project-identity` when given, else the resolved identity of the workspace (`project-identity` above).
+- **Store.** `resource_show` opens the store through `WorkspaceStore` (`AgentLogbook.Client`), the same routing, identity and `HttpStore` as the CLI. It reads the entity with `getEntityDetails`.
+- **Errors.** A failure that the user can fix (no Local API host, an unknown entity, an API error) is a tool result with `isError` and one line of text. A result over 65536 bytes is replaced by the fixed oversize text, as in the TypeScript server. A defect is not hidden.
+- **Protocol output.** Standard output holds protocol messages only. The server writes no logs, and no CLI rendering runs. A host that closes the input ends the session with exit code 0.
+
+Differences from the TypeScript server, on purpose:
+
+- `resource_show` accepts the entity resource only. Its schema has one variant and its description is shorter. The `planEntry`, `context`, `contextTerm`, `instructionSource` and `issueBreakdown` resources belong to the slices that port those features. The `reads` of an entity name `resource_body` and `relation_query`, as the TypeScript result does; those tools are not ported yet.
+- The `details` read names `agent-logbook show <reference> --json`.
+- The tool list has no `execution` field and no `$schema` in the tool schemas (the SDK of the TypeScript server wrote them). The case `mcp/tool-list` omits those two fields on both sides.
+- The text of a tool result escapes quotes as `\u0022`. It is the same JSON; `structuredContent` is equal.
+
+The recorded cases are `mcp/server-info`, `mcp/tool-list` (`project_identity`) and `mcp/project-identity`. An MCP case runs the CLI with `--mcp`, sends the steps as JSON-RPC requests, and records the answers, the exit code after the input closes and standard error. The recorder fails when a line of standard output is not a JSON-RPC message. The TypeScript server starts the background daemon for a tool that opens a store, which the recorder does not run, so `resource_show` has no recorded case. The MCP process tests (`tests/AgentLogbook.Cli.Tests/Mcp`) run the real command against the real Local API host and PostgreSQL: they read a real entity, check the error results and check that standard output stays clean. `tests/verify-packed-tool.sh` runs one session of the packed tool.
+
 ## Development with Aspire
 
 `AgentLogbook.Hosting` holds the one Aspire composition of Logbook, `AddAgentLogbook()`. `src/AgentLogbook.AppHost` is the standalone AppHost; it only calls the library. A later Helm AppHost calls the same method on its own builder. No AppHost starts another AppHost, and the library does not reference the standalone AppHost.

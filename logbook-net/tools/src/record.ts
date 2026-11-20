@@ -4,8 +4,8 @@ import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadCases, type Case } from "./cases.ts";
-import { legacyRoot, startLegacy } from "./legacy.ts";
-import { recordCli, recordRpc, RecordingError, type Observation } from "./recorder.ts";
+import { legacyCli, legacyRoot, startLegacy } from "./legacy.ts";
+import { recordCli, recordMcp, recordRpc, RecordingError, type Observation } from "./recorder.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const netRoot = path.resolve(here, "../..");
@@ -26,10 +26,12 @@ if (cases.length === 0) {
 	process.exit(1);
 }
 
-const legacy = await startLegacy(logbookRoot);
+// Only an rpc case needs the TypeScript API host and PostgreSQL; cli and mcp cases run the built CLI alone.
+const legacy = cases.some((testCase) => testCase.surface === "rpc") ? await startLegacy(logbookRoot) : undefined;
+const cli = legacy?.cli ?? legacyCli(logbookRoot);
 let failures = 0;
 try {
-	const record = (testCase: Case): Promise<Observation> => (testCase.surface === "cli" ? recordCli(legacy.cli, testCase) : recordRpc(legacy.rpc, testCase));
+	const record = (testCase: Case): Promise<Observation> => (testCase.surface === "cli" ? recordCli(cli, testCase) : testCase.surface === "mcp" ? recordMcp(cli, testCase) : recordRpc(legacy!.rpc, testCase));
 	for (const testCase of cases) {
 		try {
 			const observation = await record(testCase);
@@ -46,6 +48,6 @@ try {
 		}
 	}
 } finally {
-	await legacy.close();
+	await legacy?.close();
 }
 process.exit(failures ? 1 : 0);

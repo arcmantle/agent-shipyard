@@ -212,5 +212,14 @@
 		"action": "remove-line",
 		"match": "--link",
 		"reason": "Relations that are created together with an entity (--link) belong to the link feature slice (Port slice). This release has no --link option, so its option line, its example, and its notes are not in the help. The slice that ports link adds them and removes this rule."
+	},
+	{
+		"id": "mcp-server-info-name",
+		"cases": "mcp/server-info",
+		"path": "/steps/0/response/result/serverInfo/name",
+		"action": "rewrite",
+		"match": "^agent-issues$",
+		"replace": "agent-logbook",
+		"reason": "The MCP server reports the renamed product name agent-logbook in its server info (Product rename). The server version is the tool version and is checked by the MCP process tests."
 	}
 ]

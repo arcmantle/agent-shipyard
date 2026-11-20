@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>AgentLogbook.Mcp</AssemblyName>
+    <RootNamespace>AgentLogbook.Mcp</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AgentLogbook.Core/AgentLogbook.Core.csproj" />
+    <ProjectReference Include="../AgentLogbook.Client/AgentLogbook.Client.csproj" />
+    <InternalsVisibleTo Include="AgentLogbook.Cli.Tests" />
+  </ItemGroup>
+</Project>

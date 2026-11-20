@@ -6,6 +6,7 @@ using AgentLogbook.Cli.Init;
 using AgentLogbook.Cli.Metadata;
 using AgentLogbook.Cli.ProjectIdentity;
 using AgentLogbook.Cli.Serve;
+using AgentLogbook.Mcp;
 
 namespace AgentLogbook.Cli;
 
@@ -31,7 +32,11 @@ public static class CliApp
 		new CapabilitiesCommand(),
 	]);
 
-	/// <summary>Runs the command line, including commands that run until <paramref name="shutdown"/> is cancelled.</summary>
+	/// <summary>
+	/// Runs the command line, including commands that run until <paramref name="shutdown"/> is cancelled. A first argument <c>--mcp</c> starts the
+	/// MCP server on the standard input and output instead of a command: the full command parser is not loaded, and nothing but protocol messages
+	/// goes to standard output.
+	/// </summary>
 	public static Task<int> RunAsync(
 		string[] args,
 		TextWriter stdout,
@@ -39,9 +44,35 @@ public static class CliApp
 		CancellationToken shutdown,
 		string? workingDirectory = null,
 		Func<string, string?>? getEnvironmentVariable = null) =>
-		args is [ServeCommand.Name, ..]
-			? ServeCommand.RunAsync(args[1..], stdout, stderr, getEnvironmentVariable ?? Environment.GetEnvironmentVariable, shutdown)
-			: Task.FromResult(Run(args, stdout, stderr, workingDirectory, getEnvironmentVariable));
+		args switch
+		{
+			[McpLaunch.Flag, ..] => RunMcpAsync(args[1..], stderr, workingDirectory, getEnvironmentVariable, shutdown),
+			[ServeCommand.Name, ..] => ServeCommand.RunAsync(args[1..], stdout, stderr, getEnvironmentVariable ?? Environment.GetEnvironmentVariable, shutdown),
+			_ => Task.FromResult(Run(args, stdout, stderr, workingDirectory, getEnvironmentVariable)),
+		};
+
+	private static async Task<int> RunMcpAsync(
+		string[] arguments,
+		TextWriter stderr,
+		string? workingDirectory,
+		Func<string, string?>? getEnvironmentVariable,
+		CancellationToken shutdown)
+	{
+		if (!McpLaunch.TryParse(arguments, out var projectIdentity, out var usage))
+		{
+			stderr.WriteLine($"{CommandName}: {usage}");
+			return 1;
+		}
+
+		await AgentLogbookMcp.RunStdioAsync(
+			new AgentLogbookMcpOptions(
+				workingDirectory ?? Directory.GetCurrentDirectory(),
+				getEnvironmentVariable ?? Environment.GetEnvironmentVariable,
+				Version,
+				projectIdentity),
+			shutdown);
+		return 0;
+	}
 
 	public static int Run(
 		string[] args,

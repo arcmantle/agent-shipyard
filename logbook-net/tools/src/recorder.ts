@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { CliCase, RpcCase } from "./cases.ts";
+import type { CliCase, McpCase, McpStep, RpcCase } from "./cases.ts";
 import { createNormalizer } from "./normalize.ts";
 
 export type Observation = Record<string, unknown>;
@@ -15,7 +15,14 @@ export type RpcTarget = { url: string; issueToken(tenantId: string): Promise<str
 // AGENT_LOGBOOK_API_URL points the .NET candidate at the API host that a parity check starts; the TypeScript CLI ignores it.
 const PASSTHROUGH_ENV = ["PATH", "LANG", "TMPDIR", "SystemRoot", "AGENT_LOGBOOK_API_URL"];
 
-export async function recordCli(target: CliTarget, testCase: CliCase): Promise<Observation> {
+type Prepared = { root: string; home: string; workspace: string; env: Record<string, string>; bindings: Record<string, unknown>; literals: Record<string, string> };
+
+/**
+ * Creates the isolated home and workspace of a CLI or MCP case and runs its setup commands. A clean environment: no user settings reach the recording.
+ * The TypeScript CLI accepts AGENT_ISSUES_NO_DAEMON (a local store without the background daemon) only in a development build under VITEST=true;
+ * commands that open a store need that build (`pnpm --filter agent-issues build:dev`).
+ */
+async function prepareCase(target: CliTarget, testCase: CliCase | McpCase): Promise<Prepared> {
 	const root = mkdtempSync(path.join(tmpdir(), "parity-cli-"));
 	const home = path.join(root, "home");
 	const workspace = path.join(root, testCase.workspace.folder);
@@ -28,9 +35,6 @@ export async function recordCli(target: CliTarget, testCase: CliCase): Promise<O
 			mkdirSync(path.dirname(target), { recursive: true });
 			writeFileSync(target, content);
 		}
-		// A clean environment: no user settings reach the recording. The TypeScript CLI accepts AGENT_ISSUES_NO_DAEMON
-		// (a local store without the background daemon) only in a development build under VITEST=true; commands that open
-		// a store need that build (`pnpm --filter agent-issues build:dev`).
 		const env: Record<string, string> = { HOME: home, USERPROFILE: home, AGENT_ISSUES_NO_DAEMON: "1", NO_COLOR: "1", VITEST: "true" };
 		for (const key of PASSTHROUGH_ENV) if (process.env[key] !== undefined) env[key] = process.env[key]!;
 
@@ -48,6 +52,21 @@ export async function recordCli(target: CliTarget, testCase: CliCase): Promise<O
 			if (setup.as) bindings[setup.as] = output;
 		}
 
+		const literals: Record<string, string> = {};
+		for (const [literal, placeholder] of [[workspace, "<workspace>"], [home, "<home>"], [root, "<root>"]] as const) {
+			literals[literal] = placeholder;
+			literals[realpathSync(literal)] = placeholder;
+		}
+		return { root, home, workspace, env, bindings, literals };
+	} catch (error) {
+		rmSync(root, { recursive: true, force: true });
+		throw error;
+	}
+}
+
+export async function recordCli(target: CliTarget, testCase: CliCase): Promise<Observation> {
+	const { root, workspace, env, bindings, literals } = await prepareCase(target, testCase);
+	try {
 		const { stdout, stderr, exitCode } = await runCli(target, testCase.id, substituteArgv(testCase.argv, bindings, testCase.id), workspace, env);
 		const expected = testCase.expectExitCode ?? 0;
 		if (exitCode !== expected) {
@@ -61,17 +80,126 @@ export async function recordCli(target: CliTarget, testCase: CliCase): Promise<O
 				throw new RecordingError(`${testCase.id}: stdout is not JSON: ${stdout.slice(0, 200)}`);
 			}
 		}
-		const literals: Record<string, string> = {};
-		for (const [literal, placeholder] of [[workspace, "<workspace>"], [home, "<home>"], [root, "<root>"]] as const) {
-			literals[literal] = placeholder;
-			literals[realpathSync(literal)] = placeholder;
-		}
 		return createNormalizer(literals)({ exitCode, stdout: parsed, stderr }) as Observation;
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}
 }
 
+/** Runs the CLI with `--mcp` and records the response of each step, then closes the input and records the exit code and standard error. */
+export async function recordMcp(target: CliTarget, testCase: McpCase): Promise<Observation> {
+	const { root, workspace, env, bindings, literals } = await prepareCase(target, testCase);
+	try {
+		const timeoutMs = target.timeoutMs ?? 60_000;
+		let child: ReturnType<typeof Bun.spawn>;
+		try {
+			child = Bun.spawn([...target.command, "--mcp"], { cwd: workspace, env, stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+		} catch (error) {
+			throw new RecordingError(`${testCase.id}: cannot start ${target.command.join(" ")} --mcp: ${(error as Error).message}`);
+		}
+		let timedOut = false;
+		const timer = setTimeout(() => {
+			timedOut = true;
+			child.kill();
+		}, timeoutMs);
+		const stderrText = new Response(child.stderr as ReadableStream).text();
+		const lines = readLines(child.stdout as ReadableStream<Uint8Array>);
+		const send = (message: unknown) => {
+			(child.stdin as import("bun").FileSink).write(`${JSON.stringify(message)}\n`);
+			(child.stdin as import("bun").FileSink).flush();
+		};
+		try {
+			const steps: unknown[] = [];
+			for (const [index, step] of testCase.steps.entries()) {
+				const label = `${testCase.id} step ${index + 1} (${step.method})`;
+				const id = index + 1;
+				try {
+					send({ jsonrpc: "2.0", id, method: step.method, params: substitute(step.params ?? {}, bindings) });
+				} catch (error) {
+					if (error instanceof RecordingError) throw new RecordingError(`${label}: ${error.message}`);
+					throw error;
+				}
+				const response = await nextResponse(lines, id, label);
+				if (index === 0) send({ jsonrpc: "2.0", method: "notifications/initialized" });
+				const result = (response as { result?: unknown }).result;
+				if (step.as) bindings[step.as] = result;
+				steps.push({ method: step.method, response: selectResponse(response, step, label) });
+			}
+			(child.stdin as import("bun").FileSink).end();
+			const exitCode = await child.exited;
+			const stdoutRest = [];
+			for await (const line of lines) stdoutRest.push(line);
+			if (timedOut) throw new RecordingError(`${testCase.id}: process did not finish within ${timeoutMs} ms`);
+			return createNormalizer(literals)({ steps, exitCode, stdoutAfterClose: stdoutRest, stderr: await stderrText }) as Observation;
+		} finally {
+			clearTimeout(timer);
+			child.kill();
+		}
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+}
+
+async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+	const decoder = new TextDecoder();
+	let pending = "";
+	for await (const chunk of stream as unknown as AsyncIterable<Uint8Array>) {
+		pending += decoder.decode(chunk, { stream: true });
+		let newline: number;
+		while ((newline = pending.indexOf("\n")) >= 0) {
+			const line = pending.slice(0, newline).replace(/\r$/, "");
+			pending = pending.slice(newline + 1);
+			if (line !== "") yield line;
+		}
+	}
+	if (pending.trim() !== "") yield pending;
+}
+
+/** Reads standard output until the response with `id`. Every line must be a JSON-RPC message: protocol output must not be corrupted. */
+async function nextResponse(lines: AsyncGenerator<string>, id: number, label: string): Promise<unknown> {
+	for (;;) {
+		const next = await lines.next();
+		if (next.done) throw new RecordingError(`${label}: the server closed standard output before it answered`);
+		let message: { jsonrpc?: unknown; id?: unknown; method?: unknown };
+		try {
+			message = JSON.parse(next.value);
+		} catch {
+			throw new RecordingError(`${label}: standard output has a line that is not JSON: ${next.value.slice(0, 200)}`);
+		}
+		if (message.jsonrpc !== "2.0") throw new RecordingError(`${label}: standard output has a line that is not a JSON-RPC message: ${next.value.slice(0, 200)}`);
+		if (message.method === undefined && message.id === id) return message;
+	}
+}
+
+function selectResponse(response: unknown, step: McpStep, label: string): unknown {
+	const message = response as { id?: unknown; result?: Record<string, unknown>; error?: unknown };
+	const { id: _id, ...rest } = message;
+	if (step.tools !== undefined) {
+		const tools = (rest.result?.tools ?? []) as { name: string }[];
+		const missing = step.tools.filter((name) => !tools.some((tool) => tool.name === name));
+		if (missing.length > 0) throw new RecordingError(`${label}: the server does not list ${missing.join(", ")}`);
+		rest.result = { ...rest.result, tools: tools.filter((tool) => step.tools!.includes(tool.name)) };
+	}
+	for (const pointer of step.omit ?? []) {
+		const keys = pointer.split("/").slice(1).map((key) => key.replace(/~1/g, "/").replace(/~0/g, "~"));
+		let parent: unknown = rest.result;
+		for (const key of keys.slice(0, -1)) parent = parent && typeof parent === "object" ? (parent as Record<string, unknown>)[key] : undefined;
+		// An implementation that never writes the field is the reason for the omission, so an absent field is not an error.
+		if (parent && typeof parent === "object") delete (parent as Record<string, unknown>)[keys[keys.length - 1]];
+	}
+	if (step.pick === undefined) return rest;
+	const picked: Record<string, unknown> = {};
+	for (const pointer of step.pick) {
+		const keys = pointer.split("/").slice(1).map((key) => key.replace(/~1/g, "/").replace(/~0/g, "~"));
+		let source: unknown = rest.result;
+		for (const key of keys) source = source && typeof source === "object" ? (source as Record<string, unknown>)[key] : undefined;
+		if (source === undefined) throw new RecordingError(`${label}: the response has no ${pointer}`);
+		let target = picked;
+		for (const key of keys.slice(0, -1)) target = (target[key] ??= {}) as Record<string, unknown>;
+		target[keys[keys.length - 1]] = source;
+	}
+	return { jsonrpc: rest.jsonrpc, result: picked };
+}
 
 function substituteArgv(argv: string[], bindings: Record<string, unknown>, id: string): string[] {
 	try {

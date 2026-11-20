@@ -84,6 +84,24 @@ expect_identity new-file project-file
 	= '{"command":"project-identity","identity":"new-env","source":"environment"}' ] \
 	|| { echo "FAIL: new environment variable does not win" >&2; exit 1; }
 
+# The installed command serves MCP over standard input and output. Standard output holds protocol messages only; no API host runs here.
+mcp_output="$(cd "$workspace" && {
+	printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"verify","version":"1"}}}' \
+		'{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+		'{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+		'{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_identity","arguments":{}}}'
+	# A host keeps the input open while it waits for answers. Closing it at once ends the session before the replies.
+	sleep 5
+} | "$tool_path/agent-logbook" --mcp)"
+[ "$(wc -l <<<"$mcp_output" | tr -d ' ')" = "3" ] || { echo "FAIL: --mcp printed an unexpected number of lines: $mcp_output" >&2; exit 1; }
+grep -q "\"name\":\"agent-logbook\",\"version\":\"$version\"" <<<"$mcp_output" || { echo "FAIL: --mcp server info lacks the tool name and version" >&2; exit 1; }
+grep -q '"name":"project_identity"' <<<"$mcp_output" && grep -q '"name":"resource_show"' <<<"$mcp_output" \
+	|| { echo "FAIL: --mcp did not list its tools" >&2; exit 1; }
+grep -q '"projectIdentity":"new-file"' <<<"$mcp_output" || { echo "FAIL: --mcp project_identity did not resolve the workspace identity" >&2; exit 1; }
+if "$tool_path/agent-logbook" --mcp --bogus </dev/null >/dev/null 2>&1; then
+	echo "FAIL: --mcp with an unknown argument exited 0" >&2; exit 1
+fi
+
 # The documented update flow: a newer local build replaces the installed tool. No public feed is used.
 IFS=. read -r major minor patch <<<"${version%%-*}"
 update_version="$major.$minor.$((patch + 1))"

@@ -79,6 +79,12 @@ function casePath(testCase: Case): string[] {
 	return words;
 }
 
+/** The tools that an MCP case drives: the tools it lists by name and the tools it calls. */
+function mcpToolsOf(testCase: Case): string[] {
+	if (testCase.surface !== "mcp") return [];
+	return testCase.steps.flatMap((step) => [...(step.tools ?? []), ...(step.method === "tools/call" ? [String((step.params as { name?: unknown } | undefined)?.name ?? "")] : [])]);
+}
+
 /**
  * Gives each inventory surface one status. A removed surface is removed only by an exact name, so a child command or a sibling route keeps its own status.
  * A surface without a removal is "covered" when a case drives it, and "not-yet-ported" otherwise. Removal never turns a retained surface into "removed".
@@ -87,6 +93,7 @@ export function surfaceStatus(inventory: Inventory, removals: Removal[], cases: 
 	const removed = new Map(removals.filter((rule) => rule.kind === "cli-command" || rule.kind === "host-route").map((rule) => [`${rule.kind}:${rule.name}`, rule.id]));
 	const commandCases = new Set(cases.map((testCase) => casePath(testCase).join(" ")));
 	const rpcMethods = new Set(cases.flatMap((testCase) => (testCase.surface === "rpc" ? testCase.steps.map((step) => step.method) : [])));
+	const mcpTools = new Set(cases.flatMap((testCase) => (testCase.surface === "mcp" ? mcpToolsOf(testCase) : [])));
 	const status = (surface: string, covered: boolean, removalKey: string): SurfaceStatus => {
 		const removal = removed.get(removalKey);
 		return removal ? { surface, disposition: "removed", removal } : { surface, disposition: covered ? "covered" : "not-yet-ported" };
@@ -95,7 +102,7 @@ export function surfaceStatus(inventory: Inventory, removals: Removal[], cases: 
 		...inventory.cli.commands.map((command) => status(command.id, commandCases.has(command.path.join(" ")), `cli-command:${command.id}`)),
 		...inventory.rpc.methods.map((method) => status(`rpc:${method.name}`, rpcMethods.has(method.name), "")),
 		...routeNames(inventory).map((route) => status(`route:${route}`, false, `host-route:${route}`)),
-		...inventory.mcp.tools.map((tool) => status(`mcp:${tool.name}`, false, ""))
+		...inventory.mcp.tools.map((tool) => status(`mcp:${tool.name}`, mcpTools.has(tool.name), ""))
 	];
 }
 

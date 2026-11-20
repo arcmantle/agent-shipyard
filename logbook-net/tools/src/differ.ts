@@ -51,7 +51,7 @@ export function validateRules(value: unknown, source: string): IntendedDifferenc
 		const item = rule as unknown as IntendedDifference;
 		if (seen.has(item.id)) return fail(`${label}: duplicate id`);
 		seen.add(item.id);
-		if (!/^(cli|rpc)\/[a-z0-9*-]+$/.test(item.cases) || item.cases.split("/")[1].replace(/[*-]/g, "").length < 4) {
+		if (!/^(cli|rpc|mcp)\/[a-z0-9*-]+$/.test(item.cases) || item.cases.split("/")[1].replace(/[*-]/g, "").length < 4) {
 			return fail(`${label}: cases must name one surface and at least four letters of a case name, for example cli/*-help`);
 		}
 		if (!/^(\/[^/]+)+$/.test(item.path)) return fail(`${label}: path must be a JSON Pointer to one value, for example /stdout`);

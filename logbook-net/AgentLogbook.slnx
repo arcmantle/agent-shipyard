@@ -3,6 +3,7 @@
     <Project Path="src/AgentLogbook.Core/AgentLogbook.Core.csproj" />
     <Project Path="src/AgentLogbook.Api/AgentLogbook.Api.csproj" />
     <Project Path="src/AgentLogbook.Client/AgentLogbook.Client.csproj" />
+    <Project Path="src/AgentLogbook.Mcp/AgentLogbook.Mcp.csproj" />
     <Project Path="src/AgentLogbook.Cli/AgentLogbook.Cli.csproj" />
     <Project Path="src/AgentLogbook.Storage.Postgres/AgentLogbook.Storage.Postgres.csproj" />
     <Project Path="src/AgentLogbook.DevelopmentApi/AgentLogbook.DevelopmentApi.csproj" />

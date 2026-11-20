@@ -52,6 +52,14 @@ A case that opens a store (`create`, `show`, `list`, ...) needs the development 
 
 RPC case: `id`, `surface: "rpc"`, `steps`. A step has `method`, optional `params`, optional `as` (name for later `${name.field}` substitution), and optional `expectError: true` for a step that must fail. Each case uses its own tenant.
 
+MCP case: `id`, `surface: "mcp"`, `workspace`, optional `setup` (as for a CLI case), and `steps`. The recorder runs the CLI with `--mcp`, sends each step as a JSON-RPC request (the first step must be `initialize`; the recorder then sends `notifications/initialized`), and records the answers. It closes the input at the end and records the exit code, the standard output that follows, and standard error. A line on standard output that is not a JSON-RPC message fails the recording. A step has `method`, optional `params`, optional `as` (binds the response `result` for `${name.field}`), and optional filters on what is compared:
+
+- `tools` (`tools/list` only) keeps the named tools, so a candidate that implements fewer tools still compares the tools it has. A named tool that the server does not list fails the recording.
+- `pick` keeps only the listed JSON Pointers of the response `result`.
+- `omit` removes the listed JSON Pointers of the `result` on both sides. Use it only for a protocol detail of the SDK version that has no behavior, and say so in the case or in the README.
+
+Cases of the `cli` and `mcp` surfaces run the built TypeScript CLI alone. Only `rpc` cases start the TypeScript API host and need PostgreSQL. The TypeScript MCP server starts the background daemon for a tool that opens a store, which an isolated recording does not run, so MCP cases are limited to tools that answer without a store.
+
 ### Normalization
 
 Only these changes are made to a recording: CRLF becomes LF, temporary paths, the tenant, timestamps, and UUIDs, references and short references become ordered placeholders (`<uuid#1>`).

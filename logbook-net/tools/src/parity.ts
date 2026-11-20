@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadCases, type Case } from "./cases.ts";
 import { filterMatch, formatReport, loadRules, readGolden, runParity } from "./differ.ts";
-import { recordCli, recordRpc, RecordingError, type Observation } from "./recorder.ts";
+import { recordCli, recordMcp, recordRpc, RecordingError, type Observation } from "./recorder.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const netRoot = path.resolve(here, "../..");
@@ -60,23 +60,25 @@ const candidateCommand = cliText ? (cliText.trim().startsWith("[") ? (JSON.parse
 const candidateUrl = options["candidate-url"];
 const token = options["candidate-token"] ?? "";
 const candidate = (testCase: Case): Promise<Observation> => {
-	if (testCase.surface === "cli") {
+	if (testCase.surface === "cli" || testCase.surface === "mcp") {
 		if (!candidateCommand) throw new RecordingError("no --candidate-cli given");
-		return recordCli({ command: candidateCommand }, testCase);
+		return testCase.surface === "cli" ? recordCli({ command: candidateCommand }, testCase) : recordMcp({ command: candidateCommand }, testCase);
 	}
 	if (!candidateUrl) throw new RecordingError("no --candidate-url given");
 	return recordRpc({ url: candidateUrl, issueToken: async () => token, newTenantId: () => options["candidate-tenant"] ?? `parity-${randomUUID()}` }, testCase);
 };
 
 let legacy: Awaited<ReturnType<typeof import("./legacy.ts").startLegacy>> | undefined;
-if (mode === "diff") legacy = await (await import("./legacy.ts")).startLegacy((await import("./legacy.ts")).legacyRoot(netRoot));
+const legacyModule = mode === "diff" ? await import("./legacy.ts") : undefined;
+if (legacyModule && cases.some((testCase) => testCase.surface === "rpc")) legacy = await legacyModule.startLegacy(legacyModule.legacyRoot(netRoot));
+const legacyCliTarget = legacyModule?.legacyCli(legacyModule.legacyRoot(netRoot));
 const goldenRoot = path.join(netRoot, "contract/golden");
 let report;
 try {
 	report = await runParity({
 		cases,
 		rules,
-		baseline: async (testCase) => (legacy ? (testCase.surface === "cli" ? recordCli(legacy.cli, testCase) : recordRpc(legacy.rpc, testCase)) : readGolden(goldenRoot, testCase.id)),
+		baseline: async (testCase) => (legacyCliTarget ? (testCase.surface === "cli" ? recordCli(legacyCliTarget, testCase) : testCase.surface === "mcp" ? recordMcp(legacyCliTarget, testCase) : recordRpc(legacy!.rpc, testCase)) : readGolden(goldenRoot, testCase.id)),
 		candidate
 	});
 } finally {

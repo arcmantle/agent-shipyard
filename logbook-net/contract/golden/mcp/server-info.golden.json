@@ -1,0 +1,19 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdoutAfterClose": [],
+	"steps": [
+		{
+			"method": "initialize",
+			"response": {
+				"jsonrpc": "2.0",
+				"result": {
+					"protocolVersion": "2025-06-18",
+					"serverInfo": {
+						"name": "agent-issues"
+					}
+				}
+			}
+		}
+	]
+}
