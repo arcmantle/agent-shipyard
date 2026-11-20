@@ -1,0 +1,5 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": "init\n\nInitialize the local data store.\n\nUsage:\n  agent-issues init\n\nOptions:\n  --db <path> | Use a specific SQLite database path.\n  --json | Print machine-readable JSON. Entity mutations return acknowledgements; list and relation reads return summaries.\n  --pretty | Pretty-print JSON when used with --json.\n  --help, -h | Show help for the whole CLI or the selected command.\n\nExamples:\n  agent-issues init\n\nOutput:\n  Human-readable:\n    Initialized data store at <dbPath>\n  JSON fields:\n    command\n    dbPath\n    status\n"
+}

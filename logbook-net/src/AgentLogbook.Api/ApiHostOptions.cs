@@ -13,6 +13,9 @@ public sealed class ApiHostOptions
 
 	public required string ToolVersion { get; init; }
 
+	/// <summary>The RPC methods that the host serves. Null serves the methods of this release.</summary>
+	public Rpc.RpcMethodRegistry? Rpc { get; init; }
+
 	public required IPAddress ListenAddress { get; init; }
 
 	/// <summary>The port to listen on. 0 lets the OS choose.</summary>

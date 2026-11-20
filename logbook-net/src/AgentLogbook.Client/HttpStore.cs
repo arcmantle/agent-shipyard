@@ -108,6 +108,11 @@ public sealed class HttpStore : IDisposable
 			: result.Deserialize<TResult>(RpcWire.JsonOptions);
 	}
 
+	/// <summary>Opens the workspace of this store: its tenant and its project identity. Calling it again returns the same workspace.</summary>
+	public async Task<InitializedWorkspace> InitializeWorkspaceAsync(CancellationToken cancellationToken = default) =>
+		await CallAsync<InitializedWorkspace>(WorkspaceRpc.InitializeMethod, cancellationToken: cancellationToken)
+		?? throw new HttpStoreProtocolException(WorkspaceRpc.InitializeMethod, "the result is empty.");
+
 	public void Dispose()
 	{
 		closed = true;

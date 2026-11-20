@@ -20,7 +20,10 @@ internal static class PostgresFixture
 
 	private static async Task<PostgreSqlContainer> StartAsync()
 	{
-		var container = new PostgreSqlBuilder("postgres:16-alpine").Build();
+		var container = new PostgreSqlBuilder("postgres:16-alpine")
+			// The data lives in memory: the tests need no persistence, and a full Docker disk cannot break them.
+			.WithTmpfsMount("/var/lib/postgresql/data")
+			.Build();
 		await container.StartAsync();
 
 		await using var admin = new NpgsqlConnection(container.GetConnectionString());

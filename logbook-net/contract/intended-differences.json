@@ -195,5 +195,14 @@
 		"match": "(?<![.\\w/-])agent-issues(?= )",
 		"replace": "agent-logbook",
 		"reason": "The .NET tool has the one command agent-logbook (Command name and aliases). The workflow schema names its commands with that name."
+	},
+	{
+		"id": "init-unknown-option-message",
+		"cases": "cli/init-unknown-option",
+		"path": "/stderr",
+		"action": "rewrite",
+		"match": "^Unknown Syntax Error: Unsupported option name \\(\"--bogus\"\\)\\.\\n\\n\\$ agent-issues init [^\\n]*\\n$",
+		"replace": "agent-logbook: unknown option '--bogus' for init. Use agent-logbook init --help.\n",
+		"reason": "The .NET tool prints one line for a parse error and no clipanion usage text (Command name and aliases). The one line names the option, the command, and the help command."
 	}
 ]

@@ -113,6 +113,28 @@ The override carries no token, so it serves the unauthenticated development and 
 
 Typed `HttpStore` methods and the instruction error kinds are added with the slices that port those RPC methods.
 
+## init
+
+`agent-logbook init [--json] [--pretty]` opens the workspace of the current folder on the API host that the routing above selects. It prints what the TypeScript command prints: `Initialized data store at <dbPath>`, or `{"command":"init","dbPath":"<dbPath>","status":"ok"}`. `dbPath` is the API URL, as it is in the TypeScript remote mode. A repeat run prints the same and changes nothing.
+
+The command sends one RPC call, `initializeWorkspace`, with the resolved project identity in `x-agent-logbook-project-identity`. The tenant comes from the login (the Local API host: `local-<OS user name>`), never from the body. `WorkspaceInitializer` (`AgentLogbook.Storage.Postgres/Workspaces`) runs the call in one transaction that is scoped to the tenant for row-level security:
+
+1. It seeds the per-kind counters and the default project and epic. Their IDs derive from the legacy aliases `PROJ0` and `EPIC0` with the retained entity namespace, and they have the titles `Default Project` and `Default Epic`, the literal content hashes of those titles, an empty generated body, and null authors.
+2. Without an identity it stops there. The default project is the workspace.
+3. With an identity, it takes a transaction-scoped advisory lock for tenant and identity, then picks the project by stable ID or reference, then by normalized title (`PathSegment.Sanitize`). Two matches are an error (`Ambiguous project identity ...`). A stable ID or reference that matches nothing is an error (`Cannot resolve project identity ...`) and rolls the whole call back. Anything else registers a project with that title, a random stable ID, and its own `Default Epic` joined by a `contains` relation.
+
+The result is `InitializedWorkspace`: the tenant, the project and its epic (`id`, `reference`, `shortReference`, `title`), `created`, and the default project and epic. `created` is true when the call adds the project it returns: the registered project when there is an identity, the default project when there is none (so also for the first call on a new tenant).
+
+Differences from the TypeScript implementation, on purpose:
+
+- The TypeScript command makes no RPC call over `HttpStore`; the host opens the workspace lazily on the first project call. The .NET client has no other open step, so `init` calls `initializeWorkspace`. This method is not in the TypeScript RPC inventory.
+- There is no `--db` option (no SQLite) and no `--project-identity` option. The project identity comes from the resolver described under `project-identity`.
+- An error prints one line (`agent-logbook init: <message>`, or `{"error":"<message>"}` with `--json`) on stderr and exits 1. The TypeScript command prints a stack trace for a human run.
+- `/rpc` has no `daemonHealth` method and no build-hash version check (the daemon is removed). A request that the auth provider denies always gets `Invalid or expired bearer token.`; the TypeScript host says `Missing Authorization header.` when the header is absent.
+- `/rpc` answers a failure of a database or program with the fixed message `Internal error.`; only the messages of workspace errors reach the caller.
+
+The recorded cases are `cli/init-help`, `cli/init-command-help`, and `cli/init-unknown-option`. The recorder cannot record `init --json` or the human output: it runs the TypeScript CLI without a saved login, and that CLI only opens a store when a login or a daemon exists. The two outputs come from the TypeScript source and are checked by `InitCommandTests` against the real Local API host and PostgreSQL.
+
 ## Development with Aspire
 
 `AgentLogbook.Hosting` holds the one Aspire composition of Logbook, `AddAgentLogbook()`. `src/AgentLogbook.AppHost` is the standalone AppHost; it only calls the library. A later Helm AppHost calls the same method on its own builder. No AppHost starts another AppHost, and the library does not reference the standalone AppHost.

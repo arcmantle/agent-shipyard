@@ -31,7 +31,7 @@ public class CommandModelTests
 		var model = CommandModel.Walk(CliApp.Catalog.Root);
 
 		await Assert.That(model.Select(command => command.Id)).IsEquivalentTo(
-			["cli:(default)", "cli:project-identity", "cli:help", "cli:schema", "cli:capabilities"]);
+			["cli:(default)", "cli:project-identity", "cli:init", "cli:help", "cli:schema", "cli:capabilities"]);
 		await Assert.That(model.Select(command => command.Id).Skip(1))
 			.IsEquivalentTo(CliApp.Catalog.Specs.Select(spec => $"cli:{spec.Name}"));
 	}
