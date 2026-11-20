@@ -2,6 +2,7 @@ using AgentLogbook.Client;
 using AgentLogbook.Hosting;
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
+using Aspire.Hosting.JavaScript;
 using Aspire.Hosting.Postgres;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -115,5 +116,67 @@ public class AddAgentLogbookTests
 		await Assert.That(logbook.ShipyardHome).IsEqualTo(home);
 		await Assert.That((await EnvironmentOf(logbook.Api.Resource))["AGENT_SHIPYARD_HOME"]).IsEqualTo(home);
 		Directory.Delete(root, recursive: true);
+	}
+
+	[Test]
+	public async Task Adds_the_site_and_kanban_vite_clients_from_the_web_workspace_with_pnpm()
+	{
+		var builder = NewBuilder();
+
+		var logbook = builder.AddAgentLogbook();
+
+		var logbookNet = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+		await Assert.That(builder.Resources.OfType<ViteAppResource>().Select(resource => resource.Name).Order().ToArray()).IsEquivalentTo(["logbook-kanban", "logbook-site"]);
+		await Assert.That(logbook.Site.Resource.WorkingDirectory).IsEqualTo(Path.Combine(logbookNet, "web", "site"));
+		await Assert.That(logbook.Kanban.Resource.WorkingDirectory).IsEqualTo(Path.Combine(logbookNet, "web", "kanban"));
+		foreach (var client in new[] { logbook.Site.Resource, logbook.Kanban.Resource })
+		{
+			await Assert.That(Directory.Exists(client.WorkingDirectory)).IsTrue();
+			await Assert.That(File.Exists(Path.Combine(client.WorkingDirectory, "vite.config.ts"))).IsTrue();
+			await Assert.That(client.Annotations.OfType<JavaScriptPackageManagerAnnotation>().Last().ExecutableName).IsEqualTo("pnpm");
+		}
+	}
+
+	[Test]
+	public async Task Each_vite_client_gets_the_development_api_url_and_waits_for_the_api()
+	{
+		var builder = NewBuilder();
+
+		var logbook = builder.AddAgentLogbook();
+
+		foreach (var client in new[] { logbook.Site.Resource, logbook.Kanban.Resource })
+		{
+			var environment = await EnvironmentOf(client);
+			await Assert.That(environment[BackendRouter.ApiUrlVariable]).IsEqualTo("{logbook-api.bindings.http.url}");
+			await Assert.That(environment.ContainsKey("AGENT_SHIPYARD_HOME")).IsFalse();
+			await Assert.That(client.TryGetAnnotationsOfType<WaitAnnotation>(out var waits)).IsTrue();
+			await Assert.That(waits!.Select(wait => wait.Resource.Name)).Contains("logbook-api");
+		}
+	}
+
+	[Test]
+	public async Task The_clients_are_separate_resources_with_their_own_endpoints_so_their_browser_state_is_separate()
+	{
+		var builder = NewBuilder();
+
+		var logbook = builder.AddAgentLogbook();
+
+		var site = logbook.Site.Resource.Annotations.OfType<EndpointAnnotation>().Select(endpoint => endpoint.Name).ToArray();
+		var kanban = logbook.Kanban.Resource.Annotations.OfType<EndpointAnnotation>().Select(endpoint => endpoint.Name).ToArray();
+		await Assert.That(site).IsNotEmpty();
+		await Assert.That(kanban).IsNotEmpty();
+		await Assert.That(logbook.Site.Resource).IsNotEqualTo(logbook.Kanban.Resource);
+	}
+
+	[Test]
+	public async Task The_web_workspace_lists_the_site_and_kanban_packages()
+	{
+		var web = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../web"));
+
+		var workspace = await File.ReadAllTextAsync(Path.Combine(web, "pnpm-workspace.yaml"));
+
+		await Assert.That(workspace).Contains("- site");
+		await Assert.That(workspace).Contains("- kanban");
+		await Assert.That(File.Exists(Path.Combine(web, "pnpm-lock.yaml"))).IsTrue();
 	}
 }

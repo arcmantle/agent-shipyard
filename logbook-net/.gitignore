@@ -5,3 +5,8 @@ TestResults/
 
 # Repository-local Shipyard state of the Development API host (Aspire).
 .agent-shipyard/
+
+# pnpm workspace of the copied websites.
+web/node_modules/
+web/*/node_modules/
+web/*/dist/

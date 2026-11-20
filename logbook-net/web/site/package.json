@@ -1,0 +1,36 @@
+{
+	"name": "@agent-logbook/site",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite --host 127.0.0.1",
+		"build": "vite build",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"dependencies": {
+		"@agent-logbook/core": "workspace:*",
+		"@azure/msal-browser": "5.26.0",
+		"@blocknote/core": "^0.55.0",
+		"@blocknote/mantine": "^0.55.0",
+		"@blocknote/react": "^0.55.0",
+		"@lit-labs/signals": "catalog:",
+		"cytoscape": "catalog:",
+		"diff": "^9.0.0",
+		"dompurify": "catalog:",
+		"lit": "catalog:",
+		"lucide": "^1.49.0",
+		"marked": "catalog:",
+		"react": "^19.3.0",
+		"react-dom": "^19.3.0"
+	},
+	"devDependencies": {
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
+		"happy-dom": "catalog:",
+		"jsdom": "30.1.1",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"vitest": "catalog:"
+	}
+}
