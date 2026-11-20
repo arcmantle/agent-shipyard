@@ -1,0 +1,12 @@
+{
+	"id": "cli/create-command-help",
+	"surface": "cli",
+	"workspace": {
+		"folder": "create-command-help-project"
+	},
+	"argv": [
+		"help",
+		"create"
+	],
+	"stdout": "text"
+}

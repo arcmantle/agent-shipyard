@@ -1,0 +1,14 @@
+{
+	"id": "cli/create-human",
+	"surface": "cli",
+	"workspace": {
+		"folder": "create-human-project"
+	},
+	"argv": [
+		"create",
+		"initiative",
+		"--title",
+		"Parity initiative"
+	],
+	"stdout": "text"
+}

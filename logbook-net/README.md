@@ -135,6 +135,38 @@ Differences from the TypeScript implementation, on purpose:
 
 The recorded cases are `cli/init-help`, `cli/init-command-help`, and `cli/init-unknown-option`. The recorder cannot record `init --json` or the human output: it runs the TypeScript CLI without a saved login, and that CLI only opens a store when a login or a daemon exists. The two outputs come from the TypeScript source and are checked by `InitCommandTests` against the real Local API host and PostgreSQL.
 
+## create, show, list
+
+The minimum entity records of the walking skeleton. Four RPC methods and three commands, all through `HttpStore`:
+
+| RPC method | CLI | What it does |
+| --- | --- | --- |
+| `createEntity` | `create <kind> --title <title> [--parent <id>] [--status <status>] [--category <c>] [--priority <p>] [--type <t>] [--body-file <path\|->]` | Creates an entity under an optional structural parent. Prints `<reference> <kind> <status> <title>`, or `{operation, id, reference, status, revision}` with `--json`. |
+| `getEntityDetails` | `show <id>` | Reads an entity by stable ID, reference or short reference, with its incoming and outgoing relations, its derived status, and for an issue its (empty) comment page. |
+| `listEntities` | none | The entities of one kind in the current project, by ID. |
+| `queryEntities` | `list <kind> [--status a,b] [--parent <id>] [--limit <n>]` | The same with filters. Prints `{items, total}`; for issues also `openBlockers`. |
+
+`EntityStore` (`AgentLogbook.Storage.Postgres/Entities`) ports the TypeScript `PgEntityStore` with its SQL. Every call is one transaction that is scoped to the tenant for row-level security and acts in the project that `x-agent-logbook-project-identity` names (`TenantWorkspace` resolves it, as `init` does; no identity means the default project).
+
+- **Rules.** `EntityRules` reads the workflow schema (kinds, status flows, allowed parent relations, categories, priorities); entity types are `pioneer-map` and `pioneer-ticket` for issues. The checks and their messages run in the order of the TypeScript `createEntity`: kind, title (trimmed like JavaScript trims it), status, category, priority, type, debt metadata, parent, then the Plan, `pioneer-map` and `pioneer-ticket` parent rules. A parent-less initiative joins the epic of the current project.
+- **Stored record.** The entity keeps the literal content hash of title and body, `created_by` and `updated_by` of the user of the login (`StableIdentity.DeriveUser` of the login name), revision 1, and a first row in `revision_entries`: a reverse patch from the entity to itself (empty patch, equal source and target hash) with the canonical state that includes the structural parent. A plan always starts as `draft`.
+- **Derived status.** `EntityStatusDerivation` is the port of `deriveEntityStatuses`: an issue with open sub-issues is `blocked`, a user story follows its fixing issues, a PRD its user stories, a draft initiative becomes `active` or `done` with its tracked issues and PRDs, and a superseded ADR, PRD or user story reads as `superseded`. `getEntityDetails`, `listEntities` and `queryEntities` report derived statuses; `createEntity` reports the stored one. The map is built from the whole project (one entity query and one relation query), not from the recursive subset that the TypeScript `queryEntities` uses; the values are the same.
+- **Project scope.** With a project identity, `getEntityDetails` only shows entities of that project (`Entity not found: <id>`, or `Entity not found in current project "<title>" (<reference>): <id>` for an issue of another project), and a project identity that is a stable ID or reference keeps the parent of `createEntity` inside that project. Without one, nothing is scoped to a project.
+
+Differences from the TypeScript implementation, on purpose:
+
+- `createEntity` refuses `links` (`Relations cannot be created together with an entity in this release.`) and `create` has no `--link` option. Creating relations belongs to the link feature slice; the approved difference is `create-help-no-link-option` in `contract/intended-differences.json`.
+- `show` refuses initiatives and plans (`Showing initiative entities is not available in this release.`). The TypeScript command prints the initiative graph or the Plan projection for them. Their help text is still the TypeScript text, so the help names both.
+- `getEntityDetails` returns no plan entries and no version coverage, and an issue has an empty comment page: no ported feature creates them. The slices that port them extend `EntitySession.GetDetailsAsync`.
+- A short reference is unique in a tenant (unique index), so `queryEntities` never returns `parentGroups` and a selector never names two entities.
+- An error prints one line (`agent-logbook <command>: <message>`, or `{"error":"<message>"}` with `--json`) on stderr and exits 1. The TypeScript command prints a stack trace for a human run. `--title` and `<kind>` are checked when the command runs, with the TypeScript messages, not by the parser.
+- A body file is read once, without the retries of the TypeScript command.
+- There is no role check on the entity methods (`ApiIdentity` has no roles and the host is local no-auth only). A hosted auth slice must add it before it serves these methods.
+- Short-reference allocation checks then inserts, as the TypeScript code does; two concurrent creates with the same 32-bit short reference make the second fail with `Internal error.`.
+- `queryEntities` has no `retrievalContext` (no workspace observation is ported).
+
+The recorded cases are `rpc/create-entity-fields`, `rpc/create-entity-errors`, `rpc/get-entity-details`, `rpc/get-entity-details-issue`, `rpc/list-entities`, `rpc/query-entities`, and the `cli/create-*`, `cli/show-*` and `cli/list-*` cases. They pass against the .NET implementation (see tools/README.md). The routes `GET /api/entity-detail` and `GET /api/entity-relations` of the website belong to the Website integration slices, not to the skeleton.
+
 ## Development with Aspire
 
 `AgentLogbook.Hosting` holds the one Aspire composition of Logbook, `AddAgentLogbook()`. `src/AgentLogbook.AppHost` is the standalone AppHost; it only calls the library. A later Helm AppHost calls the same method on its own builder. No AppHost starts another AppHost, and the library does not reference the standalone AppHost.

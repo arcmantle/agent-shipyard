@@ -1,0 +1,19 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"items": [
+			{
+				"id": "<uuid#1>",
+				"kind": "issue",
+				"reference": "<ref#1>",
+				"status": "in-progress",
+				"title": "Parity issue"
+			}
+		],
+		"openBlockers": {
+			"<ref#1>": []
+		},
+		"total": 1
+	}
+}

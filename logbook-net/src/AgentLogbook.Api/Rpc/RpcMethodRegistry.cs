@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AgentLogbook.Api.Auth;
+using AgentLogbook.Api.Entities;
 using AgentLogbook.Api.Workspaces;
 using Npgsql;
 
@@ -36,5 +37,5 @@ public sealed class RpcMethodRegistry
 	public bool TryGet(string name, out Func<RpcCall, Task<object?>> handler) => methods.TryGetValue(name, out handler!);
 
 	/// <summary>The registry of this release.</summary>
-	public static RpcMethodRegistry CreateDefault() => new RpcMethodRegistry().AddWorkspaceMethods();
+	public static RpcMethodRegistry CreateDefault() => new RpcMethodRegistry().AddWorkspaceMethods().AddEntityMethods();
 }

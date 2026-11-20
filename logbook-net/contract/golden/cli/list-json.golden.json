@@ -1,0 +1,16 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"items": [
+			{
+				"id": "<uuid#1>",
+				"kind": "initiative",
+				"reference": "<ref#1>",
+				"status": "draft",
+				"title": "Parity initiative"
+			}
+		],
+		"total": 1
+	}
+}

@@ -1,0 +1,41 @@
+{
+	"id": "cli/list-status-filter",
+	"surface": "cli",
+	"workspace": {
+		"folder": "list-status-filter-project"
+	},
+	"setup": [
+		{
+			"argv": [
+				"create",
+				"initiative",
+				"--title",
+				"Parity initiative",
+				"--json"
+			],
+			"as": "initiative"
+		},
+		{
+			"argv": [
+				"create",
+				"issue",
+				"--title",
+				"Parity issue",
+				"--parent",
+				"${initiative.reference}",
+				"--status",
+				"in-progress",
+				"--json"
+			],
+			"as": "issue"
+		}
+	],
+	"argv": [
+		"list",
+		"issue",
+		"--status",
+		"in-progress",
+		"--json"
+	],
+	"stdout": "json"
+}

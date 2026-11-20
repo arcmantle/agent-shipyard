@@ -1,0 +1,14 @@
+{
+	"id": "cli/show-not-found",
+	"surface": "cli",
+	"workspace": {
+		"folder": "show-not-found-project"
+	},
+	"argv": [
+		"show",
+		"nope",
+		"--json"
+	],
+	"stdout": "text",
+	"expectExitCode": 1
+}

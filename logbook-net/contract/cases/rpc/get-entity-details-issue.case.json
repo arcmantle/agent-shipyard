@@ -1,0 +1,64 @@
+{
+	"id": "rpc/get-entity-details-issue",
+	"surface": "rpc",
+	"steps": [
+		{
+			"as": "initiative",
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Parity initiative"
+			}
+		},
+		{
+			"as": "issue",
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "Parity issue",
+				"parentId": "${initiative.id}",
+				"body": "Body text"
+			}
+		},
+		{
+			"as": "sub",
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "Sub issue",
+				"parentId": "${issue.id}"
+			}
+		},
+		{
+			"method": "getEntityDetails",
+			"params": {
+				"entityId": "${issue.id}"
+			}
+		},
+		{
+			"method": "getEntityDetails",
+			"params": {
+				"entityId": "${issue.reference}"
+			}
+		},
+		{
+			"method": "getEntityDetails",
+			"params": {
+				"entityId": "${issue.shortReference}"
+			}
+		},
+		{
+			"method": "getEntityDetails",
+			"params": {
+				"entityId": "${initiative.id}"
+			}
+		},
+		{
+			"method": "getEntityDetails",
+			"params": {
+				"entityId": "missing"
+			},
+			"expectError": true
+		}
+	]
+}

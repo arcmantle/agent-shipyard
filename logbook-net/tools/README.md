@@ -46,7 +46,9 @@ Cases are `contract/cases/<surface>/<name>.case.json`. Golden files are `contrac
 
 ### Case format
 
-CLI case: `id`, `surface: "cli"`, `workspace` (`folder`, optional `files` map), `argv`, `stdout` (`"json"` or `"text"`), optional `expectExitCode` (default 0).
+CLI case: `id`, `surface: "cli"`, `workspace` (`folder`, optional `files` map), optional `setup`, `argv`, `stdout` (`"json"` or `"text"`), optional `expectExitCode` (default 0). `setup` is a list of `{ argv, as? }` commands that run first in the same home and workspace; each must exit 0 and print JSON, and `as` binds that JSON for `${name.field}` in later arguments. Only the last command is observed. A CLI error prints its JSON on stderr, so an error case has `stdout: "text"`.
+
+A case that opens a store (`create`, `show`, `list`, ...) needs the development build of the TypeScript CLI (`pnpm --filter agent-issues build:dev`): the recorder runs it with `AGENT_ISSUES_NO_DAEMON=1`, which that build accepts only under `VITEST=true`, so the recorder sets both. A candidate CLI reaches the API host that a check starts through `AGENT_LOGBOOK_API_URL`, which the recorder passes on. Give each storage case its own `workspace.folder`: the folder name is the project identity, so the cases do not see each other's records.
 
 RPC case: `id`, `surface: "rpc"`, `steps`. A step has `method`, optional `params`, optional `as` (name for later `${name.field}` substitution), and optional `expectError: true` for a step that must fail. Each case uses its own tenant.
 
@@ -74,6 +76,20 @@ Options: `--candidate-token` (omit for no-auth mode), `--candidate-tenant` (defa
 - A case passes only when the candidate observation equals the expected one. Each difference is listed with its JSON Pointer. Array order, JSON type, literal content hashes, HTTP status, exit code, stdout, stderr, and `null` versus absent all count. Object key order does not.
 - A candidate that fails to run (exit code other than the case expects, output that is not the declared kind, timeout, no server) is reported as `ERROR` for that case. The other cases still run. The tool exits with a non-zero code when any case does not pass.
 - `diff` needs the same setup as the recorder (built `logbook/` packages and PostgreSQL).
+
+### Checking the .NET implementation
+
+`parity.ts check` needs an API host and a candidate CLI. The Local API host has one tenant, so cases share its data unless each case runs on empty tables. The loop that the implementation was checked with: start `agent-logbook serve` on an empty database of a non-superuser role, and for each case truncate the tables (as the database owner), then run `bun src/parity.ts check --candidate-cli "dotnet <path>/AgentLogbook.Cli.dll" --candidate-url <host url> <case id>` with `AGENT_LOGBOOK_API_URL=<host url>`.
+
+### Storage-driver contract through HttpStore
+
+`storage-driver-contract/` runs the shared TypeScript contract (`logbook/packages/core/src/features/storage-driver/storage-driver-contract.ts`) through the TypeScript `HttpStore` against a .NET API host. Only the tests of the ported slices apply; `run.ts` lists their titles (`APPLICABLE_TESTS`) and fails when one of them is no longer in the contract. Build `logbook/packages/core` first.
+
+```sh
+bun logbook-net/tools/storage-driver-contract/run.ts <api-url>   # a Local API host with an empty database
+```
+
+Each store gets its own project identity (the host has one tenant), and an identity that the contract names is kept with a per-run suffix. Run it on a host with a fresh database, or the stores of an earlier run stay in it.
 
 ### Intended differences
 

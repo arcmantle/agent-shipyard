@@ -50,6 +50,15 @@ test("CLI recorder fails on exit code, bad JSON, and timeout", async () => {
 	expect(await recordCli(cli, cliCase(["fail"], { expectExitCode: 3, stdout: "text" }))).toMatchObject({ exitCode: 3, stderr: "boom\n" });
 });
 
+test("CLI setup steps bind JSON output for the observed command", async () => {
+	const result = await recordCli(cli, cliCase(["use", "${first.b}"], { setup: [{ argv: ["one"], as: "first" }] })) as { stdout: { a: string[] } };
+	expect(result.stdout.a).toEqual(["use 1"]);
+	await expect(recordCli(cli, cliCase(["x"], { setup: [{ argv: ["fail"] }] }))).rejects.toThrow(/setup 1: exit code 3/);
+	await expect(recordCli(cli, cliCase(["x"], { setup: [{ argv: ["text"] }] }))).rejects.toThrow(/setup 1: stdout is not JSON/);
+	await expect(recordCli(cli, cliCase(["${nope.id}"]))).rejects.toThrow(/cli\/x: unknown step name/);
+	expect(() => validateCase({ ...cliCase(["a"]), setup: [{ argv: "a" }] }, "x")).toThrow(CaseError);
+});
+
 test("RPC recording substitutes named steps and hides the tenant", async () => {
 	calls = [];
 	const result = await recordRpc(rpc, rpcCase([{ as: "a", method: "one" }, { method: "two", params: { ref: "${a.id}" } }]));

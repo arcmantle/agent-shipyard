@@ -89,7 +89,8 @@ public sealed class CommandCatalog
 				node.Arguments.Add(new Argument<string[]>(positional.Name)
 				{
 					Description = positional.Description,
-					Arity = positional.Required == true ? ArgumentArity.OneOrMore : ArgumentArity.ZeroOrMore,
+					// A required value is checked by the command when it runs, with the message of the TypeScript command.
+					Arity = ArgumentArity.ZeroOrMore,
 				});
 			}
 
@@ -116,7 +117,7 @@ public sealed class CommandCatalog
 			: new Option<string>(names[0], names[1..])
 			{
 				Description = spec.Description,
-				Required = spec.Required == true,
+				// A required option is checked by the command when it runs, with the message of the TypeScript command.
 				Arity = ArgumentArity.ExactlyOne,
 			};
 	}

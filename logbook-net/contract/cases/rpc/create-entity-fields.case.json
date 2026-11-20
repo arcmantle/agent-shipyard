@@ -1,0 +1,74 @@
+{
+	"id": "rpc/create-entity-fields",
+	"surface": "rpc",
+	"steps": [
+		{
+			"as": "project",
+			"method": "createEntity",
+			"params": {
+				"kind": "project",
+				"title": "  Parity project  ",
+				"body": "Project body"
+			}
+		},
+		{
+			"as": "epic",
+			"method": "createEntity",
+			"params": {
+				"kind": "epic",
+				"title": "Parity epic",
+				"parentId": "${project.id}"
+			}
+		},
+		{
+			"as": "initiative",
+			"method": "createEntity",
+			"params": {
+				"kind": "initiative",
+				"title": "Parity initiative",
+				"parentId": "${epic.reference}",
+				"status": "active"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "Parity issue",
+				"parentId": "${initiative.shortReference}",
+				"body": "Line one\n\nLine two",
+				"status": "in-progress",
+				"priority": "high",
+				"category": "technical"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "issue",
+				"title": "Pioneer map",
+				"parentId": "${initiative.id}",
+				"type": "pioneer-map"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "debt",
+				"title": "Debt record",
+				"parentId": "${project.id}",
+				"category": "technical",
+				"priority": "high"
+			}
+		},
+		{
+			"method": "createEntity",
+			"params": {
+				"kind": "plan",
+				"title": "Plan record",
+				"parentId": "${initiative.id}",
+				"status": "ready"
+			}
+		}
+	]
+}

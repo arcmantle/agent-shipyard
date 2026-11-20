@@ -1,0 +1,11 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"id": "<uuid#1>",
+		"operation": "create",
+		"reference": "<ref#1>",
+		"revision": 1,
+		"status": "in-progress"
+	}
+}
