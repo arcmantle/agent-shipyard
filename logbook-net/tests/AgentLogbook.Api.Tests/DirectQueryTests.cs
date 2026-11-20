@@ -4,6 +4,7 @@ using System.Text.Json;
 using AgentLogbook.Api.Auth;
 using Microsoft.AspNetCore.Http;
 using Npgsql;
+using Testcontainers.PostgreSql;
 
 namespace AgentLogbook.Api.Tests;
 
@@ -86,6 +87,48 @@ public class DirectQueryTests
 		var error = body.RootElement.GetProperty("error");
 		await Assert.That(error.GetProperty("sqlState").GetString()).IsEqualTo("42P01");
 		await Assert.That(error.GetProperty("message").GetString()).Contains("table_that_does_not_exist");
+	}
+
+	[Test]
+	public async Task A_result_over_the_row_limit_is_a_structured_failure()
+	{
+		await using var host = await StartAsync(LocalNoAuthProvider.Enable("tester"));
+
+		var response = await QueryAsync(host, $"SELECT generate_series(1, {DirectQuery.MaxRows + 1}) AS n");
+
+		await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+		using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+		await Assert.That(body.RootElement.GetProperty("error").GetProperty("message").GetString()).Contains("LIMIT");
+	}
+
+	[Test]
+	public async Task The_started_Local_API_host_serves_the_direct_query_on_loopback()
+	{
+		var container = await ApiPostgresServer.Container();
+		var home = Directory.CreateTempSubdirectory("direct-query-shipyard-").FullName;
+		var url = $"postgres://{PostgreSqlBuilder.DefaultUsername}:{PostgreSqlBuilder.DefaultPassword}@{container.Hostname}:{container.GetMappedPublicPort(5432)}/{PostgreSqlBuilder.DefaultDatabase}";
+		string? Environment(string name) => name switch
+		{
+			"AGENT_SHIPYARD_HOME" => home,
+			"AGENT_LOGBOOK_LOCAL_PG_URL" => url,
+			_ => null,
+		};
+
+		try
+		{
+			await using var host = await LocalApiHost.StartAsync("9.9.9", Environment, "tester");
+			using var client = new HttpClient { BaseAddress = new Uri(host.Discovery.Url) };
+
+			var response = await client.PostAsJsonAsync("/direct-query", new { statement = "SELECT 1 AS one" });
+
+			await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+			using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+			await Assert.That(body.RootElement.GetProperty("rows")[0].GetProperty("one").GetInt32()).IsEqualTo(1);
+		}
+		finally
+		{
+			Directory.Delete(home, recursive: true);
+		}
 	}
 
 	[Test]

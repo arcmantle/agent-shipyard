@@ -15,6 +15,9 @@ internal static class DirectQuery
 {
 	public const string Path = "/direct-query";
 
+	/// <summary>The most rows one request returns. A larger result is a structured failure, so a request cannot exhaust host memory.</summary>
+	internal const int MaxRows = 10_000;
+
 	private static readonly TimeSpan StatementTimeout = TimeSpan.FromSeconds(30);
 
 	public static void Map(IEndpointRouteBuilder endpoints, NpgsqlDataSource dataSource)
@@ -88,6 +91,11 @@ internal static class DirectQuery
 				for (var i = 0; i < names.Length; i++)
 				{
 					row[i] = (names[i], reader.IsDBNull(i) ? null : reader.GetValue(i));
+				}
+
+				if (rows.Count == MaxRows)
+				{
+					return Failure(StatusCodes.Status400BadRequest, $"The result has more than {MaxRows} rows. Add a LIMIT clause.", null);
 				}
 
 				rows.Add(row);
