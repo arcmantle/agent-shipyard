@@ -51,7 +51,7 @@ jobs:
         working-directory: logbook
         run: |
           pnpm install --frozen-lockfile
-          pnpm --filter @agent-issues/core build
+          pnpm --filter @agent-issues/core --filter @agent-issues/api-local --filter @agent-issues/api-pg build
       - name: Build the .NET CLI
         run: dotnet build logbook-net/src/AgentLogbook.Cli/AgentLogbook.Cli.csproj --nologo -v quiet
       - name: Create the non-superuser database owner
