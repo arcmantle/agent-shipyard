@@ -77,6 +77,11 @@ public static class ApiHost
 			DirectQuery.Map(endpoints, options.DataSource);
 		}
 
+		if (options.AuthProvider is LocalNoAuthProvider && options.OnStopRequested is { } requestStop)
+		{
+			LocalHostControl.Map(endpoints, options.ToolVersion, requestStop);
+		}
+
 		endpoints.MapGet(LivePath, () => Results.Json(new { status = "live" }));
 
 		endpoints.MapGet(ReadyPath, async (HttpContext context) =>

@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Reflection;
 using AgentLogbook.Cli.Commands;
 using AgentLogbook.Cli.Entities;
+using AgentLogbook.Cli.Host;
 using AgentLogbook.Cli.Init;
 using AgentLogbook.Cli.Metadata;
 using AgentLogbook.Cli.ProjectIdentity;
@@ -27,6 +28,7 @@ public static class CliApp
 		new CreateCommand(),
 		new ShowCommand(),
 		new ListCommand(),
+		new HostCommand(),
 		new HelpCommand(),
 		new SchemaCommand(),
 		new CapabilitiesCommand(),

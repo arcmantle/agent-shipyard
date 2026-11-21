@@ -15,8 +15,16 @@ public sealed class LocalApiHost : IAsyncDisposable
 	private readonly ShipyardLogbookFolder folder;
 	private readonly Npgsql.NpgsqlDataSource dataSource;
 
-	private LocalApiHost(RunningApiHost host, ShipyardLogbookFolder folder, Npgsql.NpgsqlDataSource dataSource, LocalApiDiscovery discovery)
+	private readonly CancellationTokenSource stopRequested;
+
+	private LocalApiHost(
+		RunningApiHost host,
+		ShipyardLogbookFolder folder,
+		Npgsql.NpgsqlDataSource dataSource,
+		LocalApiDiscovery discovery,
+		CancellationTokenSource stopRequested)
 	{
+		this.stopRequested = stopRequested;
 		this.host = host;
 		this.folder = folder;
 		this.dataSource = dataSource;
@@ -24,6 +32,9 @@ public sealed class LocalApiHost : IAsyncDisposable
 	}
 
 	public LocalApiDiscovery Discovery { get; }
+
+	/// <summary>Is cancelled when a client asks this host to stop through the local control path. The owner then calls <see cref="StopAsync"/>.</summary>
+	public CancellationToken StopRequested => stopRequested.Token;
 
 	/// <summary>
 	/// Selects PostgreSQL, sets up the schema, starts the API on 127.0.0.1 with an OS-assigned port, and only then publishes the
@@ -75,6 +86,7 @@ public sealed class LocalApiHost : IAsyncDisposable
 		}
 
 		var dataSource = LocalPostgresDataSource.Create(selection.Connection);
+		var stopRequested = new CancellationTokenSource();
 		RunningApiHost? host = null;
 		try
 		{
@@ -88,6 +100,7 @@ public sealed class LocalApiHost : IAsyncDisposable
 					ToolVersion = toolVersion,
 					ListenAddress = IPAddress.Loopback,
 					ListenPort = 0,
+					OnStopRequested = stopRequested.Cancel,
 				},
 				cancellationToken);
 
@@ -99,7 +112,7 @@ public sealed class LocalApiHost : IAsyncDisposable
 				DateTimeOffset.UtcNow);
 			discovery.Write(folder);
 
-			return new LocalApiHost(host, folder, dataSource, discovery);
+			return new LocalApiHost(host, folder, dataSource, discovery, stopRequested);
 		}
 		catch
 		{
@@ -109,6 +122,7 @@ public sealed class LocalApiHost : IAsyncDisposable
 			}
 
 			await dataSource.DisposeAsync();
+			stopRequested.Dispose();
 			throw;
 		}
 	}
@@ -129,11 +143,15 @@ public sealed class LocalApiHost : IAsyncDisposable
 		}
 	}
 
-	/// <summary>Removes the discovery file first, so that no client finds a host that no longer answers, then stops the API.</summary>
+	/// <summary>
+	/// Marks the discovery file as stopping, drains the active requests and stops the API, then removes the file. The file stays while the
+	/// process drains, so no client sees "no host" and starts a replacement beside it.
+	/// </summary>
 	public async Task StopAsync(CancellationToken cancellationToken = default)
 	{
-		Discovery.RemoveIfCurrent(folder);
+		Discovery.MarkStopping(folder);
 		await host.StopAsync(cancellationToken);
+		Discovery.RemoveIfCurrent(folder);
 	}
 
 	public async ValueTask DisposeAsync()
@@ -141,6 +159,7 @@ public sealed class LocalApiHost : IAsyncDisposable
 		Discovery.RemoveIfCurrent(folder);
 		await host.DisposeAsync();
 		await dataSource.DisposeAsync();
+		stopRequested.Dispose();
 	}
 }
 

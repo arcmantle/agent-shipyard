@@ -7,9 +7,10 @@ namespace AgentLogbook.Core.LocalApi;
 /// <summary>
 /// The content of <c>local-api.discovery.json</c>: how a client finds the running foreground Local API host.
 /// The host writes it only after the schema is ready and the API listens, and it removes it on a clean exit.
+/// While the host drains its active requests after a stop request, the file stays and says <see cref="Stopping"/>.
 /// A client that reads it must still check the host health, because a host that was killed leaves the file.
 /// </summary>
-public sealed record LocalApiDiscovery(string Url, int Port, int ProcessId, string ToolVersion, DateTimeOffset StartedAt)
+public sealed record LocalApiDiscovery(string Url, int Port, int ProcessId, string ToolVersion, DateTimeOffset StartedAt, bool Stopping = false)
 {
 	private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
@@ -47,12 +48,23 @@ public sealed record LocalApiDiscovery(string Url, int Port, int ProcessId, stri
 		}
 	}
 
+	/// <summary>Marks the file as a host that drains and ends. Only the file of this host is marked.</summary>
+	public void MarkStopping(ShipyardLogbookFolder folder)
+	{
+		ArgumentNullException.ThrowIfNull(folder);
+
+		if (Read(folder) is { } current && current with { Stopping = false } == this with { Stopping = false })
+		{
+			(this with { Stopping = true }).Write(folder);
+		}
+	}
+
 	/// <summary>Removes the file when it describes this host. A file of a newer host stays.</summary>
 	public void RemoveIfCurrent(ShipyardLogbookFolder folder)
 	{
 		ArgumentNullException.ThrowIfNull(folder);
 
-		if (Read(folder) == this)
+		if (Read(folder) is { } current && current with { Stopping = false } == this with { Stopping = false })
 		{
 			File.Delete(folder.DiscoveryFile);
 		}

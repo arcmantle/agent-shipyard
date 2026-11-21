@@ -3,7 +3,7 @@ using AgentLogbook.Api;
 namespace AgentLogbook.Cli.Serve;
 
 /// <summary>
-/// <c>agent-logbook serve</c> runs the Local API host in the foreground until the process gets a termination signal.
+/// <c>agent-logbook serve</c> runs the Local API host in the foreground until the process gets a termination signal or a stop request (<c>agent-logbook host stop</c>).
 /// It listens on 127.0.0.1 in explicit no-auth mode and takes no options.
 /// </summary>
 internal static class ServeCommand
@@ -43,9 +43,11 @@ internal static class ServeCommand
 			stdout.WriteLine($"Local API host {host.Discovery.ToolVersion} listening on {host.Discovery.Url} (process {host.Discovery.ProcessId}).");
 			stdout.Flush();
 
+			// A termination signal or a stop request through the local control path ends the host the same way.
+			using var stopping = CancellationTokenSource.CreateLinkedTokenSource(shutdown, host.StopRequested);
 			try
 			{
-				await Task.Delay(Timeout.Infinite, shutdown);
+				await Task.Delay(Timeout.Infinite, stopping.Token);
 			}
 			catch (OperationCanceledException)
 			{

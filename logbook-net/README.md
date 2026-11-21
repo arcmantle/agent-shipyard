@@ -121,6 +121,27 @@ The CLI and the MCP server pass `ServeLaunch.Current()` (the tool command, or `d
 - Windows is not supported yet: the error says to start `agent-logbook serve`.
 
 
+### host
+
+`agent-logbook host status|stop|restart` controls the background Local API host. It takes one action and no other argument. `--json` and `--pretty` work as in other commands. A missing or unknown action is `agent-logbook host: Missing or unknown action. Usage: host <status|stop|restart>` on stderr with exit code 1 (`{"error":"..."}` with `--json`). The command is new in .NET, so it has no TypeScript case in the Parity corpus. No daemon command, token or idle setting exists.
+
+The state comes from `local-api.discovery.json` and from the host itself. The host answers `GET /local/host` with `{"processId":<id>,"toolVersion":"<version>"}`. It is the host of the file only when that process ID equals the one in the file. Both control routes exist only in the Local API host (no-auth provider with a stop handler); a deployment has no such route.
+
+| State | Meaning |
+| --- | --- |
+| `running` | The file names a live process, and that process answers as itself. |
+| `stopped` | There is no discovery file. |
+| `stopping` | The host was asked to stop and finishes its active requests. Its file stays until the process ends. |
+| `stale` | The file does not describe a running host: its process has ended, or the process runs but nothing at the URL answers as that process, or the file cannot be read. The JSON has a `reason`. |
+
+- `status` never starts a host and never writes a file. Human output: `Local API host running at <url> (process <id>, version <version>, started <time>).`, `No Local API host is running.`, or `The Local API host state is stale. <reason>`. JSON: `command`, `action`, `state`, and for a readable file `url`, `port`, `processId`, `toolVersion`, `startedAt`, and for a stale state `reason`. Exit code 0 for `running`, `stopping` and `stopped`, 1 for `stale`.
+- `stop` sends `POST /local/host/stop` (JSON content type, loopback host name) to the host of the file. The host answers 202, stops taking new requests, marks its discovery file `stopping`, lets the active requests finish, removes the file, and ends. The command waits for the process to end, at most 60 seconds, and prints `Stopped the Local API host (process <id>).` JSON adds `stoppedProcessId` and `state` `stopped`. A repeated stop, or a stale file of an ended process, changes nothing, prints `No Local API host is running.` and exits with 0. The file of an ended process stays; the next `serve` replaces it.
+- `stop` and `restart` refuse, with exit code 1 and without a signal, kill or file change, when a live process holds the file but does not answer as the host (another program that reuses the process ID, or a host that hangs). The same holds when the host refuses the stop request. No process is stopped by its process ID, so an unrelated process is never killed and never adopted.
+- `restart` stops the running host as `stop` does, then starts one replacement as an automatic start does: the same `agent-logbook serve` command with the Shipyard data folder and `AGENT_LOGBOOK_LOCAL_PG_URL` of the caller, and a wait of at most 60 seconds. It prints `Stopped the Local API host (process <id>). Local API host running at ...` With no running host it only starts one (`No Local API host was running. ...`). If the replacement does not start, the error is the one of an automatic start and the old host is already gone. JSON: the new host as in `status`, plus `stoppedProcessId` when a host ended.
+- While a stopped host drains, its discovery file stays and says `stopping`: `status` reports `stopping`, a repeated `stop` waits for the same drain without a second request, and a `restart` after a stop that timed out fails instead of starting a replacement next to the draining host.
+- `AgentLogbook.Client.LocalApiHostControl` holds this logic (`InspectAsync`, `StopAsync`, `RestartAsync`), so the later replacement of a host with another version reuses it.
+- A stop request ends the `serve` command like a termination signal: exit code 0.
+
 The override carries no token, so it serves the unauthenticated development and local hosts; an authenticated host needs the login support of the Auth slice. The synchronize conflict kind is not ported, because the synchronize feature is removed.
 
 Typed `HttpStore` methods and the instruction error kinds are added with the slices that port those RPC methods.
