@@ -30,7 +30,8 @@ public static class BackendRouter
 	/// <summary>
 	/// The override when <see cref="ApiUrlVariable"/> is set. The override reads neither the discovery file nor any saved state.
 	/// Otherwise the permanent default <c>local login</c>: the discovery file must name a live process, and the host must answer
-	/// its live check. The local login has no token.
+	/// its live check. The local login has no token. When <paramref name="autoStart"/> is set and no host runs, this starts one in the background
+	/// and waits until it answers; it then writes the Local API log in the Logbook data folder, and nothing else.
 	/// </summary>
 	/// <exception cref="InvalidBackendRouteException">The override is not an absolute http or https URL.</exception>
 	/// <exception cref="LocalApiUnavailableException">There is no answering Local API host.</exception>
@@ -38,6 +39,7 @@ public static class BackendRouter
 		Func<string, string?> getEnvironmentVariable,
 		ShipyardLogbookFolder folder,
 		HttpClient? probeClient = null,
+		LocalApiLaunch? autoStart = null,
 		CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
@@ -52,6 +54,11 @@ public static class BackendRouter
 		var discovery = LocalApiDiscovery.Read(folder);
 		if (discovery is null || !discovery.IsProcessAlive())
 		{
+			if (autoStart is not null)
+			{
+				return await LocalApiStarter.StartAsync(folder, autoStart, getEnvironmentVariable, probeClient, LocalApiStarter.DefaultStartTimeout, cancellationToken);
+			}
+
 			throw new LocalApiUnavailableException(
 				$"No Local API host is running (looked in {folder.DiscoveryFile}). Start one with 'agent-logbook serve', or set {ApiUrlVariable}.");
 		}
@@ -61,7 +68,11 @@ public static class BackendRouter
 			throw new LocalApiUnavailableException($"The discovery file {folder.DiscoveryFile} holds the invalid host URL '{discovery.Url}'.");
 		}
 
-		await ProbeLiveAsync(url, probeClient, cancellationToken);
+		if (await ProbeLiveAsync(url, probeClient, cancellationToken) is { } failure)
+		{
+			throw failure;
+		}
+
 		return new BackendRoute(url, null, BackendRouteSource.LocalLogin);
 	}
 
@@ -75,7 +86,8 @@ public static class BackendRouter
 		return url;
 	}
 
-	private static async Task ProbeLiveAsync(Uri hostUrl, HttpClient? probeClient, CancellationToken cancellationToken)
+	/// <summary>Null when the host answers its live check. Otherwise the error that says why it does not.</summary>
+	internal static async Task<LocalApiUnavailableException?> ProbeLiveAsync(Uri hostUrl, HttpClient? probeClient, CancellationToken cancellationToken)
 	{
 		var owned = probeClient is null;
 		var client = probeClient ?? new HttpClient();
@@ -84,14 +96,13 @@ public static class BackendRouter
 			using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 			timeout.CancelAfter(LiveProbeTimeout);
 			using var response = await client.GetAsync(new Uri(hostUrl, "/health/live"), timeout.Token);
-			if (!response.IsSuccessStatusCode)
-			{
-				throw new LocalApiUnavailableException($"The Local API host at {hostUrl} answered its live check with HTTP {(int)response.StatusCode}.");
-			}
+			return response.IsSuccessStatusCode
+				? null
+				: new LocalApiUnavailableException($"The Local API host at {hostUrl} answered its live check with HTTP {(int)response.StatusCode}.");
 		}
 		catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
 		{
-			throw new LocalApiUnavailableException(
+			return new LocalApiUnavailableException(
 				$"The Local API host at {hostUrl} does not answer. Stop it and start it again with 'agent-logbook serve'.", exception);
 		}
 		finally

@@ -127,6 +127,30 @@ public class BackendRouterTests
 	}
 
 	[Test]
+	public async Task A_launch_that_ends_without_a_host_fails_with_its_exit_code_and_its_output()
+	{
+		var folder = NewFolder();
+		var launch = new LocalApiLaunch("/bin/sh", ["-c", "echo first-line; echo 'the reason' >&2; exit 3"]);
+
+		var exception = await Assert.That(async () => await BackendRouter.ResolveAsync(_ => null, folder, autoStart: launch))
+			.Throws<LocalApiUnavailableException>();
+
+		await Assert.That(exception!.Message).StartsWith("The Local API host did not start. The process ended with exit code 3. It wrote: first-line the reason");
+		await Assert.That(exception.Message).Contains(folder.LogFile);
+		await Assert.That(LocalApiDiscovery.Read(folder)).IsNull();
+	}
+
+	[Test]
+	public async Task Without_a_launch_a_missing_host_is_never_started()
+	{
+		var folder = NewFolder();
+
+		await Assert.That(async () => await BackendRouter.ResolveAsync(_ => null, folder)).Throws<LocalApiUnavailableException>();
+
+		await Assert.That(Directory.GetFileSystemEntries(folder.Path)).IsEmpty();
+	}
+
+	[Test]
 	public async Task A_discovery_file_of_a_dead_process_is_not_a_host_and_is_left_in_place()
 	{
 		var folder = NewFolder();

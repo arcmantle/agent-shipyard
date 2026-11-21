@@ -129,16 +129,16 @@ public class McpServerTests
 	}
 
 	[Test]
-	public async Task Resource_show_reports_an_unreachable_api_host_and_a_resource_that_is_not_ported()
+	public async Task Resource_show_reports_a_host_that_cannot_start_and_a_resource_that_is_not_ported()
 	{
-		await using var mcp = McpProcess.Start(NewWorkspace("mcp-no-host"), ServeProcess.NewShipyardHome(), []);
+		await using var mcp = McpProcess.Start(NewWorkspace("mcp-no-host"), ServeProcess.NewShipyardHome(), [], postgresUrl: LocalPostgresServer.UnreachableUrl);
 		await mcp.InitializeAsync();
 
 		var noHost = await mcp.CallToolAsync("resource_show", new JsonObject { ["request"] = new JsonObject { ["resource"] = "entity", ["reference"] = "ISS_ANY" } });
 		var notPorted = await mcp.CallToolAsync("resource_show", new JsonObject { ["request"] = new JsonObject { ["resource"] = "context" } });
 
 		await Assert.That(noHost["isError"]!.GetValue<bool>()).IsTrue();
-		await Assert.That(noHost["content"]![0]!["text"]!.GetValue<string>()).StartsWith("No Local API host is running");
+		await Assert.That(noHost["content"]![0]!["text"]!.GetValue<string>()).StartsWith("The Local API host did not start.");
 		await Assert.That(notPorted["isError"]!.GetValue<bool>()).IsTrue();
 	}
 

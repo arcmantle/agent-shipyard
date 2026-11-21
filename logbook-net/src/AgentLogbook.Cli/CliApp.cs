@@ -69,7 +69,8 @@ public static class CliApp
 				workingDirectory ?? Directory.GetCurrentDirectory(),
 				getEnvironmentVariable ?? Environment.GetEnvironmentVariable,
 				Version,
-				projectIdentity),
+				projectIdentity,
+				ServeLaunch.Current()),
 			shutdown);
 		return 0;
 	}

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AgentLogbook.Client;
+using AgentLogbook.Core.LocalApi;
 using AgentLogbook.Core.Rpc;
 using AgentLogbook.Core.ShipyardData;
 using AgentLogbook.Core.Workspaces;
@@ -112,23 +113,23 @@ public class InitCommandTests
 	}
 
 	[Test]
-	public async Task Init_without_a_running_host_fails_with_the_start_hint_and_writes_nothing_to_stdout()
+	public async Task Init_that_cannot_start_a_host_fails_with_the_reason_and_writes_nothing_to_stdout()
 	{
 		var workspace = NewWorkspace("no-host");
 		var emptyHome = ServeProcess.NewShipyardHome();
+		var environment = Environment(emptyHome, (LocalPostgresSelection.UrlVariable, LocalPostgresServer.UnreachableUrl));
 
-		var human = Run(workspace, Environment(emptyHome), "init");
-		var json = Run(workspace, Environment(emptyHome), "init", "--json");
+		var human = Run(workspace, environment, "init");
+		var json = Run(workspace, environment, "init", "--json");
 
 		await Assert.That(human.Exit).IsEqualTo(1);
 		await Assert.That(human.Out).IsEmpty();
-		await Assert.That(human.Err).StartsWith("agent-logbook init: No Local API host is running");
-		await Assert.That(human.Err).Contains("agent-logbook serve");
+		await Assert.That(human.Err).StartsWith("agent-logbook init: The Local API host did not start.");
 		await Assert.That(json.Exit).IsEqualTo(1);
 		await Assert.That(json.Out).IsEmpty();
 		using var error = JsonDocument.Parse(json.Err);
-		await Assert.That(error.RootElement.GetProperty("error").GetString()).StartsWith("No Local API host is running");
-		await Assert.That(Directory.Exists(Path.Combine(emptyHome, "logbook"))).IsFalse();
+		await Assert.That(error.RootElement.GetProperty("error").GetString()).StartsWith("The Local API host did not start.");
+		await Assert.That(File.Exists(Path.Combine(emptyHome, "logbook", ShipyardLogbookFolder.DiscoveryFileName))).IsFalse();
 	}
 
 	[Test]

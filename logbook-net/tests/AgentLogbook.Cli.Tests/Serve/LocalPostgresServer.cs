@@ -29,6 +29,9 @@ internal static class LocalPostgresServer
 		}
 	}
 
+	/// <summary>A PostgreSQL URL that nothing listens on: the connection is refused at once.</summary>
+	internal const string UnreachableUrl = "postgres://nobody:nothing@127.0.0.1:1/none";
+
 	/// <summary>Creates an empty database and returns the <c>postgres://</c> URL that the Local API host reads.</summary>
 	internal static async Task<string> CreateDatabaseUrlAsync()
 	{
