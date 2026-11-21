@@ -92,13 +92,27 @@ listed="$(run list initiative --json)"
 grep -q "$reference" <<<"$listed" || fail "list did not return the created entity: $listed"
 
 # MCP stdio uses the running host and reads the same entity.
-mcp_output="$(cd "$workspace" && {
-	printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"verify","version":"1"}}}' \
-		'{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-		'{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"resource_show","arguments":{"request":{"resource":"entity","reference":"'"$reference"'"}}}}'
-	# A host keeps the input open while it waits for answers.
-	sleep 8
-} | "$tool" --mcp)" || fail "--mcp or its input failed: $mcp_output"
+# The input stays open until the answer to request 2 arrives (at most 120 seconds), so no fixed wait decides the result.
+mcp_in="$work/mcp.in"
+mcp_out="$work/mcp.out"
+mkfifo "$mcp_in"
+: >"$mcp_out"
+(cd "$workspace" && "$tool" --mcp <"$mcp_in" >"$mcp_out") &
+mcp_pid=$!
+exec 3>"$mcp_in"
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"verify","version":"1"}}}' \
+	'{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+	'{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"resource_show","arguments":{"request":{"resource":"entity","reference":"'"$reference"'"}}}}' >&3
+for _ in $(seq 1 600); do
+	grep -q '"id":2' "$mcp_out" && break
+	kill -0 "$mcp_pid" 2>/dev/null || break
+	sleep 0.2
+done
+exec 3>&-
+mcp_status=0
+wait "$mcp_pid" || mcp_status=$?
+mcp_output="$(cat "$mcp_out")"
+[ "$mcp_status" = 0 ] || fail "--mcp exited with $mcp_status: $mcp_output"
 grep -q "$reference" <<<"$mcp_output" && grep -q 'Skeleton initiative' <<<"$mcp_output" || fail "MCP resource_show did not return the created entity: $mcp_output"
 [ "$(host_pid)" = "$pid" ] || fail "MCP started a second Local API host"
 
