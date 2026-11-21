@@ -1,0 +1,7 @@
+{
+	"id": "cli/init-json",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["init","--json"],
+	"stdout": "json"
+}

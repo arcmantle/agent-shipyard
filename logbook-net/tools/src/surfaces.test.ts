@@ -3,11 +3,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { loadCases } from "./cases.ts";
 import { renameVisible, RETAINED_INPUTS } from "./rename.ts";
-import { surfaceStatus, SurfaceRuleError, validateRemovals, type Inventory } from "./surfaces.ts";
+import { checkCoverage, validateSliceFile, type CoverageInventory } from "./coverage.ts";
+import { SurfaceRuleError, validateRemovals } from "./surfaces.ts";
 
 const netRoot = path.resolve(import.meta.dir, "../..");
 const repoRoot = path.resolve(netRoot, "..");
-const inventory = JSON.parse(readFileSync(path.join(netRoot, "contract/inventory.json"), "utf8")) as Inventory;
+const inventory = JSON.parse(readFileSync(path.join(netRoot, "contract/inventory.json"), "utf8")) as CoverageInventory;
 const rawRules = JSON.parse(readFileSync(path.join(netRoot, "contract/surface-rules.json"), "utf8"));
 const removals = validateRemovals(rawRules, inventory, repoRoot);
 const cases = loadCases(path.join(netRoot, "contract/cases"));
@@ -24,21 +25,13 @@ test("the approved removals are exactly the decided surfaces", () => {
 });
 
 test("a removal never hides a retained surface", () => {
-	const status = surfaceStatus(inventory, removals, cases);
-	const removedSurfaces = status.filter((entry) => entry.disposition === "removed").map((entry) => entry.surface).sort();
+	const report = checkCoverage({ inventory, removals, cases, sliceFile: validateSliceFile(JSON.parse(readFileSync(path.join(netRoot, "contract/slices.json"), "utf8"))), mode: "development" });
+	const removedSurfaces = report.dispositions.filter((entry) => entry.disposition === "removed").map((entry) => entry.surface).sort();
 	expect(removedSurfaces).toEqual(["cli:daemon", "cli:synchronize", "route:POST /daemon/stop"]);
 	// Same family, kept: the canonical-chain methods that the synchronize store owns, and the commands that share a name prefix.
 	for (const kept of ["rpc:exportCanonicalChains", "rpc:importCanonicalChains", "cli:comment", "cli:auth login", "cli:project-identity", "cli:sql"]) {
-		expect(status.find((entry) => entry.surface === kept)?.disposition).not.toBe("removed");
+		expect(report.dispositions.find((entry) => entry.surface === kept)?.disposition).not.toBe("removed");
 	}
-});
-
-test("covered and not-yet-ported surfaces are different from removed ones", () => {
-	const status = new Map(surfaceStatus(inventory, removals, cases).map((entry) => [entry.surface, entry.disposition]));
-	expect(status.get("cli:project-identity")).toBe("covered");
-	expect(status.get("rpc:getEntityDetails")).toBe("covered");
-	expect(status.get("cli:auth login")).toBe("not-yet-ported");
-	expect(status.get("cli:daemon")).toBe("removed");
 });
 
 test("a removal rule that is vague, unknown, or overlaps a retained input is rejected", () => {

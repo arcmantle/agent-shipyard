@@ -34,6 +34,16 @@ afterAll(() => server.stop(true));
 const rpc = { url: `http://127.0.0.1:${server.port}`, issueToken: async (t: string) => `token-${t}`, newTenantId: () => "tenant-abc" };
 const rpcCase = (steps: RpcCase["steps"]): RpcCase => ({ id: "rpc/x", surface: "rpc", steps });
 
+test("the candidate API URL is a data store placeholder", async () => {
+	process.env.AGENT_LOGBOOK_API_URL = "http://127.0.0.1:5999/";
+	try {
+		const seen = (await recordCli(cli, cliCase(["http://127.0.0.1:5999 and http://127.0.0.1:5999/x"]))).stdout as { a: string[] };
+		expect(seen.a[0]).toBe("<data-store> and <data-store>/x");
+	} finally {
+		delete process.env.AGENT_LOGBOOK_API_URL;
+	}
+});
+
 test("CLI recording is stable and hides temporary paths", async () => {
 	const one = await recordCli(cli, cliCase(["a"]));
 	const two = await recordCli(cli, cliCase(["a"]));

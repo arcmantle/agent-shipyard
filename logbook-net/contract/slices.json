@@ -1,0 +1,500 @@
+{
+	"slices": [
+		{
+			"id": "walking-skeleton",
+			"claimed": true,
+			"description": "The packed tool, the Local API host with /rpc, health and discovery, the CLI with project-identity, init, schema and the minimum entity create, show and list, and MCP stdio with project_identity.",
+			"surfaces": [
+				"cli:schema",
+				"cli:project-identity",
+				"cli:init",
+				"cli:create",
+				"cli:show",
+				"cli:list",
+				"rpc:createEntity",
+				"rpc:getEntityDetails",
+				"rpc:getInitiativeBundle",
+				"rpc:listEntities",
+				"rpc:queryEntities",
+				"mcp:project_identity",
+				"mcp:tools/list",
+				"route:POST /rpc",
+				"route:GET /.well-known/agent-issues",
+				"route:GET /health/live",
+				"route:GET /health/ready"
+			],
+			"storage": [
+				{
+					"group": "entity lifecycle",
+					"tests": [
+						"creates an entity and reads it back through the async seam",
+						"creates and resolves an entity by UUID or Canonical reference",
+						"creation establishes revision-1 baseline with a correct content hash",
+						"creates open debt with required metadata under a supported owner",
+						"requires controlled debt metadata and permits it on other entity kinds",
+						"requires Plans to have an initiative owner",
+						"ignores caller-supplied statuses when creating a Plan",
+						"rejects invalid Plan statuses and preserves supplied statuses for other kinds"
+					],
+					"remainder": "The other entity lifecycle tests belong to the later Port slices that port updates, relations, moves, archive, and deletion."
+				},
+				{
+					"group": "Stable identity and Canonical reference",
+					"tests": [
+						"accepts a viewer short reference as a parent selector"
+					],
+					"remainder": "The other tests of this group belong to the later Port slice that ports reference resolution."
+				},
+				{
+					"group": "lifecycle",
+					"tests": "all"
+				}
+			]
+		}
+	],
+	"notYetPorted": [
+		{
+			"group": "CLI family: fallback",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:(default)"
+			]
+		},
+		{
+			"group": "CLI family: plugin",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:agent init"
+			]
+		},
+		{
+			"group": "CLI family: entities",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:archive",
+				"cli:delete",
+				"cli:edit",
+				"cli:history",
+				"cli:link",
+				"cli:move",
+				"cli:next-work",
+				"cli:orphans",
+				"cli:relations",
+				"cli:restore",
+				"cli:status",
+				"cli:unlink"
+			]
+		},
+		{
+			"group": "CLI family: auth",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:auth list",
+				"cli:auth login",
+				"cli:auth logout",
+				"cli:auth status",
+				"cli:auth switch"
+			]
+		},
+		{
+			"group": "CLI family: backfill",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:backfill-bodies"
+			]
+		},
+		{
+			"group": "CLI family: meta",
+			"reason": "The general help, the help command and capabilities print every command, so their output matches the TypeScript result only when all commands are ported. Their per-command help and error cases already exist.",
+			"surfaces": [
+				"cli:capabilities",
+				"cli:help"
+			]
+		},
+		{
+			"group": "CLI family: cloud",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:cloud migrate"
+			]
+		},
+		{
+			"group": "CLI family: comments",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:comment",
+				"cli:comment add",
+				"cli:comment delete",
+				"cli:comment edit",
+				"cli:comment history",
+				"cli:comment list"
+			]
+		},
+		{
+			"group": "CLI family: context",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:context"
+			]
+		},
+		{
+			"group": "CLI family: tenants",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:current-tenant",
+				"cli:delete-tenant",
+				"cli:list-tenants",
+				"cli:rename-tenant"
+			]
+		},
+		{
+			"group": "CLI family: export",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:export",
+				"cli:import"
+			]
+		},
+		{
+			"group": "CLI family: instructions",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:instruction commit",
+				"cli:instruction compare",
+				"cli:instruction dependencies",
+				"cli:instruction fragment create",
+				"cli:instruction fragment remove",
+				"cli:instruction history",
+				"cli:instruction list",
+				"cli:instruction preview",
+				"cli:instruction read",
+				"cli:instruction reset",
+				"cli:instruction reset-all",
+				"cli:instruction reset-all-inspect",
+				"cli:instruction reset-inspect",
+				"cli:instruction restore",
+				"cli:instruction retrieve",
+				"cli:instruction revision",
+				"cli:instruction save"
+			]
+		},
+		{
+			"group": "CLI family: issue-breakdowns",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:issue-breakdown",
+				"cli:issue-breakdown approve",
+				"cli:issue-breakdown create",
+				"cli:issue-breakdown latest",
+				"cli:issue-breakdown show"
+			]
+		},
+		{
+			"group": "CLI family: kanban",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:kanban"
+			]
+		},
+		{
+			"group": "CLI family: plan-entries",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:plan-entry add",
+				"cli:plan-entry delete",
+				"cli:plan-entry edit",
+				"cli:plan-entry history",
+				"cli:plan-entry list"
+			]
+		},
+		{
+			"group": "CLI family: site",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:site"
+			]
+		},
+		{
+			"group": "CLI family: sql",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"cli:sql"
+			]
+		},
+		{
+			"group": "RPC owner: entity-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:applyRelations",
+				"rpc:archiveEntity",
+				"rpc:deleteEntity",
+				"rpc:getDatabaseSnapshot",
+				"rpc:getInitiativeDetail",
+				"rpc:getInitiativeTab",
+				"rpc:getProjectDiscovery",
+				"rpc:getProjectSummary",
+				"rpc:getSnapshotSignature",
+				"rpc:linkEntities",
+				"rpc:listAllRelations",
+				"rpc:listEntityHistory",
+				"rpc:listOrphans",
+				"rpc:listProjectAdrs",
+				"rpc:materializeEntityRevision",
+				"rpc:moveEntity",
+				"rpc:queryEntityRelations",
+				"rpc:restoreEntityRevision",
+				"rpc:setEntityBody",
+				"rpc:unlinkEntities",
+				"rpc:updateEntity",
+				"rpc:updateEntityStatus"
+			]
+		},
+		{
+			"group": "RPC owner: issue-breakdown-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:approveIssueBreakdownDraft",
+				"rpc:createIssueBreakdownDraft",
+				"rpc:getIssueBreakdownDraft",
+				"rpc:getLatestIssueBreakdownDraft"
+			]
+		},
+		{
+			"group": "RPC owner: instruction-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:commitInstructionChanges",
+				"rpc:compareInstructionSource",
+				"rpc:createInstructionFragment",
+				"rpc:inspectInstructionDependencies",
+				"rpc:inspectInstructionReset",
+				"rpc:inspectInstructionResetAll",
+				"rpc:listInstructionHistory",
+				"rpc:listInstructionSources",
+				"rpc:previewInstruction",
+				"rpc:readInstructionRevision",
+				"rpc:readInstructionSource",
+				"rpc:removeInstructionFragment",
+				"rpc:resetInstructionAll",
+				"rpc:resetInstructionSource",
+				"rpc:restoreInstructionRevision",
+				"rpc:retrieveInstruction",
+				"rpc:saveInstructionSource"
+			]
+		},
+		{
+			"group": "RPC owner: plan-entry-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:confirmPlan",
+				"rpc:createPlanEntry",
+				"rpc:deletePlanEntry",
+				"rpc:getPlanEntry",
+				"rpc:linkPlanEntryEntity",
+				"rpc:listPlanEntries",
+				"rpc:listPlanEntryHistory",
+				"rpc:listPlanEntryPage",
+				"rpc:unlinkPlanEntryEntity",
+				"rpc:updatePlanEntry"
+			]
+		},
+		{
+			"group": "RPC owner: synchronize-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:countMigrationRecords",
+				"rpc:exportCanonicalChains",
+				"rpc:exportMigrationBundle",
+				"rpc:importCanonicalChains",
+				"rpc:importMigrationBundle",
+				"rpc:restoreProjectBundle"
+			]
+		},
+		{
+			"group": "RPC owner: issue-comment-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:createIssueComment",
+				"rpc:deleteIssueComment",
+				"rpc:listIssueCommentHistory",
+				"rpc:listIssueComments",
+				"rpc:updateIssueComment"
+			]
+		},
+		{
+			"group": "RPC owner: context-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:defineContextTerm",
+				"rpc:forgetContextTerm",
+				"rpc:getContextDetails",
+				"rpc:getContextDirectory",
+				"rpc:listContexts",
+				"rpc:materializeContextRevision",
+				"rpc:materializeContextTermRevision",
+				"rpc:queryContextDirectory",
+				"rpc:restoreContextRevision",
+				"rpc:restoreContextTermRevision",
+				"rpc:upsertContext"
+			]
+		},
+		{
+			"group": "RPC owner: storage-driver",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:deleteTenant",
+				"rpc:getHistoryDiagnostics",
+				"rpc:listTenants",
+				"rpc:renameTenant"
+			]
+		},
+		{
+			"group": "RPC owner: project-settings-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:getProspectorSettings",
+				"rpc:setProspectorSettings"
+			]
+		},
+		{
+			"group": "RPC owner: search-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:getSearchCapability",
+				"rpc:getSearchDiagnostics",
+				"rpc:search"
+			]
+		},
+		{
+			"group": "RPC owner: user-directory-store",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"rpc:listUsers",
+				"rpc:upsertUser"
+			]
+		},
+		{
+			"group": "MCP tools",
+			"reason": "Owned by the later Port slices of their storage group. The tool resource_show is implemented, but the TypeScript MCP server needs a store for it, so no case can be recorded yet.",
+			"surfaces": [
+				"mcp:body_backfill",
+				"mcp:body_backfill_inspect",
+				"mcp:context_conflicts",
+				"mcp:context_search",
+				"mcp:context_term_define",
+				"mcp:entity_archive",
+				"mcp:entity_move",
+				"mcp:entity_next_work",
+				"mcp:entity_restore",
+				"mcp:entity_restore_inspect",
+				"mcp:entity_status",
+				"mcp:initiative_bundle",
+				"mcp:instruction_inspect",
+				"mcp:instruction_reset",
+				"mcp:instruction_retrieve",
+				"mcp:instruction_update",
+				"mcp:issue_breakdown_approve",
+				"mcp:issue_breakdown_create",
+				"mcp:issue_breakdown_preview",
+				"mcp:plan_confirm",
+				"mcp:plan_entry_entity_link",
+				"mcp:plan_entry_entity_unlink",
+				"mcp:plan_preview",
+				"mcp:relation_link",
+				"mcp:relation_query",
+				"mcp:relation_unlink",
+				"mcp:resource_body",
+				"mcp:resource_create",
+				"mcp:resource_delete",
+				"mcp:resource_edit",
+				"mcp:resource_history",
+				"mcp:resource_list",
+				"mcp:resource_show",
+				"mcp:tenant_rename"
+			]
+		},
+		{
+			"group": "MCP UI resources",
+			"reason": "No store-free TypeScript recording exists for the UI resources, so no case drives them yet. A later MCP slice adds the cases.",
+			"surfaces": [
+				"mcp-resource:ui://agent-issues/issue-preview.html",
+				"mcp-resource:ui://agent-issues/plan-preview.html"
+			]
+		},
+		{
+			"group": "Website routes",
+			"reason": "Owned by the Website integration slices. The case format has no site surface yet.",
+			"surfaces": [
+				"route:GET /events",
+				"route:GET /api/entity-detail",
+				"route:GET /api/entity-relations",
+				"route:GET /api/initiative-detail",
+				"route:GET /api/initiative-tab",
+				"route:GET /api/instructions/catalog",
+				"route:POST /api/instructions/changes",
+				"route:GET /api/instructions/compare",
+				"route:GET /api/instructions/dependencies",
+				"route:POST /api/instructions/fragments/create",
+				"route:POST /api/instructions/fragments/remove",
+				"route:GET /api/instructions/history",
+				"route:POST /api/instructions/preview",
+				"route:POST /api/instructions/reset",
+				"route:POST /api/instructions/reset-all",
+				"route:GET /api/instructions/reset-all/inspect",
+				"route:GET /api/instructions/reset/inspect",
+				"route:POST /api/instructions/restore",
+				"route:GET /api/instructions/revision",
+				"route:GET /api/instructions/source",
+				"route:POST /api/instructions/source",
+				"route:GET /api/issue-comments",
+				"route:GET /api/plan-entries",
+				"route:GET /api/project-adrs",
+				"route:GET /api/project-context",
+				"route:GET /api/project-debt",
+				"route:GET /api/project-graph",
+				"route:POST /api/project-mutation",
+				"route:GET /api/project-summary",
+				"route:GET /api/projects",
+				"route:GET /api/search",
+				"route:GET /api/search/capability",
+				"route:GET /api/snapshot",
+				"route:GET /site-config.json",
+				"route:POST /__agent_issues/stop"
+			]
+		},
+		{
+			"group": "Storage-driver groups",
+			"reason": "Owned by a later Port slice. No case drives it yet.",
+			"surfaces": [
+				"storage:ADR lifecycle",
+				"storage:Issue-breakdown drafts",
+				"storage:Plan entry history",
+				"storage:Plan entry lifecycle",
+				"storage:Plan entry pagination",
+				"storage:Plan entry references",
+				"storage:Plan entry roles",
+				"storage:Plan entry supersession",
+				"storage:Plan lifecycle",
+				"storage:Project Summary",
+				"storage:Prospector settings",
+				"storage:Search",
+				"storage:bulk relations",
+				"storage:canonical revision patch hashes",
+				"storage:canonical-chain import",
+				"storage:context lifecycle",
+				"storage:context revision history",
+				"storage:deferred issues",
+				"storage:entity revision and reverse-delta chain",
+				"storage:history diagnostics",
+				"storage:issue comments",
+				"storage:migration bundle",
+				"storage:project archive",
+				"storage:project discovery",
+				"storage:project identity",
+				"storage:project-scoped snapshots",
+				"storage:snapshot signature",
+				"storage:user directory"
+			]
+		}
+	]
+}

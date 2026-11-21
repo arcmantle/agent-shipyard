@@ -62,7 +62,7 @@ Cases of the `cli` and `mcp` surfaces run the built TypeScript CLI alone. Only `
 
 ### Normalization
 
-Only these changes are made to a recording: CRLF becomes LF, temporary paths, the tenant, timestamps, and UUIDs, references and short references become ordered placeholders (`<uuid#1>`).
+Only these changes are made to a recording: CRLF becomes LF, temporary paths, the tenant, the data store location (`<data-store>`: the SQLite file of the TypeScript CLI, the API URL that a candidate reached), timestamps, and UUIDs, references and short references become ordered placeholders (`<uuid#1>`).
 Object key order is ignored. Array order, JSON types, literal content hashes and null versus absent stay distinct.
 
 ### Failures
@@ -89,9 +89,44 @@ Options: `--candidate-token` (omit for no-auth mode), `--candidate-tenant` (defa
 
 `parity.ts check` needs an API host and a candidate CLI. The Local API host has one tenant, so cases share its data unless each case runs on empty tables. The loop that the implementation was checked with: start `agent-logbook serve` on an empty database of a non-superuser role, and for each case truncate the tables (as the database owner), then run `bun src/parity.ts check --candidate-cli "dotnet <path>/AgentLogbook.Cli.dll" --candidate-url <host url> <case id>` with `AGENT_LOGBOOK_API_URL=<host url>`.
 
+### Coverage check and slices
+
+`contract/slices.json` says which Port slices exist, which surfaces each slice claims, and which surfaces are explicitly not yet ported. `src/coverage.ts` joins it to `contract/inventory.json`, the cases, and `contract/surface-rules.json`:
+
+```sh
+cd logbook-net/tools
+bun src/coverage.ts            # development mode
+bun src/coverage.ts --release  # full-release mode
+bun src/coverage.ts --list     # one line for each surface
+```
+
+Each inventory surface (CLI command, RPC method, MCP tool, the MCP tool list, UI resource, route, storage-driver group) has exactly one disposition: `removed` (an approved removal rule), `claimed` (listed in a slice), or `not-yet-ported` (listed in `notYetPorted` with a reason). A surface in no list, in two lists, or not in the inventory fails the check, so a surface cannot disappear silently.
+
+A slice with `claimed: true` needs these cases for each surface that it claims:
+
+- CLI command: a help case (`<command> --help` or `help <command>`), a `--json` success case when the inventory says `jsonSuccess`, an error case (non-zero `expectExitCode`), and a human output case when the inventory says `humanOutput`. `help --help` is the help case of the `help` command; `help` alone, or `help` with a word that is no command, is a case of it by its output.
+- RPC method: a case that has a step with that method.
+- MCP tool: a case with a `tools/call` step for it. The tool list needs a `tools/list` step. A UI resource needs a `resources/read` step for its URI.
+- Website route: not claimable yet. The case format has no site surface, so a slice that ports a website route adds that surface first.
+- Host route and storage-driver group: no parity case. A storage claim lists the contract tests that apply (`tests`), or `"all"`. A partial claim needs a `remainder` that says where the other tests go. The check fails when a listed test title is not in the TypeScript contract.
+
+A slice with `claimed: false` is in development: its surfaces need no cases yet. `--release` refuses every `notYetPorted` entry, every slice that is not claimed, and every partial storage claim. Approved removals stay valid in both modes, and each has its Plan entry in `surface-rules.json`.
+
+The walking skeleton claims only what it implements and has cases for. The output of `help`, `capabilities`, and the general help lists every command, so those three stay not yet ported until all commands are ported.
+
+### Check the claimed slices
+
+`check-slices.ts` is the CI-equivalent run of the claimed slices against the .NET implementation:
+
+```sh
+AGENT_LOGBOOK_LOCAL_PG_URL=postgres://<user>:<password>@127.0.0.1:<port>/<empty database> bun logbook-net/tools/check-slices.ts [--release] [--candidate-cli "<command>"]
+```
+
+It runs the coverage check, starts `agent-logbook serve` with a temporary Shipyard data folder, empties every table of the database (it must have no other use), runs each parity case on empty tables, and runs the claimed storage-driver tests through the TypeScript `HttpStore` (build `logbook/packages/core` first). It exits with a non-zero code when any step fails. `.github/workflows/logbook-net-coverage.yml` runs it on real PostgreSQL.
+
 ### Storage-driver contract through HttpStore
 
-`storage-driver-contract/` runs the shared TypeScript contract (`logbook/packages/core/src/features/storage-driver/storage-driver-contract.ts`) through the TypeScript `HttpStore` against a .NET API host. Only the tests of the ported slices apply; `run.ts` lists their titles (`APPLICABLE_TESTS`) and fails when one of them is no longer in the contract. Build `logbook/packages/core` first.
+`storage-driver-contract/` runs the shared TypeScript contract (`logbook/packages/core/src/features/storage-driver/storage-driver-contract.ts`) through the TypeScript `HttpStore` against a .NET API host. Only the tests that the claimed slices select in `contract/slices.json` apply; `run.ts` fails when a selected title is no longer in the contract. Build `logbook/packages/core` first.
 
 ```sh
 bun logbook-net/tools/storage-driver-contract/run.ts <api-url>   # a Local API host with an empty database
@@ -117,10 +152,9 @@ The rename is one mechanical rule for each case form (`agent-issues`, `agentIssu
 
 ```sh
 cd logbook-net/tools
-bun src/surfaces.ts          # check the rules, print the counts
-bun src/surfaces.ts --list   # one line for each inventory surface
+bun src/surfaces.ts          # check the rules, print the count
 ```
 
-Each inventory surface has one status: `removed` (an approved removal), `covered` (a case drives it), or `not-yet-ported` (no case yet). A later feature slice adds its cases before it claims completion.
+`coverage.ts` gives each inventory surface its disposition (see Coverage check and slices). A later feature slice adds its cases before it claims completion.
 
 Limits: values are compared after `JSON.parse`, so `1` and `1.0` are equal and integers above 2^53 lose precision. `-0` and `0` differ. `--candidate-tenant` makes all cases share one tenant, so data can carry over between cases.

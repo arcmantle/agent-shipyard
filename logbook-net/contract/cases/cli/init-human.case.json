@@ -1,0 +1,7 @@
+{
+	"id": "cli/init-human",
+	"surface": "cli",
+	"workspace": { "folder": "default-project" },
+	"argv": ["init"],
+	"stdout": "text"
+}

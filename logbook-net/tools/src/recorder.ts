@@ -57,6 +57,9 @@ async function prepareCase(target: CliTarget, testCase: CliCase | McpCase): Prom
 			literals[literal] = placeholder;
 			literals[realpathSync(literal)] = placeholder;
 		}
+		// Where the data lives has no behavior to compare: the SQLite file of the TypeScript CLI, or the API host that a candidate reached (a free port).
+		for (const homeFolder of new Set([home, realpathSync(home)])) literals[path.join(homeFolder, ".agent-issues", "agent-issues.db")] = "<data-store>";
+		if (env.AGENT_LOGBOOK_API_URL) literals[env.AGENT_LOGBOOK_API_URL.replace(/\/+$/, "")] = "<data-store>";
 		return { root, home, workspace, env, bindings, literals };
 	} catch (error) {
 		rmSync(root, { recursive: true, force: true });
