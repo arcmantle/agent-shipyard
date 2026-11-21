@@ -32,9 +32,11 @@ public static class BackendRouter
 	/// Otherwise the permanent default <c>local login</c>: the discovery file must name a live process, and the host must answer
 	/// its live check. The local login has no token. When <paramref name="autoStart"/> is set and no host runs, this starts one in the background
 	/// and waits until it answers; it then writes the Local API log in the Logbook data folder, and nothing else.
+	/// When <paramref name="autoStart"/> names a tool version and the running host has another version, the host first finishes its active requests
+	/// and stops, and one host of the caller's version replaces it. A request never uses a host of another version.
 	/// </summary>
 	/// <exception cref="InvalidBackendRouteException">The override is not an absolute http or https URL.</exception>
-	/// <exception cref="LocalApiUnavailableException">There is no answering Local API host.</exception>
+	/// <exception cref="LocalApiUnavailableException">There is no answering Local API host, or a host of another version cannot be replaced.</exception>
 	public static async Task<BackendRoute> ResolveAsync(
 		Func<string, string?> getEnvironmentVariable,
 		ShipyardLogbookFolder folder,
@@ -51,6 +53,38 @@ public static class BackendRouter
 			return new BackendRoute(ParseOverride(configured.Trim()), null, BackendRouteSource.ProcessOverride);
 		}
 
+		if (autoStart?.ToolVersion is not { } expectedVersion)
+		{
+			return await ResolveLocalAsync(getEnvironmentVariable, folder, probeClient, autoStart, cancellationToken);
+		}
+
+		// Another tool of a different version can start its own host between the replacement and the route. The version of the host
+		// that the route names is checked again, so a request never uses a host of another version.
+		for (var attempt = 0; attempt < MaxVersionAttempts; attempt++)
+		{
+			await LocalApiHostControl.ReplaceMismatchedAsync(folder, expectedVersion, probeClient, cancellationToken);
+			var route = await ResolveLocalAsync(getEnvironmentVariable, folder, probeClient, autoStart, cancellationToken);
+			if (LocalApiDiscovery.Read(folder) is { } current && current.ToolVersion == expectedVersion
+				&& new Uri(current.Url).Equals(route.BaseUrl))
+			{
+				return route;
+			}
+		}
+
+		throw new LocalApiUnavailableException(
+			$"The Local API host keeps changing to a version other than {expectedVersion}. Another tool of a different version may start it again. " +
+			"Run 'agent-logbook host status', and use one installed version.");
+	}
+
+	private const int MaxVersionAttempts = 3;
+
+	private static async Task<BackendRoute> ResolveLocalAsync(
+		Func<string, string?> getEnvironmentVariable,
+		ShipyardLogbookFolder folder,
+		HttpClient? probeClient,
+		LocalApiLaunch? autoStart,
+		CancellationToken cancellationToken)
+	{
 		var discovery = LocalApiDiscovery.Read(folder);
 		if (discovery is null || !discovery.IsProcessAlive())
 		{

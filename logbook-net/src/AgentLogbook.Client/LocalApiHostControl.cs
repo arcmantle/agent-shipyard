@@ -152,6 +152,112 @@ public static class LocalApiHostControl
 		return new(stopped.Stopped, started);
 	}
 
+	/// <summary>
+	/// Stops every host whose tool version is not <paramref name="expectedVersion"/>, so that the next start gives one host of the expected version.
+	/// A host that drains from an earlier stop is waited for. A host of the expected version is never touched: a caller that lost a race to another
+	/// caller finds the replacement of that caller and leaves it running. Only the host that the discovery file named when it was checked gets a stop request.
+	/// </summary>
+	/// <exception cref="LocalApiUnavailableException">The host of another version cannot be stopped. The message says why, and the host is not used.</exception>
+	internal static async Task ReplaceMismatchedAsync(
+		ShipyardLogbookFolder folder,
+		string expectedVersion,
+		HttpClient? client,
+		CancellationToken cancellationToken)
+	{
+		// Only a caller that sees a host of another version takes the lock, so a request that needs no replacement never writes a file.
+		if (!await FindsMismatchAsync(folder, expectedVersion, client, cancellationToken))
+		{
+			return;
+		}
+
+		// Callers replace one at a time. The next caller then finds the replacement of the first one and does not stop it again.
+		await using var replaceLock = await AcquireReplaceLockAsync(folder, cancellationToken);
+
+		// Each round ends a host or finds that none of another version remains. Two tools of different versions that start each other
+		// again and again must end in an error and not in a loop.
+		for (var round = 0; round < MaxReplaceRounds; round++)
+		{
+			var status = await InspectAsync(folder, client, cancellationToken);
+			if (!IsMismatchedHost(status, expectedVersion))
+			{
+				return;
+			}
+
+			var discovery = status.Discovery!;
+			try
+			{
+				if (status.State == LocalApiHostState.Running)
+				{
+					await RequestStopAsync(discovery, client, cancellationToken);
+				}
+
+				await WaitForEndAsync(discovery, DefaultStopTimeout, cancellationToken);
+			}
+			catch (LocalApiHostControlException) when (HostChanged(folder, discovery))
+			{
+				// The host ended or changed in the meantime. The next round looks at what is there now.
+			}
+			catch (LocalApiHostControlException exception)
+			{
+				throw new LocalApiUnavailableException(
+					$"The running Local API host has version {discovery.ToolVersion}, and this tool has version {expectedVersion}. " +
+					$"The host was not replaced, so no request uses it. {exception.Message}",
+					exception);
+			}
+		}
+
+		throw new LocalApiUnavailableException(
+			$"The Local API host keeps changing to a version other than {expectedVersion}. Another tool of a different version may start it again. " +
+			"Run 'agent-logbook host status', and use one installed version.");
+	}
+
+	private static async Task<bool> FindsMismatchAsync(ShipyardLogbookFolder folder, string expectedVersion, HttpClient? client, CancellationToken cancellationToken)
+	{
+		var status = await InspectAsync(folder, client, cancellationToken);
+		return IsMismatchedHost(status, expectedVersion);
+	}
+
+	/// <summary>
+	/// True for a host that answers as itself, or drains, with another version. A live process that does not answer as the host is no host:
+	/// the router reports it and does not touch it, as it does for every version.
+	/// </summary>
+	private static bool IsMismatchedHost(LocalApiHostStatus status, string expectedVersion) =>
+		status is { State: LocalApiHostState.Running or LocalApiHostState.Stopping, Discovery: { } discovery } && discovery.ToolVersion != expectedVersion;
+
+	/// <summary>The lock lives as long as the stream. A process that ends releases it, so a crash never leaves a lock that blocks a caller.</summary>
+	private static async Task<FileStream> AcquireReplaceLockAsync(ShipyardLogbookFolder folder, CancellationToken cancellationToken)
+	{
+		folder.EnsureExists();
+		var clock = System.Diagnostics.Stopwatch.StartNew();
+		while (true)
+		{
+			try
+			{
+				return new FileStream(folder.ReplaceLockFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.None);
+			}
+			catch (IOException) when (clock.Elapsed < ReplaceLockTimeout)
+			{
+				await Task.Delay(PollInterval, cancellationToken);
+			}
+			catch (IOException exception)
+			{
+				throw new LocalApiUnavailableException(
+					$"Another tool is replacing the Local API host, and it did not finish in {ReplaceLockTimeout.TotalSeconds:0} seconds. Run 'agent-logbook host status'.", exception);
+			}
+		}
+	}
+
+	private static readonly TimeSpan ReplaceLockTimeout = (DefaultStopTimeout * MaxReplaceRounds) + TimeSpan.FromSeconds(30);
+
+	private const int MaxReplaceRounds = 3;
+
+	/// <summary>True when the discovery file no longer names <paramref name="discovery"/>: another caller replaced or ended that host.</summary>
+	private static bool HostChanged(ShipyardLogbookFolder folder, LocalApiDiscovery discovery)
+	{
+		var current = LocalApiDiscovery.Read(folder);
+		return current is null || current.ProcessId != discovery.ProcessId || current.StartedAt != discovery.StartedAt;
+	}
+
 	/// <summary>The process ID that the host at the discovery URL reports, or null when nothing there answers as a Local API host.</summary>
 	private static async Task<int?> ReadIdentityAsync(LocalApiDiscovery discovery, HttpClient? client, CancellationToken cancellationToken)
 	{
