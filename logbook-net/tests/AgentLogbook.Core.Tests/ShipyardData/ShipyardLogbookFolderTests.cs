@@ -48,6 +48,7 @@ public class ShipyardLogbookFolderTests
 		await Assert.That(folder.SettingsFile).IsEqualTo(Under("s", "logbook", "local-api.settings.json"));
 		await Assert.That(folder.DiscoveryFile).IsEqualTo(Under("s", "logbook", "local-api.discovery.json"));
 		await Assert.That(folder.StartLockFile).IsEqualTo(Under("s", "logbook", "local-api.start.lock"));
+		await Assert.That(folder.ReplaceLockFile).IsEqualTo(Under("s", "logbook", "local-api.replace.lock"));
 		await Assert.That(folder.LogFile).IsEqualTo(Under("s", "logbook", "local-api.log"));
 	}
 

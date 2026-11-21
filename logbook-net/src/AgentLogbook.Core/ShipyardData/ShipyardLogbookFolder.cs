@@ -15,6 +15,7 @@ public sealed class ShipyardLogbookFolder
 	public const string SettingsFileName = "local-api.settings.json";
 	public const string DiscoveryFileName = "local-api.discovery.json";
 	public const string StartLockFileName = "local-api.start.lock";
+	public const string ReplaceLockFileName = "local-api.replace.lock";
 	public const string LogFileName = "local-api.log";
 
 	private static readonly string[] ForbiddenSegments = [".agent-issues", ".agent-wayfinder"];
@@ -32,6 +33,8 @@ public sealed class ShipyardLogbookFolder
 	public string DiscoveryFile => System.IO.Path.Combine(Path, DiscoveryFileName);
 
 	public string StartLockFile => System.IO.Path.Combine(Path, StartLockFileName);
+
+	public string ReplaceLockFile => System.IO.Path.Combine(Path, ReplaceLockFileName);
 
 	public string LogFile => System.IO.Path.Combine(Path, LogFileName);
 
