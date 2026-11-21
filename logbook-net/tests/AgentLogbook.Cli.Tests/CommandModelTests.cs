@@ -25,13 +25,16 @@ public class CommandModelTests
 		LoadInventory().GetProperty("cli").GetProperty("commands").EnumerateArray()
 			.ToDictionary(command => command.GetProperty("id").GetString()!);
 
+	/// <summary>Commands that only the .NET tool has. The TypeScript inventory cannot list them, and they have no golden case.</summary>
+	private static readonly string[] NewCommands = ["cli:host"];
+
 	[Test]
 	public async Task The_tree_has_the_root_and_one_node_for_each_registered_command()
 	{
 		var model = CommandModel.Walk(CliApp.Catalog.Root);
 
 		await Assert.That(model.Select(command => command.Id)).IsEquivalentTo(
-			["cli:(default)", "cli:project-identity", "cli:init", "cli:create", "cli:show", "cli:list", "cli:help", "cli:schema", "cli:capabilities"]);
+			["cli:(default)", "cli:project-identity", "cli:init", "cli:create", "cli:show", "cli:list", "cli:host", "cli:help", "cli:schema", "cli:capabilities"]);
 		await Assert.That(model.Select(command => command.Id).Skip(1))
 			.IsEquivalentTo(CliApp.Catalog.Specs.Select(spec => $"cli:{spec.Name}"));
 	}
@@ -62,7 +65,7 @@ public class CommandModelTests
 	{
 		var inventory = InventoryCommands();
 
-		foreach (var command in CommandModel.Walk(CliApp.Catalog.Root).Where(command => command.Path.Count > 0))
+		foreach (var command in CommandModel.Walk(CliApp.Catalog.Root).Where(command => command.Path.Count > 0 && !NewCommands.Contains(command.Id)))
 		{
 			await Assert.That(inventory.ContainsKey(command.Id)).IsTrue();
 			var legacyOptions = inventory[command.Id].GetProperty("options").EnumerateArray()
@@ -95,5 +98,6 @@ public class CommandModelTests
 
 		await Assert.That(unported).Contains("cli:edit").And.Contains("cli:daemon");
 		await Assert.That(unported.Intersect(implemented)).IsEmpty();
+		await Assert.That(InventoryCommands().Keys.Intersect(NewCommands)).IsEmpty();
 	}
 }

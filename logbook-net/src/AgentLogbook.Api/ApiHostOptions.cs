@@ -21,6 +21,12 @@ public sealed class ApiHostOptions
 	/// <summary>The port to listen on. 0 lets the OS choose.</summary>
 	public int ListenPort { get; init; }
 
+	/// <summary>
+	/// Called once when a client asks the host to stop. Only the Local API host sets it, and only with <see cref="Auth.LocalNoAuthProvider"/>:
+	/// a deployment has no control path, because the routes do not exist.
+	/// </summary>
+	public Action? OnStopRequested { get; init; }
+
 	internal void Validate()
 	{
 		if (AuthProvider.RequiresLoopback && !IPAddress.IsLoopback(ListenAddress))
