@@ -29,7 +29,7 @@ public sealed class HostCommand : ICliCommand
 		Examples: ["agent-logbook host status", "agent-logbook host stop", "agent-logbook host restart --json"],
 		Notes:
 		[
-			"status reads the discovery file and asks the host who it is. It never starts a host. It exits with 0 for a running or a stopped host and with 1 for a stale state.",
+			"status reads the discovery file and asks the host who it is. It never starts a host. It exits with 0 for a running, stopping or stopped host and with 1 for a stale state.",
 			"stop lets active requests finish, then ends the host. It succeeds when no host runs. It refuses, and touches nothing, when a live process that is not the host holds the discovery file.",
 			"restart stops the running host as stop does, then starts one replacement with the current Local API settings. With no host running it starts one.",
 		],
@@ -95,7 +95,7 @@ public sealed class HostCommand : ICliCommand
 				new HostOutput(
 					Name,
 					action,
-					state switch { LocalApiHostState.Running => "running", LocalApiHostState.Stale => "stale", _ => "stopped" },
+					state switch { LocalApiHostState.Running => "running", LocalApiHostState.Stale => "stale", LocalApiHostState.Stopping => "stopping", _ => "stopped" },
 					discovery?.Url,
 					discovery?.Port,
 					discovery?.ProcessId,
@@ -110,6 +110,7 @@ public sealed class HostCommand : ICliCommand
 	private static string StatusHuman(LocalApiHostStatus status) => status.State switch
 	{
 		LocalApiHostState.Running => Running(status.Discovery!),
+		LocalApiHostState.Stopping => $"The Local API host is stopping. {status.Reason}",
 		LocalApiHostState.Stale => $"The Local API host state is stale. {status.Reason}",
 		_ => "No Local API host is running.",
 	};

@@ -13,6 +13,9 @@ public enum LocalApiHostState
 	/// <summary>There is no discovery file. No host is running.</summary>
 	Stopped,
 
+	/// <summary>The host was asked to stop and finishes its active requests. Its file stays until the process ends.</summary>
+	Stopping,
+
 	/// <summary>The discovery file names a live process, and that process answers the local control path as itself.</summary>
 	Running,
 
@@ -71,6 +74,11 @@ public static class LocalApiHostControl
 			return new(LocalApiHostState.Stale, discovery, false, $"The discovery file names process {discovery.ProcessId}, which is not running.");
 		}
 
+		if (discovery.Stopping)
+		{
+			return new(LocalApiHostState.Stopping, discovery, true, $"Process {discovery.ProcessId} is finishing its active requests before it ends.");
+		}
+
 		var identity = await ReadIdentityAsync(discovery, client, cancellationToken);
 		return identity == discovery.ProcessId
 			? new(LocalApiHostState.Running, discovery, true, null)
@@ -83,7 +91,7 @@ public static class LocalApiHostControl
 
 	/// <summary>
 	/// Asks the running host to stop and waits until its process has ended. The host lets the active requests finish first.
-	/// A repeated stop, or a stop with only a stale file of an ended host, changes nothing and succeeds.
+	/// A repeated stop waits for a drain that is under way. A stop with only a stale file of an ended host, or a stop with only a stale file of an ended host, changes nothing and succeeds.
 	/// </summary>
 	/// <exception cref="LocalApiHostControlException">The state is stale with a live process, the host refuses, or the process does not end in time.</exception>
 	public static async Task<LocalApiHostStopResult> StopAsync(
@@ -97,6 +105,11 @@ public static class LocalApiHostControl
 		{
 			case { State: LocalApiHostState.Stopped }:
 				return new(null, null);
+
+			case { State: LocalApiHostState.Stopping }:
+				// A repeated stop does not ask again. It waits for the drain that is under way.
+				await WaitForEndAsync(status.Discovery!, timeout ?? DefaultStopTimeout, cancellationToken);
+				return new(status.Discovery, null);
 
 			case { State: LocalApiHostState.Stale, ProcessAlive: false }:
 				return new(null, status.Reason);

@@ -149,6 +149,46 @@ public class HostCommandTests
 	}
 
 	[Test]
+	public async Task While_a_stopped_host_drains_status_says_stopping_and_a_repeated_stop_waits_for_the_same_end()
+	{
+		var pg = await LocalPostgresServer.CreateDatabaseUrlAsync();
+		await using var host = await StartHostAsync(pg);
+		var discovery = LocalApiDiscovery.Read(host.Folder)!;
+
+		using var client = new HttpClient();
+		using var query = new StringContent("{\"statement\":\"SELECT pg_sleep(6), 1 AS one\"}", Encoding.UTF8, "application/json");
+		var inFlight = client.PostAsync(new Uri(new Uri(discovery.Url), "/direct-query"), query);
+		await Task.Delay(1000);
+
+		var firstStop = HostAsync(host.ShipyardHome, null, "stop");
+		var clock = Stopwatch.StartNew();
+		while (LocalApiDiscovery.Read(host.Folder) is not { Stopping: true } && clock.Elapsed < TimeSpan.FromSeconds(10))
+		{
+			await Task.Delay(50);
+		}
+
+		var status = await HostAsync(host.ShipyardHome, null, "status", "--json");
+		var secondStop = await HostAsync(host.ShipyardHome, null, "stop");
+		var restart = await HostAsync(host.ShipyardHome, pg, "restart");
+		var first = await firstStop;
+		using var answer = await inFlight;
+
+		await Assert.That(status.Exit).IsEqualTo(0).Because(status.Err);
+		await Assert.That(Json(status.Out).GetProperty("state").GetString()).IsEqualTo("stopping");
+		await Assert.That(secondStop.Exit).IsEqualTo(0).Because(secondStop.Err);
+		await Assert.That(secondStop.Out).IsEqualTo($"Stopped the Local API host (process {discovery.ProcessId}).\n");
+		await Assert.That(first.Exit).IsEqualTo(0).Because(first.Err);
+		await Assert.That((int)answer.StatusCode).IsEqualTo(200);
+
+		// The restart ran after the drain ended, so it started exactly one replacement.
+		await Assert.That(restart.Exit).IsEqualTo(0).Because(restart.Err);
+		var replacement = LocalApiDiscovery.Read(host.Folder);
+		await Assert.That(replacement).IsNotNull();
+		await Assert.That(replacement!.ProcessId).IsNotEqualTo(discovery.ProcessId);
+		await HostAsync(host.ShipyardHome, null, "stop");
+	}
+
+	[Test]
 	public async Task Stopping_an_idle_host_returns_promptly()
 	{
 		await using var host = await StartHostAsync(await LocalPostgresServer.CreateDatabaseUrlAsync());

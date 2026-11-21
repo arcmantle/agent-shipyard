@@ -143,11 +143,15 @@ public sealed class LocalApiHost : IAsyncDisposable
 		}
 	}
 
-	/// <summary>Removes the discovery file first, so that no client finds a host that no longer answers, then stops the API.</summary>
+	/// <summary>
+	/// Marks the discovery file as stopping, drains the active requests and stops the API, then removes the file. The file stays while the
+	/// process drains, so no client sees "no host" and starts a replacement beside it.
+	/// </summary>
 	public async Task StopAsync(CancellationToken cancellationToken = default)
 	{
-		Discovery.RemoveIfCurrent(folder);
+		Discovery.MarkStopping(folder);
 		await host.StopAsync(cancellationToken);
+		Discovery.RemoveIfCurrent(folder);
 	}
 
 	public async ValueTask DisposeAsync()
