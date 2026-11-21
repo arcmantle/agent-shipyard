@@ -92,7 +92,7 @@ export function validateSliceFile(value: unknown): SliceFile {
 type CliKind = "help" | "error" | "json" | "human";
 
 /** Finds the command that a CLI case drives and what kind of case it is. A `help <command>` case is a help case of that command. */
-function classifyCliCase(testCase: Case & { surface: "cli" }, commands: CoverageInventory["cli"]["commands"]): { target: string; kind: CliKind } | null {
+export function classifyCliCase(testCase: Case & { surface: "cli" }, commands: CoverageInventory["cli"]["commands"]): { target: string; kind: CliKind } | null {
 	const words: string[] = [];
 	for (const arg of testCase.argv) {
 		if (arg.startsWith("-")) break;
