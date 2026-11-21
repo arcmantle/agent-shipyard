@@ -8,6 +8,19 @@ dotnet test --solution AgentLogbook.slnx   # TUnit on Microsoft.Testing.Platform
 tests/verify-packed-tool.sh                # required gate: pack, install in an isolated folder, run, uninstall
 ```
 
+## CI
+
+`.github/workflows/logbook-net-ci.yml` builds and tests `logbook-net`. It never publishes or deploys. Three jobs:
+
+- `build-and-test`: build, `dotnet test --solution` (TUnit, Verify, Testcontainers PostgreSQL), the tool tests, and the `--check` runs of the test vectors and the workflow schema.
+- `packed-tool`: `tests/verify-packed-tool.sh`, then `tests/verify-packed-skeleton.sh` with PostgreSQL (`AGENT_LOGBOOK_LOCAL_PG_URL`). The second script installs the packed tool in an isolated folder and Shipyard data folder and checks:
+  - **Startup limit.** `project-identity --json` must have a median of at most 1000 ms (`STARTUP_LIMIT_MS`) over 7 runs, and it must start no Local API host. The result goes to the job summary. The package stays one framework-dependent `any` package. Only a measured failure of this gate allows the approved RID-specific ReadyToRun fallback.
+  - **Skeleton paths.** Automatic Local API start, `init`, `create`, `show`, `list`, `capabilities`, `host status`, and MCP stdio `resource_show`. An unported command must fail.
+  - **Cleanup.** After `host stop` no host process and no discovery file remain.
+- `parity`: `tools/check-slices.ts` (coverage, every parity case, and the storage-driver groups of the claimed slices) once against the build output and once against the installed packed tool.
+
+`logbook-net-drift.yml` (TypeScript drift against the golden files) and `logbook-net-coverage.yml` (build output) stay separate checks of the same paths. Run the skeleton script alone with `AGENT_LOGBOOK_LOCAL_PG_URL=<postgres url of an empty database owner without superuser right> tests/verify-packed-skeleton.sh`.
+
 The package is one framework-dependent `any` tool. It has no RID-specific or Native AOT build and only the `agent-logbook` command.
 
 Install, update, and PATH instructions: [docs/installation.md](docs/installation.md). `tests/verify-install-guide.sh` checks that guide against the pack metadata.

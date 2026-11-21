@@ -1,0 +1,153 @@
+name: Logbook .NET CI
+
+# Build and test CI of `logbook-net`. It proves the walking skeleton through the build output and through the installed packed tool.
+# It never publishes a package, deploys, or pushes anything. The golden drift check (`logbook-net-drift.yml`) and the coverage
+# check (`logbook-net-coverage.yml`) are separate required checks of the same paths.
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'logbook-net/**'
+      - 'logbook/packages/core/**'
+      - '.github/workflows/logbook-net-ci.yml'
+  pull_request:
+    paths:
+      - 'logbook-net/**'
+      - 'logbook/packages/core/**'
+      - '.github/workflows/logbook-net-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: logbook-net-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  build-and-test:
+    # TUnit on Microsoft.Testing.Platform. The storage tests start PostgreSQL with Testcontainers.PostgreSql (Docker on the runner).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: logbook-net/global.json
+      - uses: oven-sh/setup-bun@v2
+      # The AppHost test starts the copied Vite clients with pnpm, which installs their packages itself.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.10.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build
+        run: dotnet build logbook-net/AgentLogbook.slnx --nologo -v quiet
+      - name: Test the solution (unit, contract, vector, Testcontainers PostgreSQL, API host, CLI, MCP)
+        # Run from logbook-net: its global.json selects Microsoft.Testing.Platform.
+        working-directory: logbook-net
+        run: dotnet test --solution AgentLogbook.slnx --no-build --nologo
+      - name: Tool tests, test vectors and workflow schema against the TypeScript source
+        run: |
+          bun test logbook-net/tools/src
+          bun test logbook-net/tools/test-vectors.test.ts logbook-net/tools/export-workflow-schema.test.ts
+          bun logbook-net/tools/test-vectors.ts --check
+          bun logbook-net/tools/export-workflow-schema.ts --check
+
+  packed-tool:
+    # The installed packed tool in an isolated folder: pack and install guide gate, startup limit, and the skeleton paths.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: check
+          POSTGRES_DB: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: logbook-net/global.json
+      - name: Create non-superuser databases
+        # A superuser skips row-level security, so the host runs as an owner without that right.
+        run: >-
+          docker run --rm --network host postgres:16-alpine
+          psql postgres://postgres:check@127.0.0.1:5433/postgres --set ON_ERROR_STOP=1
+          --command "CREATE ROLE logbook_check LOGIN PASSWORD 'check'"
+          --command "CREATE DATABASE skeleton OWNER logbook_check"
+      - name: Verify the packed tool (any package, install, update, MCP, uninstall)
+        run: bash logbook-net/tests/verify-packed-tool.sh
+      - name: Verify the startup limit and the walking skeleton through the installed tool
+        # project-identity --json must answer within 1000 ms and start no API host. A failure rejects the build.
+        # Only if this gate fails by measurement, change to RID-specific ReadyToRun packages with an `any` fallback.
+        env:
+          AGENT_LOGBOOK_LOCAL_PG_URL: postgres://logbook_check:check@127.0.0.1:5433/skeleton
+          STARTUP_LIMIT_MS: '1000'
+        run: bash logbook-net/tests/verify-packed-skeleton.sh
+
+  parity:
+    # Every parity case and the storage-driver groups of the claimed slices, once against the build output and once against the installed packed tool.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: check
+          POSTGRES_DB: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: logbook-net/global.json
+      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.10.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build the TypeScript core and install the check tools
+        working-directory: logbook
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @agent-issues/core --filter @agent-issues/api-local --filter @agent-issues/api-pg build
+      - name: Create non-superuser databases
+        run: >-
+          docker run --rm --network host postgres:16-alpine
+          psql postgres://postgres:check@127.0.0.1:5433/postgres --set ON_ERROR_STOP=1
+          --command "CREATE ROLE logbook_check LOGIN PASSWORD 'check'"
+          --command "CREATE DATABASE build_output OWNER logbook_check"
+          --command "CREATE DATABASE packed_tool OWNER logbook_check"
+      - name: Build the .NET CLI
+        run: dotnet build logbook-net/src/AgentLogbook.Cli/AgentLogbook.Cli.csproj --nologo -v quiet
+      - name: Coverage, parity cases and storage-driver groups (build output)
+        env:
+          AGENT_LOGBOOK_LOCAL_PG_URL: postgres://logbook_check:check@127.0.0.1:5433/build_output
+        run: bun logbook-net/tools/check-slices.ts
+      - name: Pack and install the tool in an isolated folder
+        run: |
+          dotnet pack logbook-net/src/AgentLogbook.Cli/AgentLogbook.Cli.csproj -c Release -o "$RUNNER_TEMP/feed" --nologo -v quiet
+          version="$(basename "$(ls "$RUNNER_TEMP"/feed/Arcmantle.AgentLogbook.*.nupkg)" .nupkg)"
+          dotnet tool install Arcmantle.AgentLogbook --tool-path "$RUNNER_TEMP/tools" --add-source "$RUNNER_TEMP/feed" --version "${version#Arcmantle.AgentLogbook.}" --ignore-failed-sources
+      - name: Coverage, parity cases and storage-driver groups (installed packed tool)
+        env:
+          AGENT_LOGBOOK_LOCAL_PG_URL: postgres://logbook_check:check@127.0.0.1:5433/packed_tool
+        run: bun logbook-net/tools/check-slices.ts --candidate-cli "$RUNNER_TEMP/tools/agent-logbook"
