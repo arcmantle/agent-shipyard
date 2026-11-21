@@ -124,6 +124,20 @@ AGENT_LOGBOOK_LOCAL_PG_URL=postgres://<user>:<password>@127.0.0.1:<port>/<empty 
 
 It runs the coverage check, starts `agent-logbook serve` with a temporary Shipyard data folder, empties every table of the database (it must have no other use), runs each parity case on empty tables, and runs the claimed storage-driver tests through the TypeScript `HttpStore` (build `logbook/packages/core` first). It exits with a non-zero code when any step fails. `.github/workflows/logbook-net-coverage.yml` runs it on real PostgreSQL.
 
+### Drift check
+
+`check-drift.ts` rejects TypeScript drift in the ported golden cases. It records every case of the claimed slices from the current TypeScript implementation again (in memory) and compares each recording with its golden file by the strict comparison of the differ. It needs the same setup as the recorder (built `logbook/` packages, and PostgreSQL for rpc cases).
+
+```sh
+bun logbook-net/tools/check-drift.ts [--slice <id> ...]
+```
+
+- A case of a claimed slice is compared. A case that drives only not-yet-ported surfaces is counted but not compared. A case that no slice claims or lists (`UNOWNED`), and a golden file that no case has (`ORPHAN`), fail the check.
+- A missing golden file or a failed recording is an `ERROR` and fails the check. The check applies no intended-difference rule: both sides are TypeScript results, so a rule cannot hide drift.
+- The check never writes a golden file and never publishes. To accept a difference, record the case again (`bun src/record.ts <case>`) and update the .NET code in the same change or in a linked issue.
+- An MCP case that drives no tool, list or resource (a handshake case) belongs to the MCP server, the owner of `mcp:tools/list`.
+- `.github/workflows/logbook-net-drift.yml` runs it with read-only permissions when a change touches `logbook/`, the contract, or these tools.
+
 ### Storage-driver contract through HttpStore
 
 `storage-driver-contract/` runs the shared TypeScript contract (`logbook/packages/core/src/features/storage-driver/storage-driver-contract.ts`) through the TypeScript `HttpStore` against a .NET API host. Only the tests that the claimed slices select in `contract/slices.json` apply; `run.ts` fails when a selected title is no longer in the contract. Build `logbook/packages/core` first.

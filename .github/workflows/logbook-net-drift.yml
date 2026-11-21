@@ -1,0 +1,69 @@
+name: Logbook .NET golden drift
+
+# A TypeScript change to a ported surface must not silently invalidate the .NET golden-file oracle.
+# This check records the cases of the claimed Port slices from the TypeScript implementation again and compares them with
+# `logbook-net/contract/golden`. It only reads: it never replaces a golden file and never publishes anything.
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'logbook/**'
+      - 'logbook-net/contract/**'
+      - 'logbook-net/tools/**'
+      - '.github/workflows/logbook-net-drift.yml'
+  pull_request:
+    paths:
+      - 'logbook/**'
+      - 'logbook-net/contract/**'
+      - 'logbook-net/tools/**'
+      - '.github/workflows/logbook-net-drift.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    env:
+      AGENT_ISSUES_TEST_PG_URL: postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues
+      AGENT_ISSUES_TEST_PG_APP_URL: postgres://agent_issues_app:agent_issues_app_dev_only@127.0.0.1:5433/agent_issues
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agent_issues
+          POSTGRES_PASSWORD: agent_issues_dev_only
+          POSTGRES_DB: agent_issues
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U agent_issues -d agent_issues"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.10.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build the TypeScript packages that the recorder runs
+        working-directory: logbook
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build:dev
+      - name: Create the PostgreSQL application role
+        run: >-
+          docker run --rm --network host
+          --volume "$PWD/logbook/docker/postgres-init:/docker-entrypoint-initdb.d:ro"
+          postgres:16-alpine
+          psql "$AGENT_ISSUES_TEST_PG_URL" --set ON_ERROR_STOP=1
+          --file /docker-entrypoint-initdb.d/01-app-role.sql
+      - name: Drift check tests
+        run: bun test logbook-net/tools/src/drift.test.ts
+      - name: Compare fresh TypeScript recordings with the golden files
+        run: bun logbook-net/tools/check-drift.ts
