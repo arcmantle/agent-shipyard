@@ -1,0 +1,9 @@
+{
+	"id": "mcp/tool-list",
+	"surface": "mcp",
+	"workspace": { "folder": "mcp-tool-list" },
+	"steps": [
+		{ "method": "initialize", "params": { "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": { "name": "parity-host", "version": "1.0.0" } }, "pick": ["/protocolVersion"] },
+		{ "method": "tools/list", "params": {}, "tools": ["project_identity"], "omit": ["/tools/0/execution", "/tools/0/inputSchema/$schema"] }
+	]
+}

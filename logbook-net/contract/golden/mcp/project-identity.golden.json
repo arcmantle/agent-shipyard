@@ -1,0 +1,34 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdoutAfterClose": [],
+	"steps": [
+		{
+			"method": "initialize",
+			"response": {
+				"jsonrpc": "2.0",
+				"result": {
+					"protocolVersion": "2025-06-18"
+				}
+			}
+		},
+		{
+			"method": "tools/call",
+			"response": {
+				"jsonrpc": "2.0",
+				"result": {
+					"content": [
+						{
+							"text": "{\"projectIdentity\":\"mcp-project-identity\",\"workspaceRoot\":\"<workspace>\"}",
+							"type": "text"
+						}
+					],
+					"structuredContent": {
+						"projectIdentity": "mcp-project-identity",
+						"workspaceRoot": "<workspace>"
+					}
+				}
+			}
+		}
+	]
+}

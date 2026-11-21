@@ -2,9 +2,9 @@ import { afterAll, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { CliCase, RpcCase } from "./cases.ts";
+import type { CliCase, McpCase, RpcCase } from "./cases.ts";
 import { CaseError, validateCase } from "./cases.ts";
-import { recordCli, recordRpc, RecordingError, substitute } from "./recorder.ts";
+import { recordCli, recordMcp, recordRpc, RecordingError, substitute } from "./recorder.ts";
 
 const dir = mkdtempSync(path.join(tmpdir(), "recorder-test-"));
 const script = path.join(dir, "fake-cli.mjs");
@@ -90,4 +90,53 @@ test("case validation rejects bad cases", () => {
 test("RPC recorder records an expected non-JSON error", async () => {
 	const result = (await recordRpc(rpc, rpcCase([{ method: "text401", expectError: true }]))) as { steps: { status: number; body: unknown }[] };
 	expect(result.steps[0]).toMatchObject({ status: 401, body: "unauthorized" });
+});
+
+// A fake MCP server over standard input and output. `--noisy` writes a log line to standard output, as a defective server would.
+const mcpScript = path.join(dir, "fake-mcp.mjs");
+writeFileSync(mcpScript, `
+import readline from "node:readline";
+const noisy = process.argv.includes("--noisy");
+if (!process.argv.includes("--mcp")) { console.error("missing --mcp"); process.exit(2); }
+const lines = readline.createInterface({ input: process.stdin });
+if (noisy) console.log("server started");
+lines.on("line", (line) => {
+	const message = JSON.parse(line);
+	if (message.id === undefined) return;
+	const result = message.method === "initialize"
+		? { protocolVersion: "2025-06-18", serverInfo: { name: "fake", version: "9" }, capabilities: {} }
+		: message.method === "tools/list"
+			? { tools: [{ name: "a", execution: { x: 1 }, inputSchema: { type: "object", $schema: "s" } }, { name: "b" }] }
+			: { cwd: process.cwd(), echo: message.params };
+	console.log(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
+});
+lines.on("close", () => process.exit(0));
+`);
+const mcp = (extra: string[] = []) => ({ command: [process.execPath, mcpScript, ...extra], timeoutMs: 5000 });
+const init = { method: "initialize", params: { protocolVersion: "2025-06-18" } };
+const mcpCase = (steps: McpCase["steps"], extra: Partial<McpCase> = {}): McpCase => ({ id: "mcp/x", surface: "mcp", workspace: { folder: "ws" }, steps, ...extra });
+
+test("MCP recording selects tools, picks and omits fields, and records the exit after the input closes", async () => {
+	const result = (await recordMcp(mcp(), mcpCase([
+		{ ...init, pick: ["/serverInfo/name"] },
+		{ method: "tools/list", tools: ["a"], omit: ["/tools/0/execution", "/tools/0/inputSchema/$schema", "/tools/0/missing"] },
+		{ method: "tools/call", params: { name: "t" } }
+	]))) as { exitCode: number; stderr: string; stdoutAfterClose: string[]; steps: { response: { result: Record<string, unknown> } }[] };
+	expect(result.steps[0].response.result).toEqual({ serverInfo: { name: "fake" } });
+	expect(result.steps[1].response.result).toEqual({ tools: [{ name: "a", inputSchema: { type: "object" } }] });
+	expect(JSON.stringify(result.steps[2])).toContain("<workspace>");
+	expect(result).toMatchObject({ exitCode: 0, stderr: "", stdoutAfterClose: [] });
+});
+
+test("MCP recording fails for a log line on standard output and for a tool that is not listed", async () => {
+	await expect(recordMcp(mcp(["--noisy"]), mcpCase([init]))).rejects.toThrow("not JSON");
+	await expect(recordMcp(mcp(), mcpCase([init, { method: "tools/list", tools: ["nosuch"] }]))).rejects.toThrow("does not list nosuch");
+});
+
+test("MCP cases need an initialize step first, and tools only apply to tools/list", () => {
+	const base = { id: "mcp/x", surface: "mcp", workspace: { folder: "ws" } };
+	expect(() => validateCase({ ...base, steps: [{ method: "tools/list" }] }, "f")).toThrow("first step must be initialize");
+	expect(() => validateCase({ ...base, steps: [{ method: "initialize" }, { method: "tools/call", tools: ["a"] }] }, "f")).toThrow("tools/list only");
+	expect(() => validateCase({ ...base, steps: [{ method: "initialize" }, { method: "tools/list", omit: "x" }] }, "f")).toThrow(CaseError);
+	expect(validateCase({ ...base, steps: [{ method: "initialize" }] }, "f").surface).toBe("mcp");
 });

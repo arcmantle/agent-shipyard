@@ -1,0 +1,9 @@
+{
+	"id": "mcp/project-identity",
+	"surface": "mcp",
+	"workspace": { "folder": "mcp-project-identity" },
+	"steps": [
+		{ "method": "initialize", "params": { "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": { "name": "parity-host", "version": "1.0.0" } }, "pick": ["/protocolVersion"] },
+		{ "method": "tools/call", "params": { "name": "project_identity", "arguments": {} } }
+	]
+}

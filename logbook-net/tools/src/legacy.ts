@@ -6,6 +6,14 @@ export function legacyRoot(netRoot: string): string {
 	return path.resolve(process.env.AGENT_LOGBOOK_TS_ROOT ?? path.join(netRoot, "../logbook"));
 }
 
+/** The built TypeScript CLI. It needs neither PostgreSQL nor an API host: a case that opens a store uses a local store in its isolated home. */
+export function legacyCli(logbookRoot: string): CliTarget {
+	// The recorded process runs with an isolated HOME, so a version-manager shim for `node` would not work: use the real binary.
+	const nodeBinary = Bun.spawnSync(["node", "-p", "process.execPath"]).stdout.toString().trim();
+	if (!nodeBinary) throw new Error("cannot resolve the node binary");
+	return { command: [nodeBinary, path.join(logbookRoot, "packages/cli/dist/cli.js")] };
+}
+
 export type Legacy = { cli: CliTarget; rpc: RpcTarget; close(): Promise<void> };
 
 const ADMIN_URL = process.env.AGENT_ISSUES_TEST_PG_URL ?? "postgres://agent_issues:agent_issues_dev_only@127.0.0.1:5433/agent_issues";
@@ -28,11 +36,8 @@ export async function startLegacy(logbookRoot: string): Promise<Legacy> {
 			port: 0
 		});
 		await new Promise<void>((resolve) => server!.server.once("listening", resolve));
-		// The recorded process runs with an isolated HOME, so a version-manager shim for `node` would not work: use the real binary.
-		const nodeBinary = Bun.spawnSync(["node", "-p", "process.execPath"]).stdout.toString().trim();
-		if (!nodeBinary) throw new Error("cannot resolve the node binary");
 		return {
-			cli: { command: [nodeBinary, path.join(logbookRoot, "packages/cli/dist/cli.js")] },
+			cli: legacyCli(logbookRoot),
 			rpc: {
 				url: `http://127.0.0.1:${(server.server.address() as { port: number }).port}`,
 				issueToken: (tenantId: string) => authProvider.issueToken({ userId: "parity-user", tenantId }) as Promise<string>,
