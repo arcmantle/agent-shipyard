@@ -38,6 +38,13 @@ jobs:
         with:
           global-json-file: logbook-net/global.json
       - uses: oven-sh/setup-bun@v2
+      # The AppHost test starts the copied Vite clients with pnpm, which installs their packages itself.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.10.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Build
         run: dotnet build logbook-net/AgentLogbook.slnx --nologo -v quiet
       - name: Test the solution (unit, contract, vector, Testcontainers PostgreSQL, API host, CLI, MCP)
