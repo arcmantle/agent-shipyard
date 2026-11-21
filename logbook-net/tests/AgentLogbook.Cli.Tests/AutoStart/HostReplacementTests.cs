@@ -322,4 +322,26 @@ public class HostReplacementTests
 			await CliProcess.StopHostAndCleanAsync(home);
 		}
 	}
+
+	[Test]
+	public async Task A_host_that_still_has_another_version_after_the_replacement_is_reported_and_not_used()
+	{
+		var home = NewHome();
+		try
+		{
+			var pg = await LocalPostgresServer.CreateDatabaseUrlAsync();
+			var folder = CliProcess.Folder(home);
+			await using var old = new OldHost(folder);
+
+			// The tool starts hosts of the real version, but this caller expects another one, like a caller that races a tool of a different version.
+			var exception = await Assert.That(async () => await ResolveAsync(folder, pg, RealLaunch("9.9.9"))).Throws<LocalApiUnavailableException>();
+
+			await Assert.That(exception!.Message).Contains("keeps changing to a version other than 9.9.9");
+			await Assert.That(IsAlive(old.ProcessId)).IsFalse();
+		}
+		finally
+		{
+			await CliProcess.StopHostAndCleanAsync(home);
+		}
+	}
 }
