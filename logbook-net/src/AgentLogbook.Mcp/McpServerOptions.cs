@@ -4,9 +4,11 @@ namespace AgentLogbook.Mcp;
 /// <param name="WorkspaceRoot">The workspace when the MCP client offers no file root.</param>
 /// <param name="GetEnvironmentVariable">The environment of the process.</param>
 /// <param name="ProjectIdentity">An identity from <c>--project-identity</c>. It replaces the identity of the workspace.</param>
+/// <param name="LocalApiLaunch">How to start the Local API host in the background when a storage request finds none.</param>
 /// <param name="ToolVersion">The version that the server reports in its server info.</param>
 public sealed record AgentLogbookMcpOptions(
 	string WorkspaceRoot,
 	Func<string, string?> GetEnvironmentVariable,
 	string ToolVersion,
-	string? ProjectIdentity = null);
+	string? ProjectIdentity = null,
+	AgentLogbook.Client.LocalApiLaunch? LocalApiLaunch = null);

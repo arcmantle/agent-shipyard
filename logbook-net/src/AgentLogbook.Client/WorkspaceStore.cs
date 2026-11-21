@@ -11,19 +11,21 @@ public static class WorkspaceStore
 {
 	/// <summary>
 	/// Opens the store of <paramref name="workspaceRoot"/>. <paramref name="projectIdentity"/> replaces the resolved identity when it is set.
+	/// With <paramref name="localApiLaunch"/>, the first request starts the Local API host in the background when none runs.
 	/// The caller disposes the store.
 	/// </summary>
 	public static async Task<HttpStore> OpenAsync(
 		string workspaceRoot,
 		Func<string, string?> getEnvironmentVariable,
 		string? projectIdentity = null,
+		LocalApiLaunch? localApiLaunch = null,
 		CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(workspaceRoot);
 		ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
 
 		var folder = ShipyardLogbookFolder.Resolve(getEnvironmentVariable, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-		var route = await BackendRouter.ResolveAsync(getEnvironmentVariable, folder, cancellationToken: cancellationToken);
+		var route = await BackendRouter.ResolveAsync(getEnvironmentVariable, folder, cancellationToken: cancellationToken, autoStart: localApiLaunch);
 		return new HttpStore(new HttpStoreOptions
 		{
 			BaseUrl = route.BaseUrl,

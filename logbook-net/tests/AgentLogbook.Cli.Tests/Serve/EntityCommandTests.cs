@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AgentLogbook.Core.ContentHashes;
+using AgentLogbook.Core.LocalApi;
 using AgentLogbook.Core.ShipyardData;
 
 namespace AgentLogbook.Cli.Tests.Serve;
@@ -200,7 +201,7 @@ public class EntityCommandTests
 	}
 
 	[Test]
-	public async Task Without_a_running_host_the_commands_fail_with_the_start_hint()
+	public async Task When_no_host_can_start_the_commands_fail_with_the_reason()
 	{
 		var workspace = NewWorkspace("no-host");
 		var emptyHome = ServeProcess.NewShipyardHome();
@@ -209,11 +210,12 @@ public class EntityCommandTests
 		{
 			var stdout = new StringWriter();
 			var stderr = new StringWriter();
-			var exit = CliApp.Run(args, stdout, stderr, workspace, Environment(emptyHome));
+			var exit = CliApp.Run(args, stdout, stderr, workspace,
+				name => name == LocalPostgresSelection.UrlVariable ? LocalPostgresServer.UnreachableUrl : Environment(emptyHome)(name));
 
 			await Assert.That(exit).IsEqualTo(1);
 			await Assert.That(stdout.ToString()).IsEmpty();
-			await Assert.That(stderr.ToString()).StartsWith($"agent-logbook {args[0]}: No Local API host is running");
+			await Assert.That(stderr.ToString()).StartsWith($"agent-logbook {args[0]}: The Local API host did not start.");
 		}
 	}
 

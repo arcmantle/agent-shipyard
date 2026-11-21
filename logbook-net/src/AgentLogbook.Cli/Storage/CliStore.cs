@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AgentLogbook.Cli.Commands;
 using AgentLogbook.Cli.Metadata;
+using AgentLogbook.Cli.Serve;
 using AgentLogbook.Client;
 using AgentLogbook.Core.Rpc;
 using AgentLogbook.Core.ShipyardData;
@@ -16,7 +17,7 @@ internal static class CliStore
 	/// <summary>Opens the store of the current workspace. The caller disposes it.</summary>
 	public static async Task<HttpStore> OpenAsync(CliRuntime runtime, CancellationToken cancellationToken)
 	{
-		return await WorkspaceStore.OpenAsync(runtime.WorkingDirectory, runtime.GetEnvironmentVariable, cancellationToken: cancellationToken);
+		return await WorkspaceStore.OpenAsync(runtime.WorkingDirectory, runtime.GetEnvironmentVariable, cancellationToken: cancellationToken, localApiLaunch: ServeLaunch.Current());
 	}
 
 	/// <summary>The failures of routing, transport and the API host. Anything else is a defect and is not hidden.</summary>

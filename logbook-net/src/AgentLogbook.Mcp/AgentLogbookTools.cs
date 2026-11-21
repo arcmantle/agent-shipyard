@@ -39,7 +39,7 @@ internal sealed class AgentLogbookTools(AgentLogbookMcpOptions options)
 		try
 		{
 			var scope = await ResolveScopeAsync(server, cancellationToken);
-			using var store = await WorkspaceStore.OpenAsync(scope.WorkspaceRoot, options.GetEnvironmentVariable, scope.ProjectIdentity, cancellationToken);
+			using var store = await WorkspaceStore.OpenAsync(scope.WorkspaceRoot, options.GetEnvironmentVariable, scope.ProjectIdentity, options.LocalApiLaunch, cancellationToken);
 			var details = await store.GetEntityDetailsAsync(request.Reference, cancellationToken);
 			var entity = details.Entity;
 			var reference = entity.Reference;

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AgentLogbook.Core.LocalApi;
 using AgentLogbook.Core.ShipyardData;
 
 namespace AgentLogbook.Cli.Tests.Mcp;
@@ -47,7 +48,7 @@ internal sealed class McpProcess : IAsyncDisposable
 	/// Starts the process in <paramref name="workspace"/>. <paramref name="answerServerRequest"/> answers the requests that the server sends to the host,
 	/// by method name (for example <c>roots/list</c>); it returns the <c>result</c>.
 	/// </summary>
-	internal static McpProcess Start(string workspace, string? shipyardHome, string[] arguments, Func<string, JsonNode?>? answerServerRequest = null, string? apiUrl = null)
+	internal static McpProcess Start(string workspace, string? shipyardHome, string[] arguments, Func<string, JsonNode?>? answerServerRequest = null, string? apiUrl = null, string? postgresUrl = null)
 	{
 		var info = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
 		{
@@ -72,6 +73,12 @@ internal sealed class McpProcess : IAsyncDisposable
 		if (shipyardHome is not null)
 		{
 			info.Environment[ShipyardLogbookFolder.HomeVariable] = shipyardHome;
+		}
+
+		info.Environment.Remove(LocalPostgresSelection.UrlVariable);
+		if (postgresUrl is not null)
+		{
+			info.Environment[LocalPostgresSelection.UrlVariable] = postgresUrl;
 		}
 
 		if (apiUrl is not null)
