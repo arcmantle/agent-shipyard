@@ -1,0 +1,68 @@
+name: Logbook .NET coverage
+
+# Rejects a claimed Port slice that has a surface without its required cases, and runs the claimed slices
+# against the .NET API host on real PostgreSQL (parity cases and the TypeScript HttpStore storage-driver groups).
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'logbook-net/**'
+      - 'logbook/packages/core/**'
+      - '.github/workflows/logbook-net-coverage.yml'
+  pull_request:
+    paths:
+      - 'logbook-net/**'
+      - 'logbook/packages/core/**'
+      - '.github/workflows/logbook-net-coverage.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: check
+          POSTGRES_DB: logbook_check
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: logbook-net/global.json
+      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.10.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build the TypeScript core and install the check tools
+        working-directory: logbook
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @agent-issues/core --filter @agent-issues/api-local --filter @agent-issues/api-pg build
+      - name: Build the .NET CLI
+        run: dotnet build logbook-net/src/AgentLogbook.Cli/AgentLogbook.Cli.csproj --nologo -v quiet
+      - name: Create the non-superuser database owner
+        # A superuser skips row-level security, so the host and the check run as an owner without that right.
+        run: >-
+          docker run --rm --network host postgres:16-alpine
+          psql postgres://postgres:check@127.0.0.1:5433/logbook_check --set ON_ERROR_STOP=1
+          --command "CREATE ROLE logbook_check LOGIN PASSWORD 'check'; GRANT ALL ON DATABASE logbook_check TO logbook_check; GRANT ALL ON SCHEMA public TO logbook_check;"
+      - name: Tool tests
+        run: bun test logbook-net/tools/src
+      - name: Coverage, parity cases and storage-driver groups
+        env:
+          AGENT_LOGBOOK_LOCAL_PG_URL: postgres://logbook_check:check@127.0.0.1:5433/logbook_check
+        run: bun logbook-net/tools/check-slices.ts

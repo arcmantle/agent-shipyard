@@ -1,10 +1,9 @@
-// Approved removals and the status of every inventory surface.
-// Usage (from logbook-net/tools): bun src/surfaces.ts [--list]
-//   Checks contract/surface-rules.json against contract/inventory.json and prints how many surfaces are removed, covered by a case, or not yet ported.
+// Approved removals.
+// Usage (from logbook-net/tools): bun src/surfaces.ts
+//   Checks contract/surface-rules.json against contract/inventory.json. `coverage.ts` joins the removals to the slices and the cases.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadCases, type Case } from "./cases.ts";
 import { RETAINED_INPUTS } from "./rename.ts";
 
 export type Removal = { id: string; kind: "cli-command" | "host-route" | "legacy-name" | "component"; name: string; category?: string; decision: string; reason: string };
@@ -65,53 +64,9 @@ export function validateRemovals(value: unknown, inventory: Inventory, repoRoot:
 	});
 }
 
-export type Disposition = "removed" | "covered" | "not-yet-ported";
-export type SurfaceStatus = { surface: string; disposition: Disposition; removal?: string };
-
-/** The command path of a CLI case: the words before the first option. */
-function casePath(testCase: Case): string[] {
-	if (testCase.surface !== "cli") return [];
-	const words: string[] = [];
-	for (const arg of testCase.argv) {
-		if (arg.startsWith("-")) break;
-		words.push(arg);
-	}
-	return words;
-}
-
-/** The tools that an MCP case drives: the tools it lists by name and the tools it calls. */
-function mcpToolsOf(testCase: Case): string[] {
-	if (testCase.surface !== "mcp") return [];
-	return testCase.steps.flatMap((step) => [...(step.tools ?? []), ...(step.method === "tools/call" ? [String((step.params as { name?: unknown } | undefined)?.name ?? "")] : [])]);
-}
-
-/**
- * Gives each inventory surface one status. A removed surface is removed only by an exact name, so a child command or a sibling route keeps its own status.
- * A surface without a removal is "covered" when a case drives it, and "not-yet-ported" otherwise. Removal never turns a retained surface into "removed".
- */
-export function surfaceStatus(inventory: Inventory, removals: Removal[], cases: Case[]): SurfaceStatus[] {
-	const removed = new Map(removals.filter((rule) => rule.kind === "cli-command" || rule.kind === "host-route").map((rule) => [`${rule.kind}:${rule.name}`, rule.id]));
-	const commandCases = new Set(cases.map((testCase) => casePath(testCase).join(" ")));
-	const rpcMethods = new Set(cases.flatMap((testCase) => (testCase.surface === "rpc" ? testCase.steps.map((step) => step.method) : [])));
-	const mcpTools = new Set(cases.flatMap((testCase) => (testCase.surface === "mcp" ? mcpToolsOf(testCase) : [])));
-	const status = (surface: string, covered: boolean, removalKey: string): SurfaceStatus => {
-		const removal = removed.get(removalKey);
-		return removal ? { surface, disposition: "removed", removal } : { surface, disposition: covered ? "covered" : "not-yet-ported" };
-	};
-	return [
-		...inventory.cli.commands.map((command) => status(command.id, commandCases.has(command.path.join(" ")), `cli-command:${command.id}`)),
-		...inventory.rpc.methods.map((method) => status(`rpc:${method.name}`, rpcMethods.has(method.name), "")),
-		...routeNames(inventory).map((route) => status(`route:${route}`, false, `host-route:${route}`)),
-		...inventory.mcp.tools.map((tool) => status(`mcp:${tool.name}`, mcpTools.has(tool.name), ""))
-	];
-}
-
 if (import.meta.main) {
 	const netRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 	const inventory = JSON.parse(readFileSync(path.join(netRoot, "contract/inventory.json"), "utf8")) as Inventory;
 	const removals = validateRemovals(JSON.parse(readFileSync(path.join(netRoot, "contract/surface-rules.json"), "utf8")), inventory, path.resolve(netRoot, ".."));
-	const statuses = surfaceStatus(inventory, removals, loadCases(path.join(netRoot, "contract/cases")));
-	if (process.argv.includes("--list")) for (const entry of statuses) console.log(`${entry.disposition.padEnd(14)} ${entry.surface}${entry.removal ? ` (${entry.removal})` : ""}`);
-	const count = (disposition: Disposition) => statuses.filter((entry) => entry.disposition === disposition).length;
-	console.log(`${removals.length} removal rules; surfaces: ${count("removed")} removed, ${count("covered")} covered, ${count("not-yet-ported")} not yet ported`);
+	console.log(`${removals.length} removal rules are valid`);
 }

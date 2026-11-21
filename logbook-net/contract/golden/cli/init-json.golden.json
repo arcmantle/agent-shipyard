@@ -1,0 +1,9 @@
+{
+	"exitCode": 0,
+	"stderr": "",
+	"stdout": {
+		"command": "init",
+		"dbPath": "<data-store>",
+		"status": "ok"
+	}
+}

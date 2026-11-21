@@ -206,6 +206,24 @@
 		"reason": "The .NET tool prints one line for a parse error and no clipanion usage text (Command name and aliases). The one line names the option, the command, and the help command."
 	},
 	{
+		"id": "schema-unknown-option-message",
+		"cases": "cli/schema-unknown-option",
+		"path": "/stderr",
+		"action": "rewrite",
+		"match": "^Unknown Syntax Error: Unsupported option name \\(\"--bogus\"\\)\\.\\n\\n\\$ agent-issues schema [^\\n]*\\n$",
+		"replace": "agent-logbook: unknown option '--bogus' for schema. Use agent-logbook schema --help.\n",
+		"reason": "The .NET tool prints one line for a parse error and no clipanion usage text (Command name and aliases). The one line names the option, the command, and the help command."
+	},
+	{
+		"id": "project-identity-unknown-option-message",
+		"cases": "cli/project-identity-unknown-option",
+		"path": "/stderr",
+		"action": "rewrite",
+		"match": "^Unknown Syntax Error: Unsupported option name \\(\"--bogus\"\\)\\.\\n\\n\\$ agent-issues project-identity [^\\n]*\\n$",
+		"replace": "agent-logbook: unknown option '--bogus' for project-identity. Use agent-logbook project-identity --help.\n",
+		"reason": "The .NET tool prints one line for a parse error and no clipanion usage text (Command name and aliases). The one line names the option, the command, and the help command."
+	},
+	{
 		"id": "create-help-no-link-option",
 		"cases": "cli/create-*help",
 		"path": "/stdout",
