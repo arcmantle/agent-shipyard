@@ -98,12 +98,15 @@ mcp_output="$(cd "$workspace" && {
 		'{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"resource_show","arguments":{"request":{"resource":"entity","reference":"'"$reference"'"}}}}'
 	# A host keeps the input open while it waits for answers.
 	sleep 8
-} | "$tool" --mcp)"
+} | "$tool" --mcp)" || fail "--mcp or its input failed: $mcp_output"
 grep -q "$reference" <<<"$mcp_output" && grep -q 'Skeleton initiative' <<<"$mcp_output" || fail "MCP resource_show did not return the created entity: $mcp_output"
 [ "$(host_pid)" = "$pid" ] || fail "MCP started a second Local API host"
 
 # A path that is not ported stays outside the skeleton claim and fails explicitly.
-if run context --json >/dev/null 2>&1; then fail "an unported command exited 0"; fi
+unported_status=0
+unported_stdout="$(run context --json 2>"$work/unported.err")" || unported_status=$?
+[ "$unported_status" = 1 ] && [ -z "$unported_stdout" ] && grep -q "unknown command 'context'" "$work/unported.err" \
+	|| fail "an unported command was not rejected explicitly (exit $unported_status): $(cat "$work/unported.err")"
 
 [ "$(run host status --json | grep -o '"state":"[a-z]*"')" = '"state":"running"' ] || fail "host status is not running"
 
