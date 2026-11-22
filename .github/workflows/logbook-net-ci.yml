@@ -47,8 +47,10 @@ jobs:
           node-version: '24'
       - name: Build
         run: dotnet build logbook-net/AgentLogbook.slnx --nologo -v quiet
-      - name: Test the solution (unit, contract, vector, Testcontainers PostgreSQL, API host, CLI, MCP)
+      - name: Test the solution (unit, vector, Testcontainers PostgreSQL, API host, CLI, MCP, and AgentLogbook.Contract.Tests)
         # Run from logbook-net: its global.json selects Microsoft.Testing.Platform.
+        # AgentLogbook.Contract.Tests runs the Bun parity tools (Bun is set up above) against the build output with its own Testcontainers PostgreSQL and Local API host:
+        # the coverage check, every parity case with the intended differences and the unused-rule check, and the test-vector files.
         working-directory: logbook-net
         run: dotnet test --solution AgentLogbook.slnx --no-build --nologo
       - name: Tool tests, test vectors and workflow schema against the TypeScript source

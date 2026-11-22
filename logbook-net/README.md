@@ -12,7 +12,7 @@ tests/verify-packed-tool.sh                # required gate: pack, install in an 
 
 `.github/workflows/logbook-net-ci.yml` builds and tests `logbook-net`. It never publishes or deploys. Three jobs:
 
-- `build-and-test`: build, `dotnet test --solution` (TUnit, Verify, Testcontainers PostgreSQL), the tool tests, and the `--check` runs of the test vectors and the workflow schema.
+- `build-and-test`: build, `dotnet test --solution` (TUnit, Verify, Testcontainers PostgreSQL, and `tests/AgentLogbook.Contract.Tests`), the tool tests, and the `--check` runs of the test vectors and the workflow schema.
 - `packed-tool`: `tests/verify-packed-tool.sh`, then `tests/verify-packed-skeleton.sh` with PostgreSQL (`AGENT_LOGBOOK_LOCAL_PG_URL`). The second script installs the packed tool in an isolated folder and Shipyard data folder and checks:
   - **Startup limit.** `project-identity --json` must have a median of at most 1000 ms (`STARTUP_LIMIT_MS`) over 7 runs, and it must start no Local API host. The result goes to the job summary. The package stays one framework-dependent `any` package. Only a measured failure of this gate allows the approved RID-specific ReadyToRun fallback.
   - **Skeleton paths.** Automatic Local API start, `init`, `create`, `show`, `list`, `capabilities`, `host status`, and MCP stdio `resource_show`. An unported command must fail.
@@ -24,6 +24,16 @@ tests/verify-packed-tool.sh                # required gate: pack, install in an 
 The package is one framework-dependent `any` tool. It has no RID-specific or Native AOT build and only the `agent-logbook` command.
 
 Install, update, and PATH instructions: [docs/installation.md](docs/installation.md). `tests/verify-install-guide.sh` checks that guide against the pack metadata.
+
+## Contract tests
+
+`tests/AgentLogbook.Contract.Tests` (TUnit, part of `AgentLogbook.slnx`) runs the Bun parity tools from `dotnet test`. It needs Bun on the PATH and Docker. It starts its own PostgreSQL (Testcontainers) and a Local API host from the build output, and it repeats no logic of the tools:
+
+- `CoverageTests`: `tools/src/coverage.ts`. It fails on an unclassified surface or a claimed surface without its required cases. Unported surfaces stay marked in `contract/slices.json`.
+- `ParityTests`: every case in `contract/cases` against its golden file with the rules of `contract/intended-differences.json` (`tools/src/parity.ts check`, each case on empty tables). It fails on a difference and on an intended-difference rule that changed no case.
+- `VectorTests`: `tools/test-vectors.ts --check` (the files match a fresh export of the TypeScript source) and a guard that a .NET test reads each file in `contract/test-vectors`. The vectors run against the implementation in `AgentLogbook.Core.Tests`.
+
+The TypeScript storage-driver groups stay in `tools/check-slices.ts` (CI job `parity`), because they need the built TypeScript packages.
 
 ## project-identity
 

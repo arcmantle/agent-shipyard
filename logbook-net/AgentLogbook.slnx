@@ -12,6 +12,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AgentLogbook.Core.Tests/AgentLogbook.Core.Tests.csproj" />
+    <Project Path="tests/AgentLogbook.Contract.Tests/AgentLogbook.Contract.Tests.csproj" />
     <Project Path="tests/AgentLogbook.Api.Tests/AgentLogbook.Api.Tests.csproj" />
     <Project Path="tests/AgentLogbook.Client.Tests/AgentLogbook.Client.Tests.csproj" />
     <Project Path="tests/AgentLogbook.Cli.Tests/AgentLogbook.Cli.Tests.csproj" />
